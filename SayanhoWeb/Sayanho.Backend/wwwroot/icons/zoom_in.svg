@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="24" height="24">
+  <!-- White base layer -->
+  <circle cx="100" cy="100" r="70" fill="none" stroke="white" stroke-width="8"/>
+  <line x1="150" y1="150" x2="220" y2="220" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <line x1="70" y1="100" x2="130" y2="100" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <line x1="100" y1="70" x2="100" y2="130" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Subtle dark outline -->
+  <circle cx="100" cy="100" r="70" fill="none" stroke="#404040" stroke-width="3" opacity="0.4"/>
+  <line x1="150" y1="150" x2="220" y2="220" stroke="#404040" stroke-width="4" stroke-linecap="round" opacity="0.4"/>
+  <line x1="70" y1="100" x2="130" y2="100" stroke="#404040" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+  <line x1="100" y1="70" x2="100" y2="130" stroke="#404040" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+</svg>

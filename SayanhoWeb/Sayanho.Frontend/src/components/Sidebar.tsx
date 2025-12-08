@@ -1,0 +1,190 @@
+import React, { useState, useEffect } from 'react';
+import { useStore } from '../store/useStore';
+import { api } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import { ItemData, CanvasItem } from '../types';
+import { getItemDefinition, LOAD_ITEM_DEFAULTS } from '../utils/DefaultRulesEngine';
+import { calculateGeometry } from '../utils/GeometryCalculator';
+import { updateItemVisuals } from '../utils/SvgUpdater';
+
+export const Sidebar = () => {
+    const { addItem, sheets, activeSheetId } = useStore();
+    const currentSheet = sheets.find(s => s.sheetId === activeSheetId);
+    const [items, setItems] = useState<ItemData[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedItem, setSelectedItem] = useState<string | null>(null);
+    const { colors } = useTheme();
+
+    useEffect(() => {
+        const fetchItems = async () => {
+            try {
+                const fetchedItems = await api.getItems();
+                setItems(fetchedItems);
+            } catch (error) {
+                console.error('Failed to fetch items:', error);
+            }
+        };
+        fetchItems();
+    }, []);
+
+    const handleDragStart = (e: React.DragEvent, itemName: string) => {
+        const item = items.find(i => i.name === itemName);
+        if (item) {
+            e.dataTransfer.setData('application/json', JSON.stringify(item));
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    };
+
+    const handleAddClick = async () => {
+        if (!selectedItem || !currentSheet) return;
+
+        const itemData = items.find(i => i.name === selectedItem);
+        if (!itemData) return;
+
+        // Create new item at fixed position (300, 300)
+        const newItem: CanvasItem = {
+            uniqueID: crypto.randomUUID(),
+            name: itemData.name,
+            position: { x: 300, y: 300 },
+            originalPosition: { x: 300, y: 300 },
+            size: itemData.size,
+            originalSize: itemData.size,
+            connectionPoints: itemData.connectionPoints,
+            originalConnectionPoints: itemData.connectionPoints,
+            properties: [],
+            alternativeCompany1: '',
+            alternativeCompany2: '',
+            svgContent: undefined,
+            iconPath: itemData.iconPath,
+            locked: false,
+            idPoints: {},
+            incomer: {},
+            outgoing: [],
+            accessories: []
+        };
+
+        try {
+            // Fetch properties
+            const props = await api.getItemProperties(itemData.name, 1);
+            if (props?.properties && props.properties.length > 0) {
+                newItem.properties = [props.properties[0]];
+            } else if (LOAD_ITEM_DEFAULTS[newItem.name]) {
+                newItem.properties = [{ ...LOAD_ITEM_DEFAULTS[newItem.name] }];
+            }
+            newItem.alternativeCompany1 = props?.alternativeCompany1 || '';
+            newItem.alternativeCompany2 = props?.alternativeCompany2 || '';
+        } catch (err) {
+            console.error('Failed to load properties', err);
+            if (LOAD_ITEM_DEFAULTS[newItem.name]) {
+                newItem.properties = [{ ...LOAD_ITEM_DEFAULTS[newItem.name] }];
+            }
+        }
+
+        // Fetch SVG Content
+        if (itemData.iconPath) {
+            try {
+                const iconName = itemData.iconPath.split('/').pop();
+                const url = api.getIconUrl(iconName!);
+                const encodedUrl = encodeURI(url);
+                const response = await fetch(encodedUrl);
+                if (response.ok) {
+                    newItem.svgContent = await response.text();
+                }
+            } catch (e) {
+                console.error("Failed to fetch SVG content", e);
+            }
+        }
+
+        // Apply local definitions for static items
+        const staticDef = getItemDefinition(newItem.name);
+        if (staticDef && !["HTPN", "VTPN", "SPN DB"].includes(newItem.name)) {
+            newItem.size = staticDef.size;
+            newItem.originalSize = staticDef.size;
+            newItem.connectionPoints = staticDef.connectionPoints;
+            newItem.originalConnectionPoints = staticDef.connectionPoints;
+        }
+
+        // Initialize Distribution Boards and Switches
+        if (["HTPN", "VTPN", "SPN DB", "Main Switch", "Change Over Switch", "Point Switch Board"].includes(newItem.name)) {
+            if (!newItem.properties[0]) newItem.properties[0] = {};
+            let wayVal = newItem.properties[0]["Way"];
+            if (!wayVal || wayVal.includes(',')) {
+                wayVal = "2";
+            }
+            const way = parseInt(wayVal, 10);
+            newItem.properties[0]["Way"] = wayVal;
+
+            const result = calculateGeometry(newItem);
+            if (result) {
+                newItem.size = result.size;
+                newItem.originalSize = result.size;
+                newItem.connectionPoints = result.connectionPoints;
+                newItem.originalConnectionPoints = result.connectionPoints;
+            }
+        }
+
+        // Update visuals if needed
+        if (newItem.svgContent && newItem.properties[0]) {
+            const updatedSvg = updateItemVisuals(newItem);
+            if (updatedSvg) {
+                newItem.svgContent = updatedSvg;
+            }
+        }
+
+        // Add item to canvas
+        addItem(newItem);
+    };
+
+    const filteredItems = items.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return (
+        <div className="flex flex-col h-full" style={{ backgroundColor: colors.panelBackground }}>
+            {/* Search Box */}
+            <div className="p-4">
+                <input
+                    type="text"
+                    placeholder="Search items..."
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 dark:placeholder-gray-400"
+                    style={{
+                        color: colors.text,
+                    }}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
+
+            {/* Item List */}
+            <div className="flex-1 overflow-y-auto min-h-0 allow-scroll px-2">
+                {filteredItems.map((item) => (
+                    <div
+                        key={item.name}
+                        className={`
+                            px-3 py-2 mb-1 text-sm cursor-pointer select-none rounded-md transition-colors
+                            ${selectedItem === item.name ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'hover:bg-white/30 dark:hover:bg-white/10'}
+                        `}
+                        style={{ color: selectedItem === item.name ? undefined : colors.text }}
+                        onClick={() => setSelectedItem(item.name)}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.name)}
+                    >
+                        {item.name}
+                    </div>
+                ))}
+            </div>
+
+            {/* Bottom Buttons */}
+            <div className="p-4 mt-auto">
+                <button
+                    onClick={handleAddClick}
+                    disabled={!selectedItem}
+                    className={`
+                        w-full py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg
+                        ${!selectedItem ? 'bg-gray-400/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30'}
+                    `}
+                >
+                    Add to Diagram
+                </button>
+            </div>
+        </div>
+    );
+};

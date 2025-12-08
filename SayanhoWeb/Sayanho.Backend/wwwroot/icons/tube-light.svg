@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <!-- White background circle -->
+  <circle cx="30" cy="30" r="29" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  
+  <!-- Tube light housing -->
+  <rect x="10" y="25" width="40" height="10" fill="#ffffff" stroke="#000000" stroke-width="2" rx="5"/>
+  
+  <!-- Inner fluorescent tube -->
+  <rect x="12" y="27" width="36" height="6" fill="#ffffff" stroke="#000000" stroke-width="1.5" rx="3"/>
+  
+  <!-- End caps -->
+  <rect x="8" y="24" width="4" height="12" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
+  <rect x="48" y="24" width="4" height="12" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
+  
+  <!-- Mounting brackets -->
+  <rect x="18" y="22" width="3" height="6" fill="#ffffff" stroke="#000000" stroke-width="1.5"/>
+  <rect x="39" y="22" width="3" height="6" fill="#ffffff" stroke="#000000" stroke-width="1.5"/>
+  
+  <!-- Light rays effect -->
+  <line x1="30" y1="20" x2="30" y2="15" stroke="#000000" stroke-width="1.5"/>
+  <line x1="25" y1="21" x2="23" y2="16" stroke="#000000" stroke-width="1"/>
+  <line x1="35" y1="21" x2="37" y2="16" stroke="#000000" stroke-width="1"/>
+  <line x1="20" y1="22" x2="17" y2="18" stroke="#000000" stroke-width="1"/>
+  <line x1="40" y1="22" x2="43" y2="18" stroke="#000000" stroke-width="1"/>
+  
+  <line x1="30" y1="40" x2="30" y2="45" stroke="#000000" stroke-width="1.5"/>
+  <line x1="25" y1="39" x2="23" y2="44" stroke="#000000" stroke-width="1"/>
+  <line x1="35" y1="39" x2="37" y2="44" stroke="#000000" stroke-width="1"/>
+  <line x1="20" y1="38" x2="17" y2="42" stroke="#000000" stroke-width="1"/>
+  <line x1="40" y1="38" x2="43" y2="42" stroke="#000000" stroke-width="1"/>
+  
+  <!-- Power text - larger and more readable -->
+  <text id="powerText" x="30" y="54" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" font-weight="bold" fill="#000000">40W</text>
+</svg>

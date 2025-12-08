@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="24" height="24">
+  <!-- White base layer -->
+  <rect x="40" y="30" width="176" height="196" rx="10" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+  <rect x="50" y="30" width="120" height="60" fill="white"/>
+  <rect x="160" y="150" width="40" height="76" fill="white"/>
+  <line x1="70" y1="195" x2="150" y2="195" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="70" y1="210" x2="150" y2="210" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  
+  <!-- Subtle dark outline -->
+  <rect x="40" y="30" width="176" height="196" rx="10" fill="none" stroke="#404040" stroke-width="3" stroke-linejoin="round" opacity="0.4"/>
+  <rect x="50" y="30" width="120" height="60" fill="#404040" opacity="0.4"/>
+  <rect x="160" y="150" width="40" height="76" fill="#404040" opacity="0.4"/>
+  <line x1="70" y1="195" x2="150" y2="195" stroke="#404040" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+  <line x1="70" y1="210" x2="150" y2="210" stroke="#404040" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+</svg>

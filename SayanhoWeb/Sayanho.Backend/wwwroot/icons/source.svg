@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="80" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40" cy="40" r="37" fill="none" stroke="black" stroke-width="2"/>
+  <text x="40" y="35" text-anchor="middle" font-size="14" id="Rating">3-phase</text>
+<text x="40" y="49" text-anchor="middle" font-size="14" id="Rating">AC Source</text>
+  <circle cx="40" cy="80" r="3" fill="black" stroke="none"/>
+</svg>

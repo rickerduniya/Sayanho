@@ -1,0 +1,77 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect id="rectangle" x="2" y="2" width="96" height="96" fill="none" stroke="black" stroke-width="2" />
+  
+  <!-- Input connection line -->
+  <line id="line1" x1="50" y1="1" x2="50" y2="20" stroke="black" stroke-width="2" />
+  
+  <!-- Switch symbols for each outgoing connection -->
+  <!-- Left side switches -->
+  <g transform="translate(5,35)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <g transform="translate(5,65)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <!-- Bottom switches -->
+  <g transform="translate(10,95)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <g transform="translate(30,95)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <g transform="translate(50,95)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <g transform="translate(70,95)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <g transform="translate(90,95)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <!-- Right side switches -->
+  <g transform="translate(95,65)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <g transform="translate(95,35)">
+    <rect x="-4" y="-4" width="8" height="8" fill="white" stroke="black" stroke-width="1" />
+    <line x1="-2" y1="0" x2="2" y2="0" stroke="black" stroke-width="1.5" />
+  </g>
+  
+  <!-- Labels with improved styling -->
+  <text id="text1" x="10" y="30" font-family="Verdana" font-size="12" fill="Black" >
+    Switch Board
+  </text>
+  
+  <text id="Rating" x="33" y="42" font-family="Verdana" font-size="12" fill="Black" >
+    Point
+  </text>
+
+  <text id="avgRunText" x="7" y="58" font-family="Verdana" font-size="11" fill="Black" font-weight="bold">
+    avgRunText
+  </text>
+
+<text id="orboard" x="22" y="72" font-family="Verdana" font-size="11" fill="Black" font-weight="bold">
+    OB = 0
+  </text>
+  
+  <text id="Type" x="6" y="86" font-family="Verdana" font-size="12" fill="Black" font-weight="bold">
+    Switch Board
+  </text>
+
+</svg>

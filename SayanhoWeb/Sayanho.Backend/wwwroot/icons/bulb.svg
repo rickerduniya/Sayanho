@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <!-- White background circle -->
+  <circle cx="30" cy="30" r="29" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  
+  <!-- Main bulb shape -->
+  <path d="M30 12 C22 12 16 18 16 26 C16 32 20 36 22 38 L22 42 L38 42 L38 38 C40 36 44 32 44 26 C44 18 38 12 30 12 Z" 
+        fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  
+  <!-- Filament inside bulb -->
+  <path d="M26 20 Q30 24 34 20" fill="none" stroke="#000000" stroke-width="1.5"/>
+  <path d="M26 24 Q30 28 34 24" fill="none" stroke="#000000" stroke-width="1.5"/>
+  <path d="M26 28 Q30 32 34 28" fill="none" stroke="#000000" stroke-width="1.5"/>
+  
+  <!-- Screw base -->
+  <rect x="22" y="42" width="16" height="8" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  
+  <!-- Screw threads -->
+  <line x1="22" y1="44" x2="38" y2="44" stroke="#000000" stroke-width="1"/>
+  <line x1="22" y1="46" x2="38" y2="46" stroke="#000000" stroke-width="1"/>
+  <line x1="22" y1="48" x2="38" y2="48" stroke="#000000" stroke-width="1"/>
+  
+  <!-- Highlight on bulb -->
+  <ellipse cx="26" cy="20" rx="3" ry="6" fill="#ffffff" opacity="0.8"/>
+  
+  <!-- Power text - larger and more readable -->
+  <text id="powerText" x="30" y="56" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" font-weight="bold" fill="#000000">60W</text>
+</svg>

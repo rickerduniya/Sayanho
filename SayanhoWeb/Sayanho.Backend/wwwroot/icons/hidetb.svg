@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="24" height="24">
+  <!-- White base layer -->
+  <rect x="10" y="10" width="236" height="236" rx="30" ry="30" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+  <rect x="10" y="10" width="236" height="70" rx="30" ry="30" fill="white"/>
+  
+  <!-- Subtle dark outline -->
+  <rect x="10" y="10" width="236" height="236" rx="30" ry="30" fill="none" stroke="#404040" stroke-width="3" stroke-linejoin="round" opacity="0.4"/>
+  <rect x="10" y="10" width="236" height="70" rx="30" ry="30" fill="#404040" opacity="0.4"/>
+</svg>

@@ -1,0 +1,73 @@
+{
+  "SheetId": "7f3d76e7-60c2-4e9e-82c4-d9ff366cd752",
+  "Name": "New Sheet",
+  "CanvasItems": [
+    {
+      "UniqueID": "7291be5a-3f2c-4cdc-97a0-8ef13676d259",
+      "Name": "Main Switch",
+      "Position": {
+        "IsEmpty": false,
+        "X": 343,
+        "Y": 198
+      },
+      "OriginalPosition": {
+        "IsEmpty": false,
+        "X": 343,
+        "Y": 198
+      },
+      "Size": {
+        "IsEmpty": false,
+        "Width": 60,
+        "Height": 80
+      },
+      "OriginalSize": {
+        "IsEmpty": false,
+        "Width": 60,
+        "Height": 80
+      },
+      "ConnectionPoints": {
+        "In": {
+          "IsEmpty": false,
+          "X": 30,
+          "Y": 0
+        },
+        "Out": {
+          "IsEmpty": false,
+          "X": 30,
+          "Y": 80
+        }
+      },
+      "OriginalConnectionPoints": {
+        "In": {
+          "IsEmpty": false,
+          "X": 30,
+          "Y": 0
+        },
+        "Out": {
+          "IsEmpty": false,
+          "X": 30,
+          "Y": 80
+        }
+      },
+      "Properties": [],
+      "AlternativeCompany1": "",
+      "AlternativeCompany2": "",
+      "SvgContent": null,
+      "Locked": false,
+      "IdPoints": {},
+      "Incomer": {},
+      "Outgoing": [],
+      "Accessories": []
+    }
+  ],
+  "StoredConnectors": [],
+  "ExistingLinePoints": [],
+  "ExistingOriginalLinePoints": [],
+  "ExistingConnections": [],
+  "VirtualCanvasSize": {
+    "IsEmpty": false,
+    "Width": 4800,
+    "Height": 3600
+  },
+  "Scale": 0.8
+}

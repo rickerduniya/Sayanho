@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="24" height="24">
+  <!-- White base layer -->
+  <circle cx="128" cy="128" r="100" fill="none" stroke="white" stroke-width="7"/>
+  <path d="M 128 40 L 145 95 L 205 95 L 158 130 L 175 185 L 128 150 L 81 185 L 98 130 L 51 95 L 111 95 Z" fill="white"/>
+  <circle cx="128" cy="200" r="8" fill="white"/>
+  <circle cx="170" cy="190" r="6" fill="white"/>
+  <circle cx="86" cy="190" r="6" fill="white"/>
+  
+  <!-- Subtle dark outline -->
+  <circle cx="128" cy="128" r="100" fill="none" stroke="#404040" stroke-width="3" opacity="0.4"/>
+  <path d="M 128 40 L 145 95 L 205 95 L 158 130 L 175 185 L 128 150 L 81 185 L 98 130 L 51 95 L 111 95 Z" fill="#404040" opacity="0.4"/>
+  <circle cx="128" cy="200" r="8" fill="#404040" opacity="0.4"/>
+  <circle cx="170" cy="190" r="6" fill="#404040" opacity="0.4"/>
+  <circle cx="86" cy="190" r="6" fill="#404040" opacity="0.4"/>
+</svg>

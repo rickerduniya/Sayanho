@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="24" height="24">
+  <!-- White base layer -->
+  <g stroke="white" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="10" y="10" width="236" height="236" rx="30" ry="30" fill="none"/>
+    <line x1="166" y1="10" x2="166" y2="246"/>
+  </g>
+  <rect x="191" y="70" width="35" height="15" rx="7" fill="white"/>
+  <rect x="191" y="120" width="35" height="15" rx="7" fill="white"/>
+  <rect x="191" y="170" width="35" height="15" rx="7" fill="white"/>
+  
+  <!-- Subtle dark outline -->
+  <g stroke="#404040" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity="0.4">
+    <rect x="10" y="10" width="236" height="236" rx="30" ry="30" fill="none"/>
+    <line x1="166" y1="10" x2="166" y2="246"/>
+  </g>
+  <rect x="191" y="70" width="35" height="15" rx="7" fill="#404040" opacity="0.4"/>
+  <rect x="191" y="120" width="35" height="15" rx="7" fill="#404040" opacity="0.4"/>
+  <rect x="191" y="170" width="35" height="15" rx="7" fill="#404040" opacity="0.4"/>
+</svg>

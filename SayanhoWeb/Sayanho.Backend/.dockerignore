@@ -1,0 +1,12 @@
+**/.git
+**/.gitignore
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/.dockerignore
+**/Dockerfile*
+**/*.md
+**/Data
+**/wwwroot
+**/*.xlsx
