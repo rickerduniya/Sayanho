@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 interface VoltageDropCalculatorDialogProps {
     isOpen: boolean;
     onClose: () => void;
@@ -50,7 +52,7 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
             // Default voltage based on phase
             const voltage = phaseType === 'three' ? 415 : supplyVoltage;
 
-            const response = await fetch(`/api/tools/voltage-drop`, {
+            const response = await fetch(`${API_URL}/tools/voltage-drop`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

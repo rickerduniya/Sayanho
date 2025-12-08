@@ -122,7 +122,7 @@ export const CanvasTabs: React.FC<CanvasTabsProps> = () => {
         <>
             {/* Main Container - Full Width of Parent */}
             <div
-                className="flex items-center h-9 select-none rounded-full px-1 gap-1 w-full"
+                className="flex items-center h-7 select-none rounded-full px-1 gap-1 w-full"
                 style={{
                     backgroundColor: colors.panelBackground
                     // Background handled by parent .premium-glass class in App.tsx PLUS this for extra darkness
@@ -151,7 +151,7 @@ export const CanvasTabs: React.FC<CanvasTabsProps> = () => {
                                 onDoubleClick={() => handleStartEdit(sheet.sheetId, sheet.name)}
                                 onContextMenu={(e) => handleContextMenu(e, sheet.sheetId)}
                                 className={`
-                                    flex items-center px-4 py-1 rounded-full min-w-[100px] max-w-[160px] group relative transition-all duration-200 flex-shrink-0
+                                    flex items-center px-3 py-0.5 rounded-full min-w-[80px] max-w-[140px] group relative transition-all duration-200 flex-shrink-0
                                     ${isActive ? 'shadow-md scale-105 font-medium' : 'hover:bg-white/10 opacity-80 hover:opacity-100'}
                                     ${!editingId ? 'cursor-pointer' : 'cursor-text'}
                                 `}
@@ -203,26 +203,26 @@ export const CanvasTabs: React.FC<CanvasTabsProps> = () => {
                         onContextMenu={(e) => { e.preventDefault(); handleCloseContextMenu(); }}
                     />
                     <div
-                        className="fixed z-[9999] premium-glass rounded-xl py-1 min-w-[140px] overflow-hidden animate-fade-in shadow-2xl border border-white/20"
+                        className="fixed z-[10000] premium-glass rounded-lg py-0.5 min-w-[120px] overflow-hidden shadow-xl border border-white/20"
                         style={{
-                            top: contextMenu.y - 100, // Show above cursor
+                            top: contextMenu.y - 80, // Show above cursor
                             left: contextMenu.x,
                         }}
                     >
                         <button
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2 transition-colors"
+                            className="w-full text-left px-3 py-1 text-xs hover:bg-white/10 flex items-center gap-2 transition-colors"
                             style={{ color: colors.text }}
                             onClick={() => handleMenuRename(contextMenu.sheetId)}
                         >
-                            <Edit2 size={14} />
+                            <Edit2 size={12} />
                             Rename
                         </button>
                         {sheets.length > 1 && (
                             <button
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-red-500/20 text-red-500 flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-1 text-xs hover:bg-red-500/20 text-red-500 flex items-center gap-2 transition-colors"
                                 onClick={() => handleMenuDelete(contextMenu.sheetId)}
                             >
-                                <X size={14} />
+                                <X size={12} />
                                 Delete
                             </button>
                         )}

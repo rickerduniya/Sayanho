@@ -129,7 +129,13 @@ export const api = {
     saveDiagram: async (sheets: CanvasSheet[]): Promise<any> => {
         // Optimize payload: strip undoStack, redoStack, svgContent, use IDs for connectors
         const optimizedSheets = stripSheetsForApi(sheets);
-        const projectData = { canvasSheets: optimizedSheets };
+
+        // Include projectId (first sheet's sheetId) and name for proper persistence
+        const projectData = {
+            projectId: sheets[0]?.sheetId || '',
+            name: sheets[0]?.name || 'Untitled Project',
+            canvasSheets: optimizedSheets
+        };
 
         // Log payload reduction for debugging
         logPayloadStats({ canvasSheets: sheets }, projectData, 'saveDiagram');

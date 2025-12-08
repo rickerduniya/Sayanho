@@ -25,16 +25,19 @@ namespace Sayanho.Backend.Controllers
             var files = Directory.GetFiles(_dataDirectory, "*.json");
             var diagrams = files.Select(f => 
             {
+                // Use filename (without extension) as the ID for delete operations
+                var fileId = Path.GetFileNameWithoutExtension(f);
                 try
                 {
                     var json = System.IO.File.ReadAllText(f);
                     var project = JsonSerializer.Deserialize<ProjectData>(json);
-                    return new { Id = project?.ProjectId, Name = project?.Name };
+                    // Return the FILENAME as id (for delete) but project name for display
+                    return new { Id = fileId, Name = project?.Name ?? "Untitled" };
                 }
                 catch
                 {
                     // Fallback for legacy files
-                    return new { Id = Path.GetFileNameWithoutExtension(f), Name = "Legacy Diagram" };
+                    return new { Id = fileId, Name = "Legacy Diagram" };
                 }
             });
             return Ok(diagrams);

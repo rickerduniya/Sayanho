@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { createPortal as reactCreatePortal } from 'react-dom';
 import { Stage, Layer, Line, Group, Text, Rect } from 'react-konva';
 import { useStore } from '../store/useStore';
 import { CanvasItem, Connector, Point } from '../types';
@@ -1201,12 +1202,11 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                     // Prevent default browser menu
                     e.evt.preventDefault();
                     if (e.target === e.target.getStage()) {
-                        // Blank canvas context menu
-                        const containerRect = stageRef.current.container().getBoundingClientRect();
+                        // Blank canvas context menu - use client coords for fixed positioning
                         setMenu({
                             visible: true,
-                            x: e.evt.clientX - containerRect.left,
-                            y: e.evt.clientY - containerRect.top,
+                            x: e.evt.clientX,
+                            y: e.evt.clientY,
                             itemId: null,
                             connectorIndex: null
                         });
@@ -1224,11 +1224,10 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                     e.evt.preventDefault();
                                     selectConnector(i, false);
                                     selectItem(null);
-                                    const containerRect = stageRef.current.container().getBoundingClientRect();
                                     setMenu({
                                         visible: true,
-                                        x: e.evt.clientX - containerRect.left,
-                                        y: e.evt.clientY - containerRect.top,
+                                        x: e.evt.clientX,
+                                        y: e.evt.clientY,
                                         itemId: null,
                                         connectorIndex: i
                                     });
@@ -1599,174 +1598,172 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                     Click target connection point to complete connection
                 </div>
             )}
-            {/* Context Menu */}
-            {menu.visible && (
-                <div
-                    className="absolute bg-white border border-gray-200 rounded shadow-lg text-sm py-1 z-[1000] min-w-[160px]"
-                    style={{ top: menu.y, left: menu.x }}
-                    onMouseLeave={() => setMenu({ ...menu, visible: false })}
-                >
-                    {/* Item Menu */}
-                    {menu.itemId && (
-                        <>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => { deleteSelected(); setMenu({ ...menu, visible: false }); }}
-                            >
-                                {selectedItemIds.length > 1 ? `Delete ${selectedItemIds.length} Items` : "Delete Item"}
-                            </button>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => { copySelection(); setMenu({ ...menu, visible: false }); }}
-                            >
-                                {selectedItemIds.length > 1 ? `Copy ${selectedItemIds.length} Items` : "Copy Item"}
-                            </button>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => { pasteSelection(); setMenu({ ...menu, visible: false }); }}
-                                disabled={!copiedItems || copiedItems.length === 0}
-                            >
-                                {copiedItems && copiedItems.length > 1 ? `Paste ${copiedItems.length} Items` : "Paste Item"}
-                            </button>
-                            <div className="border-t border-gray-200 my-1"></div>
-                            {selectedItemIds.length <= 1 && (
-                                <>
-                                    <button
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                        onClick={() => { rotateItem(menu.itemId!, 'clockwise'); setMenu({ ...menu, visible: false }); }}
-                                    >Rotate Clockwise</button>
-                                    <button
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                        onClick={() => { rotateItem(menu.itemId!, 'counter-clockwise'); setMenu({ ...menu, visible: false }); }}
-                                    >Rotate Anti-Clockwise</button>
-                                    <div className="border-t border-gray-200 my-1"></div>
-                                </>
-                            )}
-                            {/* Portal-specific actions */}
-                            {(() => {
-                                const item = currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId);
-                                if (!item || item.name !== 'Portal') return null;
-                                const p = (item.properties?.[0] || {}) as any;
-                                const netId = p['NetId'] || p['netId'];
-                                const label = p['Label'] || p['label'];
-                                const direction = (p['Direction'] || p['direction'] || 'out') as 'in' | 'out';
-                                const portals = netId ? getPortalsByNetId(netId) : [];
-                                const canCreatePair = netId && (!portals || portals.length < 2);
-                                const counterpart = netId ? (portals || []).find(pt => pt.uniqueID !== item.uniqueID) : undefined;
-                                return (
+            {/* Context Menu - Via Portal to escape stacking context */}
+            {menu.visible && reactCreatePortal(
+                <>
+                    {/* Click-away backdrop */}
+                    <div
+                        className="fixed inset-0 z-[9998]"
+                        onClick={() => setMenu({ ...menu, visible: false })}
+                        onContextMenu={(e) => { e.preventDefault(); setMenu({ ...menu, visible: false }); }}
+                    />
+                    <div
+                        className="fixed bg-white border border-gray-200 rounded shadow-lg text-xs py-0.5 z-[9999] min-w-[140px]"
+                        style={{ top: menu.y, left: menu.x }}
+                    >
+                        {/* Item Menu */}
+                        {menu.itemId && (
+                            <>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => { deleteSelected(); setMenu({ ...menu, visible: false }); }}
+                                >
+                                    {selectedItemIds.length > 1 ? `Delete ${selectedItemIds.length} Items` : "Delete Item"}
+                                </button>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => { copySelection(); setMenu({ ...menu, visible: false }); }}
+                                >
+                                    {selectedItemIds.length > 1 ? `Copy ${selectedItemIds.length} Items` : "Copy Item"}
+                                </button>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => { pasteSelection(); setMenu({ ...menu, visible: false }); }}
+                                    disabled={!copiedItems || copiedItems.length === 0}
+                                >
+                                    {copiedItems && copiedItems.length > 1 ? `Paste ${copiedItems.length} Items` : "Paste Item"}
+                                </button>
+                                <div className="border-t border-gray-200 my-1"></div>
+                                {selectedItemIds.length <= 1 && (
                                     <>
-                                        {canCreatePair && (
-                                            <>
+                                        <button
+                                            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                            onClick={() => { rotateItem(menu.itemId!, 'clockwise'); setMenu({ ...menu, visible: false }); }}
+                                        >Rotate Clockwise</button>
+                                        <button
+                                            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                            onClick={() => { rotateItem(menu.itemId!, 'counter-clockwise'); setMenu({ ...menu, visible: false }); }}
+                                        >Rotate Anti-Clockwise</button>
+                                        <div className="border-t border-gray-200 my-1"></div>
+                                    </>
+                                )}
+                                {/* Portal-specific actions */}
+                                {(() => {
+                                    const item = currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId);
+                                    if (!item || item.name !== 'Portal') return null;
+                                    const p = (item.properties?.[0] || {}) as any;
+                                    const netId = p['NetId'] || p['netId'];
+                                    const direction = (p['Direction'] || p['direction'] || 'out') as 'in' | 'out';
+                                    const portals = netId ? getPortalsByNetId(netId) : [];
+                                    const canCreatePair = netId && (!portals || portals.length < 2);
+                                    const counterpart = netId ? (portals || []).find(pt => pt.uniqueID !== item.uniqueID) : undefined;
+                                    return (
+                                        <>
+                                            {canCreatePair && (
+                                                <>
+                                                    <button
+                                                        className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                                        onClick={() => {
+                                                            setPendingPair({ netId, direction });
+                                                            setShowSelectSheet(true);
+                                                            setMenu({ ...menu, visible: false });
+                                                        }}
+                                                    >Create paired portal…</button>
+                                                    <div className="border-t border-gray-200 my-1"></div>
+                                                </>
+                                            )}
+                                            {counterpart && (
                                                 <button
-                                                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
                                                     onClick={() => {
-                                                        setPendingPair({ netId, direction });
-                                                        setShowSelectSheet(true);
+                                                        const dest = sheets.find(sh => sh.canvasItems.some(ci => ci.uniqueID === counterpart.uniqueID));
+                                                        if (dest) {
+                                                            setActiveSheet(dest.sheetId);
+                                                            setTimeout(() => selectItem(counterpart.uniqueID, false, true), 0);
+                                                        }
                                                         setMenu({ ...menu, visible: false });
                                                     }}
-                                                >Create paired portal…</button>
-                                                <div className="border-t border-gray-200 my-1"></div>
-                                            </>
-                                        )}
-                                        {counterpart && (
-                                            <button
-                                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                                onClick={() => {
-                                                    // Find the sheet containing the counterpart
-                                                    const dest = sheets.find(sh => sh.canvasItems.some(ci => ci.uniqueID === counterpart.uniqueID));
-                                                    if (dest) {
-                                                        setActiveSheet(dest.sheetId);
-                                                        // Slight delay to allow sheet switch
-                                                        setTimeout(() => selectItem(counterpart.uniqueID, false, true), 0);
-                                                    }
-                                                    setMenu({ ...menu, visible: false });
-                                                }}
-                                            >Jump to counterpart</button>
-                                        )}
-                                    </>
-                                );
-                            })()}
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => {
-                                    const item = currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId);
-                                    if (item) updateItemLock(menu.itemId!, !item.locked);
-                                    setMenu({ ...menu, visible: false });
-                                }}
-                            >
-                                {currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId)?.locked ? "Unlock Item" : "Lock Item"}
-                            </button>
-                        </>
-                    )}
+                                                >Jump to counterpart</button>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => {
+                                        const item = currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId);
+                                        if (item) updateItemLock(menu.itemId!, !item.locked);
+                                        setMenu({ ...menu, visible: false });
+                                    }}
+                                >
+                                    {currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId)?.locked ? "Unlock Item" : "Lock Item"}
+                                </button>
+                            </>
+                        )}
 
-                    {/* Connector Menu */}
-                    {menu.connectorIndex !== null && (
-                        <>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => {
-                                    // Delete connection logic
-                                    if (currentSheet && updateSheet) {
-                                        const next = currentSheet.storedConnectors.filter((_, i) => i !== menu.connectorIndex);
-                                        updateSheet({ storedConnectors: next });
-                                    }
-                                    setMenu({ ...menu, visible: false });
-                                }}
-                            >Delete Connection</button>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => {
-                                    setEditMode(true);
-                                    setMenu({ ...menu, visible: false });
-                                }}
-                            >Properties</button>
-                            <div className="border-t border-gray-200 my-1"></div>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => { copyConnectorProperties(menu.connectorIndex!); setMenu({ ...menu, visible: false }); }}
-                            >Copy Properties</button>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => { pasteConnectorProperties(menu.connectorIndex!); setMenu({ ...menu, visible: false }); }}
-                                disabled={!copiedConnectorProperties}
-                            >Paste Properties</button>
-                        </>
-                    )}
+                        {/* Connector Menu */}
+                        {menu.connectorIndex !== null && (
+                            <>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => {
+                                        if (currentSheet && updateSheet) {
+                                            const next = currentSheet.storedConnectors.filter((_, i) => i !== menu.connectorIndex);
+                                            updateSheet({ storedConnectors: next });
+                                        }
+                                        setMenu({ ...menu, visible: false });
+                                    }}
+                                >Delete Connection</button>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => {
+                                        setEditMode(true);
+                                        setMenu({ ...menu, visible: false });
+                                    }}
+                                >Properties</button>
+                                <div className="border-t border-gray-200 my-1"></div>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => { copyConnectorProperties(menu.connectorIndex!); setMenu({ ...menu, visible: false }); }}
+                                >Copy Properties</button>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => { pasteConnectorProperties(menu.connectorIndex!); setMenu({ ...menu, visible: false }); }}
+                                    disabled={!copiedConnectorProperties}
+                                >Paste Properties</button>
+                            </>
+                        )}
 
-                    {/* Blank Canvas Menu */}
-                    {menu.itemId === null && menu.connectorIndex === null && (
-                        <>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => {
-                                    const stageX = (menu.x - position.x) / scale;
-                                    const stageY = (menu.y - position.y) / scale;
-                                    // Always create an 'out' portal; its connection point will be 'in'
-                                    createPortal('out', { x: stageX, y: stageY });
-                                    setMenu({ ...menu, visible: false });
-                                }}
-                            >Create Portal…</button>
-                            <div className="border-t border-gray-200 my-1"></div>
-                            <button
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                onClick={() => {
-                                    const stageX = (menu.x - position.x) / scale;
-                                    const stageY = (menu.y - position.y) / scale;
-                                    pasteSelection({ x: stageX, y: stageY });
-                                    setMenu({ ...menu, visible: false });
-                                }}
-                                disabled={!copiedItems || copiedItems.length === 0}
-                            >
-                                {copiedItems && copiedItems.length > 1 ? `Paste ${copiedItems.length} Items` : "Paste Item"}
-                            </button>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* Click-away to close menu */}
-            {menu.visible && (
-                <div className="absolute inset-0" onClick={() => setMenu({ ...menu, visible: false })} />
+                        {/* Blank Canvas Menu */}
+                        {menu.itemId === null && menu.connectorIndex === null && (
+                            <>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => {
+                                        const stageX = (menu.x - position.x) / scale;
+                                        const stageY = (menu.y - position.y) / scale;
+                                        createPortal('out', { x: stageX, y: stageY });
+                                        setMenu({ ...menu, visible: false });
+                                    }}
+                                >Create Portal…</button>
+                                <div className="border-t border-gray-200 my-1"></div>
+                                <button
+                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    onClick={() => {
+                                        const stageX = (menu.x - position.x) / scale;
+                                        const stageY = (menu.y - position.y) / scale;
+                                        pasteSelection({ x: stageX, y: stageY });
+                                        setMenu({ ...menu, visible: false });
+                                    }}
+                                    disabled={!copiedItems || copiedItems.length === 0}
+                                >
+                                    {copiedItems && copiedItems.length > 1 ? `Paste ${copiedItems.length} Items` : "Paste Item"}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </>,
+                document.body
             )}
 
             {/* Material Selection Dialog */}

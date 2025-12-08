@@ -108,14 +108,39 @@ namespace Sayanho.Backend.Converters
                     switch (propertyName.ToLowerInvariant())
                     {
                         case "width":
-                            width = reader.GetInt32();
+                            // Handle both int and double
+                            if (reader.TokenType == JsonTokenType.Number)
+                            {
+                                if (reader.TryGetInt32(out int wInt))
+                                {
+                                    width = wInt;
+                                }
+                                else if (reader.TryGetDouble(out double wDouble))
+                                {
+                                    width = (int)Math.Round(wDouble);
+                                }
+                            }
                             break;
                         case "height":
-                            height = reader.GetInt32();
+                            // Handle both int and double
+                            if (reader.TokenType == JsonTokenType.Number)
+                            {
+                                if (reader.TryGetInt32(out int hInt))
+                                {
+                                    height = hInt;
+                                }
+                                else if (reader.TryGetDouble(out double hDouble))
+                                {
+                                    height = (int)Math.Round(hDouble);
+                                }
+                            }
                             break;
                         case "isempty":
                             // Skip isEmpty property
-                            reader.GetBoolean();
+                            if (reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False)
+                            {
+                                reader.GetBoolean();
+                            }
                             break;
                     }
                 }

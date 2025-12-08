@@ -10,6 +10,7 @@ import { VoltageDropCalculatorDialog } from './components/VoltageDropCalculatorD
 import { MobileDetector } from './components/MobileDetector';
 import { ChatPanel } from './components/ChatPanel';
 import { AutoRatingResultDialog } from './components/AutoRatingResultDialog';
+import { SaveProjectDialog } from './components/SaveProjectDialog';
 
 import { api } from './services/api';
 import { useStore } from './store/useStore';
@@ -38,7 +39,9 @@ function App() {
 
     // Dialog State
     const [showOpen, setShowOpen] = useState(false);
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [diagrams, setDiagrams] = useState<{ id: string; name: string }[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Toast State
     const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -83,11 +86,34 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo]);
 
+    // Open save dialog and fetch existing project names
     const handleSave = async () => {
         if (sheets.length === 0) return;
         try {
-            await api.saveDiagram(sheets);
-            const projectName = sheets[0]?.name || 'Untitled';
+            // Fetch existing diagrams to check for duplicate names
+            const list = await api.getDiagrams();
+            setDiagrams(list || []);
+            setShowSaveDialog(true);
+        } catch (error) {
+            console.error('Failed to fetch diagrams:', error);
+            // Still show dialog, just won't have name validation
+            setDiagrams([]);
+            setShowSaveDialog(true);
+        }
+    };
+
+    // Actually save the project with the given name
+    const handleConfirmSave = async (projectName: string) => {
+        if (sheets.length === 0) return;
+        try {
+            // Update the first sheet's name (project name)
+            const updatedSheets = sheets.map((sheet, index) =>
+                index === 0 ? { ...sheet, name: projectName } : sheet
+            );
+            setSheets(updatedSheets);
+
+            await api.saveDiagram(updatedSheets);
+            setShowSaveDialog(false);
             setToastMessage(`Project "${projectName}" saved successfully!`);
             setToastType('success');
         } catch (error) {
@@ -101,6 +127,7 @@ function App() {
         try {
             const list = await api.getDiagrams();
             setDiagrams(list || []);
+            setSearchQuery(''); // Reset search when opening
             setShowOpen(true);
         } catch (e) {
             console.error('Failed to list diagrams', e);
@@ -231,16 +258,16 @@ function App() {
             </div>
 
             {/* Top Bar Area - Menu & Toolbar */}
-            <div className="absolute top-0 left-0 right-0 z-50 p-4 pointer-events-none flex justify-between items-start">
+            <div className="absolute top-0 left-0 right-0 z-50 p-2 pointer-events-none flex justify-between items-start">
                 <div className="flex items-center gap-4 pointer-events-auto animate-slide-in-top w-full relative">
-                    {/* Branding */}
+                    {/* Branding - in toolbar */}
                     <div className="absolute left-1/2 transform -translate-x-1/2 -top-1 pointer-events-none z-50">
-                        <h1 className="text-xl font-bold tracking-widest uppercase opacity-80" style={{ color: theme === 'dark' ? '#fff' : '#000' }}>Sayanho</h1>
+                        <h1 className="text-lg font-bold tracking-widest uppercase opacity-70" style={{ color: theme === 'dark' ? '#fff' : '#333' }}>Sayanho <span className="text-xs font-normal opacity-60">V1.1</span></h1>
                     </div>
 
                     {/* Menu Bar */}
                     {showMenu && (
-                        <div className="premium-glass rounded-full px-4 py-2 z-50">
+                        <div className="premium-glass rounded-full px-3 py-1 z-50">
                             <MenuBar
                                 onSettings={() => setShowSettings(true)}
                                 onGenerateEstimate={handleGenerateEstimate}
@@ -251,7 +278,7 @@ function App() {
 
                     {/* Toolbar - Centered relative to screen, independent of menu */}
                     <div className="absolute left-1/2 transform -translate-x-1/2 top-0 pointer-events-auto">
-                        <div className="premium-glass rounded-xl p-2 flex items-center h-[40px]"> {/* Fixed height to match menu */}
+                        <div className="premium-glass rounded-xl p-1.5 flex items-center h-[36px]"> {/* Fixed height to match menu */}
                             <Toolbar
                                 onSave={handleSave}
                                 onSaveImage={handleSaveImage}
@@ -269,6 +296,23 @@ function App() {
                                     try {
                                         console.log('Starting auto-rating...');
                                         const updatedSheets = await api.autoRate(sheets);
+
+                                        // Restore svgContent from original sheets (backend doesn't return it)
+                                        updatedSheets.forEach((updatedSheet, sheetIndex) => {
+                                            const originalSheet = sheets[sheetIndex];
+                                            if (originalSheet) {
+                                                updatedSheet.canvasItems.forEach(updatedItem => {
+                                                    if (!updatedItem.svgContent) {
+                                                        const originalItem = originalSheet.canvasItems.find(
+                                                            orig => orig.uniqueID === updatedItem.uniqueID
+                                                        );
+                                                        if (originalItem?.svgContent) {
+                                                            updatedItem.svgContent = originalItem.svgContent;
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                        });
 
                                         // Update visuals for all items in the returned sheets
                                         updatedSheets.forEach(sheet => {
@@ -311,13 +355,13 @@ function App() {
 
             {/* Left Sidebar - Floating & Extended to Bottom - Slimmer */}
             {showLeftPanel && (
-                <div className="absolute left-4 top-14 bottom-4 w-56 z-40 premium-glass rounded-xl overflow-hidden flex flex-col transition-all duration-300 animate-slide-in-left">
+                <div className="absolute left-4 top-12 bottom-4 w-56 z-40 premium-glass rounded-xl overflow-hidden flex flex-col transition-all duration-300 animate-slide-in-left">
                     <Sidebar />
                 </div>
             )}
 
             {/* Right Properties Panel - Floating & Contextual - Slimmer */}
-            <div className={`absolute right-4 top-14 bottom-4 w-64 z-40 pointer-events-none transition-opacity duration-300 ${isPropertiesPanelOpen ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`absolute right-4 top-12 bottom-4 w-64 z-40 pointer-events-none transition-opacity duration-300 ${isPropertiesPanelOpen ? 'opacity-100' : 'opacity-0'}`}>
                 {isPropertiesPanelOpen && (
                     <div className="pointer-events-auto h-full premium-glass rounded-xl overflow-hidden flex flex-col animate-slide-in-right">
                         <PropertiesPanel />
@@ -326,7 +370,7 @@ function App() {
             </div>
 
             {/* Bottom Tabs - Positioned after Sidebar and before Properties */}
-            <div className={`absolute bottom-2 z-40 premium-glass rounded-full px-4 py-1 animate-slide-in-bottom transition-all duration-300 ${showLeftPanel ? 'left-64' : 'left-4'} right-80`}>
+            <div className={`absolute bottom-2 z-30 premium-glass rounded-full px-4 py-0.5 animate-slide-in-bottom transition-all duration-300 ${showLeftPanel ? 'left-64' : 'left-4'} right-80`}>
                 <CanvasTabs />
             </div>
 
@@ -355,6 +399,15 @@ function App() {
                 message={autoRatingMessage}
             />
 
+            {/* Save Project Dialog */}
+            <SaveProjectDialog
+                isOpen={showSaveDialog}
+                onClose={() => setShowSaveDialog(false)}
+                onSave={handleConfirmSave}
+                existingNames={diagrams.map(d => d.name)}
+                currentName={sheets[0]?.name || 'Untitled Project'}
+            />
+
             {/* Open Diagram Dialog */}
             {showOpen && (
                 <div className="absolute inset-0 bg-black/30 flex items-start justify-center pt-24 z-50" onClick={() => setShowOpen(false)}>
@@ -367,49 +420,88 @@ function App() {
                             <div className="font-semibold" style={{ color: colors.text }}>Open Diagram</div>
                             <button className="text-sm hover:opacity-70" style={{ color: colors.text }} onClick={() => setShowOpen(false)}>Close</button>
                         </div>
+
+                        {/* Search Input */}
+                        <div className="px-4 py-2 border-b" style={{ borderColor: colors.border }}>
+                            <input
+                                type="text"
+                                placeholder="Search projects..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                style={{
+                                    backgroundColor: colors.canvasBackground,
+                                    borderColor: colors.border,
+                                    color: colors.text
+                                }}
+                                autoFocus
+                            />
+                        </div>
+
                         <div className="max-h-80 overflow-y-auto p-2">
-                            {diagrams.length === 0 ? (
-                                <div className="text-sm p-3" style={{ color: colors.text }}>No diagrams found.</div>
-                            ) : (
-                                <ul>
-                                    {diagrams.map(d => (
-                                        <li key={d.id}>
-                                            <div className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded">
-                                                <button
-                                                    onClick={() => loadDiagram(d.id)}
-                                                    className="flex-1 text-left"
-                                                    style={{ color: colors.text }}
-                                                >
-                                                    <span className="text-sm">{d.name}</span>
-                                                    <span className="text-xs opacity-50 ml-2">{d.id.slice(0, 8)}</span>
-                                                </button>
-                                                <button
-                                                    onClick={async () => {
-                                                        if (window.confirm(`Delete project "${d.name}"?`)) {
-                                                            try {
-                                                                await api.deleteProject(d.id);
-                                                                setToastMessage(`Project "${d.name}" deleted successfully!`);
-                                                                setToastType('success');
-                                                                // Refresh list
-                                                                const list = await api.getDiagrams();
-                                                                setDiagrams(list || []);
-                                                            } catch (error) {
-                                                                console.error('Delete failed:', error);
-                                                                setToastMessage('Delete failed. Check console for details.');
-                                                                setToastType('error');
+                            {(() => {
+                                const filteredDiagrams = diagrams.filter(d =>
+                                    d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    d.id.toLowerCase().includes(searchQuery.toLowerCase())
+                                );
+
+                                if (filteredDiagrams.length === 0) {
+                                    return (
+                                        <div className="text-sm p-3" style={{ color: colors.text }}>
+                                            {diagrams.length === 0 ? 'No diagrams found.' : 'No matching projects.'}
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <ul>
+                                        {filteredDiagrams.map(d => (
+                                            <li key={d.id}>
+                                                <div className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded">
+                                                    <button
+                                                        onClick={() => loadDiagram(d.id)}
+                                                        className="flex-1 text-left"
+                                                        style={{ color: colors.text }}
+                                                    >
+                                                        <span className="text-sm">{d.name}</span>
+                                                        <span className="text-xs opacity-50 ml-2">{d.id.slice(0, 8)}</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (window.confirm(`Delete project "${d.name}"?`)) {
+                                                                try {
+                                                                    await api.deleteProject(d.id);
+                                                                    setToastMessage(`Project "${d.name}" deleted successfully!`);
+                                                                    setToastType('success');
+                                                                    // Refresh list
+                                                                    const list = await api.getDiagrams();
+                                                                    setDiagrams(list || []);
+                                                                } catch (error: any) {
+                                                                    // Handle 404 - project already deleted or doesn't exist
+                                                                    if (error.response?.status === 404) {
+                                                                        // Remove stale entry from local list
+                                                                        setDiagrams(prev => prev.filter(p => p.id !== d.id));
+                                                                        setToastMessage(`Project "${d.name}" was already deleted.`);
+                                                                        setToastType('info');
+                                                                    } else {
+                                                                        console.error('Delete failed:', error);
+                                                                        setToastMessage('Delete failed. Check console for details.');
+                                                                        setToastType('error');
+                                                                    }
+                                                                }
                                                             }
-                                                        }
-                                                    }}
-                                                    className="text-red-500 hover:text-red-700 p-1"
-                                                    title="Delete project"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700 p-1"
+                                                        title="Delete project"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
