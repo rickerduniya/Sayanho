@@ -161,7 +161,7 @@ function App() {
                 // We created a new project. The API doesn't return the ID directly in all cases,
                 // but we can find it by name in the refreshed list.
                 const newList = list || [];
-                const newProj = newList.find(d => d.name.toLowerCase() === projectName.toLowerCase());
+                const newProj = newList.find((d: { id: string; name: string }) => d.name.toLowerCase() === projectName.toLowerCase());
                 if (newProj) {
                     setCurrentProjectId(newProj.id);
                 }
