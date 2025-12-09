@@ -3,6 +3,12 @@ using Microsoft.AspNetCore.StaticFiles;
 using Sayanho.Backend.Converters;
 using Sayanho.Backend.Filters;
 using Sayanho.Backend.Middleware;
+using Sayanho.Backend.Services;
+using PdfSharpCore.Fonts;
+
+// Configure PDFSharp Font Resolver
+GlobalFontSettings.FontResolver = new CustomFontResolver();
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Kestrel to bind to all interfaces and use PORT from environment (for Render/Docker)

@@ -1,0 +1,152 @@
+{
+  "ProjectId": "e9f4e56c-ab3d-4887-93ee-f771226e8796",
+  "Name": "test project",
+  "CanvasSheets": [
+    {
+      "SheetId": "default",
+      "Name": "Sheet 1",
+      "CanvasItems": [
+        {
+          "UniqueID": "5597e9f3-8581-420a-b449-e55f14f1cd72",
+          "Name": "Change Over Switch",
+          "Position": {
+            "IsEmpty": false,
+            "X": 762,
+            "Y": 167
+          },
+          "OriginalPosition": {
+            "IsEmpty": true,
+            "X": 0,
+            "Y": 0
+          },
+          "Size": {
+            "IsEmpty": false,
+            "Width": 100,
+            "Height": 100
+          },
+          "OriginalSize": {
+            "IsEmpty": true,
+            "Width": 0,
+            "Height": 0
+          },
+          "ConnectionPoints": {
+            "in1": {
+              "IsEmpty": false,
+              "X": 31,
+              "Y": 0
+            },
+            "in2": {
+              "IsEmpty": false,
+              "X": 85,
+              "Y": 0
+            },
+            "out": {
+              "IsEmpty": false,
+              "X": 58,
+              "Y": 100
+            }
+          },
+          "OriginalConnectionPoints": {},
+          "Properties": [
+            {
+              "Type": "Sheet Steel enclosure",
+              "Mounting": "flat iron frame",
+              "Current Rating": "16A",
+              "Voltage": "415V\u00A0FP",
+              "Company": "HPL",
+              "Rate": "1989",
+              "Description": "Supplying and fixing following Changeover switch with Sheet Steel enclosure on flat iron frame on wall with nuts bolts etc",
+              "GS": "PWD/GS -D-1 : 2(a)",
+              "Way": "4"
+            }
+          ],
+          "AlternativeCompany1": "HPL",
+          "AlternativeCompany2": "Havells",
+          "SvgContent": null,
+          "IconPath": "/icons/change over.svg",
+          "Rotation": 0,
+          "Locked": false,
+          "IdPoints": {},
+          "Incomer": {},
+          "Outgoing": [],
+          "Accessories": []
+        },
+        {
+          "UniqueID": "cef7254a-7a0e-46c7-ac38-0bc281a6f8d5",
+          "Name": "Change Over Switch",
+          "Position": {
+            "IsEmpty": false,
+            "X": 562,
+            "Y": 377
+          },
+          "OriginalPosition": {
+            "IsEmpty": true,
+            "X": 0,
+            "Y": 0
+          },
+          "Size": {
+            "IsEmpty": false,
+            "Width": 100,
+            "Height": 100
+          },
+          "OriginalSize": {
+            "IsEmpty": true,
+            "Width": 0,
+            "Height": 0
+          },
+          "ConnectionPoints": {
+            "in1": {
+              "IsEmpty": false,
+              "X": 31,
+              "Y": 0
+            },
+            "in2": {
+              "IsEmpty": false,
+              "X": 85,
+              "Y": 0
+            },
+            "out": {
+              "IsEmpty": false,
+              "X": 58,
+              "Y": 100
+            }
+          },
+          "OriginalConnectionPoints": {},
+          "Properties": [
+            {
+              "Type": "Sheet Steel enclosure",
+              "Mounting": "flat iron frame",
+              "Current Rating": "16A",
+              "Voltage": "415V\u00A0FP",
+              "Company": "HPL",
+              "Rate": "1989",
+              "Description": "Supplying and fixing following Changeover switch with Sheet Steel enclosure on flat iron frame on wall with nuts bolts etc",
+              "GS": "PWD/GS -D-1 : 2(a)",
+              "Way": "4"
+            }
+          ],
+          "AlternativeCompany1": "HPL",
+          "AlternativeCompany2": "Havells",
+          "SvgContent": null,
+          "IconPath": "/icons/change over.svg",
+          "Rotation": 0,
+          "Locked": false,
+          "IdPoints": {},
+          "Incomer": {},
+          "Outgoing": [],
+          "Accessories": []
+        }
+      ],
+      "StoredConnectors": [],
+      "ExistingLinePoints": [],
+      "ExistingOriginalLinePoints": [],
+      "ExistingConnections": [],
+      "VirtualCanvasSize": {
+        "IsEmpty": false,
+        "Width": 2000,
+        "Height": 2000
+      },
+      "Scale": 1
+    }
+  ]
+}

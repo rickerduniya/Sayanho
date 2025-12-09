@@ -103,6 +103,9 @@ interface StoreState {
         targetSheetId: string,
         position?: { x: number; y: number }
     ) => void;
+
+    // Auto Rating
+    applyAutoRatingResults: (sheets: CanvasSheet[]) => void;
 }
 
 const MAX_HISTORY = 20;
@@ -717,6 +720,30 @@ export const useStore = create<StoreState>((set, get) => ({
             }
 
             return { sheets: newSheets };
+        });
+        get().calculateNetwork();
+    },
+
+    applyAutoRatingResults: (newSheets) => {
+        get().takeSnapshot();
+        set((state) => {
+            // Map new sheets to existing sheets to preserve stacks
+            const updatedSheets = newSheets.map((newSheet, index) => {
+                const existingSheet = state.sheets[index]; // Assuming 1-to-1 mapping by index or ID
+                // Ideally match by ID
+                const matchedExisting = state.sheets.find(s => s.sheetId === newSheet.sheetId) || existingSheet;
+
+                if (matchedExisting) {
+                    return {
+                        ...newSheet,
+                        undoStack: matchedExisting.undoStack,
+                        redoStack: matchedExisting.redoStack
+                    };
+                }
+                return newSheet;
+            });
+
+            return { sheets: updatedSheets };
         });
         get().calculateNetwork();
     },

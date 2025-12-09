@@ -55,18 +55,19 @@ namespace Sayanho.Backend.Controllers
 
                 // Create and run auto rating service
                 var autoRatingService = new AutoRatingService(request.Sheets);
-                autoRatingService.AutoSetRatings();
+                var result = autoRatingService.ExecuteAutoRating();
                 
-                // Return updated sheets with new ratings
-                return Ok(request.Sheets);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = $"Auto-rating validation failed: {ex.Message}" });
+                // Return updated sheets with new ratings and log
+                return Ok(new { 
+                    sheets = result.Sheets, 
+                    log = result.Log, 
+                    success = result.Success,
+                    message = result.Success ? "Auto-rating completed successfully." : "Auto-rating failed validation checks."
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = $"Auto-rating error: {ex.Message}" });
+                return StatusCode(500, new { message = $"Auto-rating error: {ex.Message}", success = false, log = ex.StackTrace });
             }
         }
     }

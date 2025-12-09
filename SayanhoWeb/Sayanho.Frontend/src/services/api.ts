@@ -126,14 +126,18 @@ export const api = {
         return [response.data];
     },
 
-    saveDiagram: async (sheets: CanvasSheet[]): Promise<any> => {
+    saveDiagram: async (sheets: CanvasSheet[], projectName: string, explicitProjectId: string | null = null): Promise<any> => {
         // Optimize payload: strip undoStack, redoStack, svgContent, use IDs for connectors
         const optimizedSheets = stripSheetsForApi(sheets);
 
-        // Include projectId (first sheet's sheetId) and name for proper persistence
+        // Determine Project ID:
+        // 1. If explicit (overwrite existing), use it.
+        // 2. If null (new project), send null/empty (Backend will generate).
+        // Legacy fallback: previously used sheets[0].sheetId. We avoid this for "Save As".
+
         const projectData = {
-            projectId: sheets[0]?.sheetId || '',
-            name: sheets[0]?.name || 'Untitled Project',
+            projectId: explicitProjectId || '',
+            name: projectName,
             canvasSheets: optimizedSheets
         };
 
@@ -158,7 +162,12 @@ export const api = {
         return response.data;
     },
 
-    autoRate: async (sheets: CanvasSheet[]): Promise<CanvasSheet[]> => {
+    autoRate: async (sheets: CanvasSheet[]): Promise<{
+        sheets: CanvasSheet[];
+        log: string;
+        success: boolean;
+        message: string;
+    }> => {
         const settings = useStore.getState().settings;
         // Filter out text boxes - they're not electrical components
         const electricalSheets = filterTextBoxesFromSheets(sheets);

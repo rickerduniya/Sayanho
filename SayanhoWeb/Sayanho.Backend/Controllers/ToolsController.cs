@@ -15,6 +15,7 @@ public class ToolsController : ControllerBase
         public double Length { get; set; } = 10;
         public bool IsThreePhase { get; set; } = false;
         public double SupplyVoltage { get; set; } = 230;
+        public double? MaxAllowedPercentage { get; set; }
     }
 
     public class VoltageDropResponse
@@ -62,8 +63,8 @@ public class ToolsController : ControllerBase
             double supplyVoltage = request.SupplyVoltage > 0 ? request.SupplyVoltage : (request.IsThreePhase ? 415.0 : 230.0);
             double voltageDropPercent = (voltageDropVolts / supplyVoltage) * 100;
 
-            // Check compliance (default max is 5%)
-            double maxAllowedPercent = ApplicationSettings.Instance.MaxVoltageDropPercentage;
+            // Check compliance (default max is 7% or user provided)
+            double maxAllowedPercent = request.MaxAllowedPercentage ?? ApplicationSettings.Instance.MaxVoltageDropPercentage;
             bool isCompliant = voltageDropPercent <= maxAllowedPercent;
 
             var response = new VoltageDropResponse

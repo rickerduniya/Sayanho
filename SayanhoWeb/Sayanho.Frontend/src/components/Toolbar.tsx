@@ -11,8 +11,6 @@ import {
 } from 'lucide-react';
 
 interface ToolbarProps {
-    onSave: () => void;
-    onSaveImage: () => void;
     onLoad: () => void;
     onZoomIn: () => void;
     onZoomOut: () => void;
@@ -37,7 +35,7 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
-    onSave, onSaveImage, onLoad, onZoomIn, onZoomOut, scale,
+    onLoad, onZoomIn, onZoomOut, scale,
     showLeftPanel, onToggleLeftPanel,
     showMenu, onToggleMenu,
     showChat, onToggleChat,
@@ -79,9 +77,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             className="flex items-center h-8 px-2 gap-1"
             style={{ color: colors.text, backgroundColor: colors.panelBackground }}
         >
-            <ToolbarButton icon={<FolderOpen size={16} />} onClick={onLoad} tooltip="Load Project" />
+            {/* Moved to File Menu */}
+            {/* <ToolbarButton icon={<FolderOpen size={16} />} onClick={onLoad} tooltip="Load Project" />
             <ToolbarButton icon={<Save size={16} />} onClick={onSave} tooltip="Save Project" />
-            <ToolbarButton icon={<ImageIcon size={16} />} onClick={onSaveImage} tooltip="Save as Image" />
+            <ToolbarButton icon={<ImageIcon size={16} />} onClick={onSaveImage} tooltip="Save as Image" /> */}
 
             <ToolbarSeparator />
 
@@ -129,7 +128,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
             <ToolbarSeparator />
 
-            <ToolbarButton icon={<Zap size={16} />} onClick={onAutoRate} tooltip="Auto Rate" />
+            <ToolbarButton icon={<Zap size={16} />} onClick={onAutoRate} tooltip="Auto Rating" />
 
             <ToolbarButton
                 icon={showCurrentValues ? <Eye size={16} /> : <EyeOff size={16} />}

@@ -8,6 +8,7 @@ interface AutoRatingResultDialogProps {
     onDownloadReport: () => void;
     success: boolean;
     message?: string;
+    processLog?: string;
 }
 
 export const AutoRatingResultDialog: React.FC<AutoRatingResultDialogProps> = ({
@@ -15,7 +16,8 @@ export const AutoRatingResultDialog: React.FC<AutoRatingResultDialogProps> = ({
     onClose,
     onDownloadReport,
     success,
-    message
+    message,
+    processLog
 }) => {
     const { colors } = useTheme();
 
@@ -24,7 +26,7 @@ export const AutoRatingResultDialog: React.FC<AutoRatingResultDialogProps> = ({
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]" onClick={onClose}>
             <div
-                className="rounded-lg shadow-xl border w-[400px] p-6 animate-slide-in-top"
+                className="rounded-lg shadow-xl border w-[600px] max-h-[80vh] flex flex-col p-6 animate-slide-in-top"
                 style={{ backgroundColor: colors.panelBackground, borderColor: colors.border }}
                 onClick={e => e.stopPropagation()}
             >
@@ -48,6 +50,16 @@ export const AutoRatingResultDialog: React.FC<AutoRatingResultDialogProps> = ({
                             ? 'Component ratings have been successfully updated based on network analysis.'
                             : 'An error occurred during auto-rating.')}
                     </p>
+
+                    {/* Process Log */}
+                    {processLog && (
+                        <div className="w-full mt-4 text-left">
+                            <h3 className="text-sm font-semibold mb-2" style={{ color: colors.text }}>Auto-Rating Process Log</h3>
+                            <div className="w-full h-48 overflow-y-auto p-3 text-xs font-mono rounded bg-black/10 dark:bg-black/30 whitespace-pre-wrap" style={{ color: colors.text }}>
+                                {processLog}
+                            </div>
+                        </div>
+                    )}
 
                     {success && (
                         <button

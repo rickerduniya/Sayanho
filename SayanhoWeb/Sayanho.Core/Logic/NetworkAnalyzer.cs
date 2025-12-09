@@ -319,6 +319,64 @@ namespace Sayanho.Core.Logic
                     }
                 }
             }
+            else if (targetItem.Name == "Portal")
+            {
+                // Helper to get property value safely
+                string GetProp(CanvasItem item, string key) {
+                    if (item.Properties != null && item.Properties.Any() && item.Properties.First().ContainsKey(key))
+                        return item.Properties.First()[key];
+                    return "";
+                }
+
+                string dir = GetProp(targetItem, "Direction").ToLower();
+                string netId = GetProp(targetItem, "NetId").Trim();
+
+                if (string.IsNullOrEmpty(netId)) return;
+                
+                // Find counterpart
+                var portals = allItems.Where(i => i.Name == "Portal").ToList();
+                var sameNet = portals.Where(p => GetProp(p, "NetId").Trim() == netId).ToList();
+
+                // Validation: We expect exactly 2 portals in a pair (IN/OUT agnostic)
+                if (sameNet.Count == 2)
+                {
+                    var counterpart = sameNet.FirstOrDefault(p => p.UniqueID != targetItem.UniqueID);
+
+                    if (counterpart != null)
+                    {
+                        // Trace from counterpart's outgoing connectors
+                        // We filter for connectors where the SOURCE is the counterpart
+                        var outConnectors = allConnectors.Where(c => c.SourceItem == counterpart).ToList();
+                        
+                        float totalCurrent = 0;
+                        float rPhaseCurrent = 0;
+                        float yPhaseCurrent = 0;
+                        float bPhaseCurrent = 0;
+
+                        foreach (var outC in outConnectors)
+                        {
+                            // Continue trace from the jump point
+                            TraceAndCalculateCurrent(outC, currentVoltage, phaseType, phase, visited);
+
+                            // Collect currents
+                             if (outC.CurrentValues.ContainsKey("Current"))
+                                totalCurrent += float.Parse(outC.CurrentValues["Current"].Split(' ')[0]);
+                             if (outC.CurrentValues.ContainsKey("R_Current"))
+                                rPhaseCurrent += float.Parse(outC.CurrentValues["R_Current"].Split(' ')[0]);
+                             if (outC.CurrentValues.ContainsKey("Y_Current"))
+                                yPhaseCurrent += float.Parse(outC.CurrentValues["Y_Current"].Split(' ')[0]);
+                             if (outC.CurrentValues.ContainsKey("B_Current"))
+                                bPhaseCurrent += float.Parse(outC.CurrentValues["B_Current"].Split(' ')[0]);
+                        }
+
+                        // Update THIS incoming connector with the aggregated current
+                        connector.CurrentValues["Current"] = $"{totalCurrent:F2} A";
+                        connector.CurrentValues["R_Current"] = $"{rPhaseCurrent:F2} A";
+                        connector.CurrentValues["Y_Current"] = $"{yPhaseCurrent:F2} A";
+                        connector.CurrentValues["B_Current"] = $"{bPhaseCurrent:F2} A";
+                    }
+                }
+            }
             else
             {
                 // Find all outgoing connectors from this item

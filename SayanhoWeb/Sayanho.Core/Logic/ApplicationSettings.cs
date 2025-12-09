@@ -6,7 +6,7 @@ namespace Sayanho.Core.Logic
     {
         public double SafetyMarginPercentage { get; set; } = 25.0;
         public bool VoltageDropEnabled { get; set; } = true;
-        public double MaxVoltageDropPercentage { get; set; } = 3.0;
+        public double MaxVoltageDropPercentage { get; set; } = 7.0;
         public Dictionary<string, double> DiversificationFactors { get; set; } = new Dictionary<string, double>();
         
         // Save Image settings

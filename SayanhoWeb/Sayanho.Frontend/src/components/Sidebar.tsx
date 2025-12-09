@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -6,6 +6,33 @@ import { ItemData, CanvasItem } from '../types';
 import { getItemDefinition, LOAD_ITEM_DEFAULTS } from '../utils/DefaultRulesEngine';
 import { calculateGeometry } from '../utils/GeometryCalculator';
 import { updateItemVisuals } from '../utils/SvgUpdater';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+
+const CATEGORIES: Record<string, string[]> = {
+    "Distribution Boards": ["VTPN", "HTPN", "SPN DB"],
+    "Switchgear": ["Main Switch", "Change Over Switch"],
+    "Appliances": ["AC Point", "Geyser Point", "Computer Point"],
+    "Lighting": ["Light Point", "Tube Light", "Wall Light"],
+    "Fans": ["Fan Point", "Exhaust Fan", "Ceiling Rose"],
+    "Switch Boards": [
+        "Point Switch Board",
+        "1 Switch Board", "2 Switch Board", "3 Switch Board", "4 Switch Board",
+        "6 Switch Board", "8 Switch Board", "12 Switch Board", "18 Switch Board"
+    ],
+    "Sockets": ["5A Socket", "15A Socket", "5A Socket Board", "15A Socket Board"],
+    "Infrastructure": ["Source", "Portal", "Generator"],
+    "Meters": ["1 Phase Meter", "3 Phase Meter"],
+    "Others": ["Bell", "Bell Push", "Call Bell Point"]
+};
+
+const getItemCategory = (name: string): string => {
+    for (const [category, items] of Object.entries(CATEGORIES)) {
+        if (items.some(i => name.includes(i) || name === i)) {
+            return category;
+        }
+    }
+    return "Others";
+};
 
 export const Sidebar = () => {
     const { addItem, sheets, activeSheetId } = useStore();
@@ -13,6 +40,19 @@ export const Sidebar = () => {
     const [items, setItems] = useState<ItemData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedItem, setSelectedItem] = useState<string | null>(null);
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+        "Distribution Boards": true,
+        "Switchgear": true,
+        "Lighting": true,
+        "Switch Boards": true,
+        "Sockets": true,
+        "Appliances": true,
+        "Fans": true,
+        "Infrastructure": true,
+        "Meters": true,
+        "Others": true
+    });
+
     const { colors } = useTheme();
 
     useEffect(() => {
@@ -26,6 +66,29 @@ export const Sidebar = () => {
         };
         fetchItems();
     }, []);
+
+    const groupedItems = useMemo(() => {
+        const groups: Record<string, ItemData[]> = {};
+
+        // Ensure all categories exist in order
+        Object.keys(CATEGORIES).forEach(key => groups[key] = []);
+
+        items.forEach(item => {
+            if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+                return;
+            }
+            const category = getItemCategory(item.name);
+            if (!groups[category]) groups[category] = [];
+            groups[category].push(item);
+        });
+
+        // Remove empty groups
+        Object.keys(groups).forEach(key => {
+            if (groups[key].length === 0) delete groups[key];
+        });
+
+        return groups;
+    }, [items, searchQuery]);
 
     const handleDragStart = (e: React.DragEvent, itemName: string) => {
         const item = items.find(i => i.name === itemName);
@@ -135,15 +198,17 @@ export const Sidebar = () => {
         addItem(newItem);
     };
 
-    const filteredItems = items.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const toggleGroup = (group: string) => {
+        setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+    };
 
     return (
-        <div className="flex flex-col h-full" style={{ backgroundColor: colors.panelBackground }}>
+        <div className="flex flex-col h-full select-none" style={{ backgroundColor: colors.panelBackground }}>
             {/* Search Box */}
-            <div className="p-4">
+            <div className="p-4 border-b" style={{ borderColor: colors.border }}>
                 <input
                     type="text"
-                    placeholder="Search items..."
+                    placeholder="Search components..."
                     className="w-full px-3 py-2 text-sm rounded-lg bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 dark:placeholder-gray-400"
                     style={{
                         color: colors.text,
@@ -153,36 +218,62 @@ export const Sidebar = () => {
                 />
             </div>
 
-            {/* Item List */}
-            <div className="flex-1 overflow-y-auto min-h-0 allow-scroll px-2">
-                {filteredItems.map((item) => (
-                    <div
-                        key={item.name}
-                        className={`
-                            px-3 py-2 mb-1 text-sm cursor-pointer select-none rounded-md transition-colors
-                            ${selectedItem === item.name ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'hover:bg-white/30 dark:hover:bg-white/10'}
-                        `}
-                        style={{ color: selectedItem === item.name ? undefined : colors.text }}
-                        onClick={() => setSelectedItem(item.name)}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, item.name)}
-                    >
-                        {item.name}
+            {/* Grouped Item List */}
+            <div className="flex-1 overflow-y-auto min-h-0 allow-scroll px-2 py-2">
+                {Object.keys(groupedItems).length === 0 ? (
+                    <div className="text-center opacity-50 py-4 text-sm" style={{ color: colors.text }}>
+                        No items found
                     </div>
-                ))}
+                ) : (
+                    Object.entries(groupedItems).map(([category, categoryItems]) => (
+                        <div key={category} className="mb-2">
+                            <button
+                                onClick={() => toggleGroup(category)}
+                                className="flex items-center w-full px-2 py-1.5 mb-1 text-xs font-bold uppercase tracking-wider opacity-70 hover:opacity-100 transition-opacity"
+                                style={{ color: colors.text }}
+                            >
+                                {expandedGroups[category] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
+                                {category} ({categoryItems.length})
+                            </button>
+
+                            {expandedGroups[category] && (
+                                <div className="pl-1 space-y-1 animate-fade-in">
+                                    {categoryItems.map((item) => (
+                                        <div
+                                            key={item.name}
+                                            className={`
+                                                px-3 py-2 text-sm cursor-grab active:cursor-grabbing select-none rounded-md transition-all
+                                                ${selectedItem === item.name ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/50' : 'hover:bg-black/5 dark:hover:bg-white/5'}
+                                            `}
+                                            style={{ color: selectedItem === item.name ? undefined : colors.text }}
+                                            onClick={() => setSelectedItem(item.name)}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, item.name)}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {/* Optional: Add icon preview if available */}
+                                                <span>{item.name}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
             </div>
 
             {/* Bottom Buttons */}
-            <div className="p-4 mt-auto">
+            <div className="p-4 mt-auto border-t" style={{ borderColor: colors.border }}>
                 <button
                     onClick={handleAddClick}
                     disabled={!selectedItem}
                     className={`
-                        w-full py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg
-                        ${!selectedItem ? 'bg-gray-400/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30'}
+                        w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-lg flex items-center justify-center gap-2
+                        ${!selectedItem ? 'bg-gray-400/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30 active:scale-95'}
                     `}
                 >
-                    Add to Diagram
+                    Add Component
                 </button>
             </div>
         </div>

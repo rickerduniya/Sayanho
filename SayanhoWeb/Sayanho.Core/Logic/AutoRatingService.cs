@@ -19,11 +19,51 @@ namespace Sayanho.Core.Logic
         private void LogProcess(string message)
         {
             _processLogs.Add(message);
-            Console.WriteLine(message);
+            // Also log to console for debugging
+            // Console.WriteLine(message); 
         }
+
+        public (List<CanvasSheet> Sheets, string Log, bool Success) ExecuteAutoRating()
+        {
+            _processLogs.Clear();
+            try
+            {
+                // Validate path existence first
+                if (!HasValidSourceToLoadPath())
+                {
+                    LogProcess("Error: No valid path found from Source to Load.");
+                    return (new List<CanvasSheet>(), string.Join("\n", _processLogs), false);
+                }
+
+                AutoSetRatings();
+                
+                // Re-construct the sheets list with the modified items
+                // Note: The items are modified in-place within allItems/allConnectors, 
+                // which are references to the objects inside the original sheets dict.
+                // We need to return the modified sheets structure.
+                
+                // (Since we modified the objects in place, the 'sheets' passed in constructor are already updated.
+                // However, we need to make sure we return *that* list.)
+                // But wait, the constructor didn't store the list of sheets, it flattened them into valid lists.
+                // We should store the sheets reference in the class or just rely on the fact that caller has them?
+                // The caller (API controller) instantiates this service. We need to be able to return the modified sheets.
+                // Ah, the controller doesn't get the modified sheets back easily unless we stored them.
+                
+                return (_sheets, string.Join("\n", _processLogs), true);
+            }
+            catch (Exception ex)
+            {
+                LogProcess($"CRITICAL ERROR: {ex.Message}");
+                LogProcess(ex.StackTrace);
+                return (new List<CanvasSheet>(), string.Join("\n", _processLogs), false);
+            }
+        }
+
+        private List<CanvasSheet> _sheets;
 
         public AutoRatingService(List<CanvasSheet> sheets)
         {
+            _sheets = sheets;
             allItems = new List<CanvasItem>();
             allConnectors = new List<Connector>();
             maxCurrentPerItem = new Dictionary<CanvasItem, double>();
@@ -263,7 +303,77 @@ namespace Sayanho.Core.Logic
                 return false;
             }
 
-            Console.WriteLine($"Prerequisites validated: {electricalComponents.Count} electrical components, {allConnectors.Count} connectors");
+            LogProcess($"Prerequisites validated: {electricalComponents.Count} electrical components, {allConnectors.Count} connectors");
+            return true;
+        }
+
+        private bool HasValidSourceToLoadPath()
+        {
+            LogProcess("Validating network paths...");
+            // Use the CalculateNetwork logic to trace paths
+            // We can reuse DiscoverVoltagePaths logic but just check if ANY path is found
+            
+            var sources = allItems.Where(i => i.Name == "Source").ToList();
+            if (!sources.Any())
+            {
+                 LogProcess("Validation Failed: No 'Source' item found.");
+                 return false;
+            }
+
+            // Simple check: do we have any connected loads?
+            // A more robust check runs the full path discovery.
+            
+            // Let's run a quick path discovery based on VoltageDropCalculator logic
+            // We can't easily reuse the private method DiscoverVoltagePaths inside the check without refactoring,
+            // but we can call it if strict check is needed.
+            // However, VoltageDropCalculator is separate or mixed here? 
+            // It seems implemented INSIDE this class in the provided file (based on previous logs showing "Step 5").
+            // Wait, checks file structure... yes, VoltageDropCalculator logic seems embedded or copied?
+            // Actually, based on the file view, there is a separate VoltageDropCalculator.cs file in the directory list.
+            // But the code I viewed has `DiscoverVoltagePaths` call inside `AutoSetRatings`.
+            // Let's check if `DiscoverVoltagePaths` is defined in this file.
+            
+            // Assuming DiscoverVoltagePaths is defined in this file (as it's called in line 139), 
+            // we can try to use standard BFS/DFS to check connectivity.
+            
+            // For now, let's assume if network analysis worked, we have connectivity? 
+            // No, network analysis just calculates currents.
+            
+            // Let's implement a simple BFS from Source
+            var visited = new HashSet<CanvasItem>();
+            var queue = new Queue<CanvasItem>(sources);
+            bool loadFound = false;
+            
+            while(queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (visited.Contains(current)) continue;
+                visited.Add(current);
+                
+                if (current.Name.Contains("Load") || (current.Properties?.Any(p => p.ContainsKey("Power")) == true && current.Name != "Source"))
+                {
+                    loadFound = true;
+                    // We found at least one load reachable from source
+                    // Keep searching to validate *all*? No, requirement is "valid path from source to load".
+                    // If at least one exists, we are good to go? User said "if there is no total path".
+                    break;
+                }
+                
+                // Find outgoing
+                var outgoing = allConnectors.Where(c => c.SourceItem == current).Select(c => c.TargetItem).Where(i => i != null);
+                foreach(var next in outgoing)
+                {
+                    if (!visited.Contains(next)) queue.Enqueue(next);
+                }
+            }
+            
+            if (!loadFound)
+            {
+                LogProcess("Validation Failed: No valid path found from any Source to any Load.");
+                return false;
+            }
+            
+            LogProcess("Network path validation successful.");
             return true;
         }
 
@@ -577,8 +687,8 @@ namespace Sayanho.Core.Logic
                     {
                         if (properties.ContainsKey(key))
                         {
-                            properties[key] = selectedSwitch[key];
-                        }
+                        properties[key] = selectedSwitch[key];
+                    }
                     }
                     
                     Console.WriteLine($"Main Switch: Selected {selectedSwitch["Current Rating"]} (Required: {minimumRating:F2} A)");
@@ -621,8 +731,8 @@ namespace Sayanho.Core.Logic
                     {
                         if (properties.ContainsKey(key))
                         {
-                            properties[key] = selectedSwitch[key];
-                        }
+                        properties[key] = selectedSwitch[key];
+                    }
                     }
                 Console.WriteLine($"Change Over Switch: Selected {selectedSwitch["Current Rating"]} (Required: {minimumRating:F2} A)");
             }

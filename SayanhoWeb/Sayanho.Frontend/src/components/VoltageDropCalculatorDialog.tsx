@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { ApplicationSettings } from '../utils/ApplicationSettings';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -32,6 +33,7 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
     const [current, setCurrent] = useState<number>(10);
     const [length, setLength] = useState<number>(10);
     const [supplyVoltage, setSupplyVoltage] = useState<number>(230);
+    const [maxVoltageDrop, setMaxVoltageDrop] = useState<number>(ApplicationSettings.getMaxVoltageDropPercentage());
 
     // Result state
     const [result, setResult] = useState<CalculationResult | null>(null);
@@ -63,7 +65,8 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
                     current,
                     length,
                     isThreePhase,
-                    supplyVoltage: voltage
+                    supplyVoltage: voltage,
+                    maxAllowedPercentage: maxVoltageDrop
                 }),
             });
 
@@ -258,6 +261,28 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
                         </div>
                     </div> */}
 
+                    {/* Max Voltage Drop */}
+                    <div className="flex items-center gap-4">
+                        <label className="w-32 text-sm font-medium">Max Allowed Drop:</label>
+                        <div className="flex items-center gap-2 flex-1">
+                            <input
+                                type="number"
+                                value={maxVoltageDrop}
+                                onChange={(e) => setMaxVoltageDrop(parseFloat(e.target.value) || 0)}
+                                min="0.1"
+                                max="20"
+                                step="0.1"
+                                className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style={{
+                                    backgroundColor: colors.canvasBackground,
+                                    borderColor: colors.border,
+                                    color: colors.text
+                                }}
+                            />
+                            <span className="text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+
                     {/* Calculate Button */}
                     <div className="flex gap-2 pt-2">
                         <button
@@ -299,7 +324,7 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
                                     <span className="font-mono font-medium">{(result.mvPerAmpPerMeter ?? result.mVPerAmpPerMeter ?? result.MVPerAmpPerMeter ?? 0).toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span>Voltage Drop:</span>
+                                    <span>Voltage Drop (Limit: {maxVoltageDrop}%):</span>
                                     <span className="font-mono font-medium">{result.voltageDropVolts.toFixed(3)} V</span>
                                 </div>
                                 <div className="flex justify-between">

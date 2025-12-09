@@ -120,7 +120,7 @@ button {
 
 /* Glassmorphism Utilities */
 .glass-panel {
-    @apply backdrop-blur-xl bg-white/70 dark:bg-black/70 border border-white/20 dark:border-white/10 shadow-2xl;
+    @apply backdrop-blur-xl bg-white dark:bg-black border border-white/20 dark:border-white/10 shadow-2xl;
 }
 
 .glass-button {
@@ -129,12 +129,12 @@ button {
 
 /* Premium UI Utilities */
 .premium-glass {
-    @apply backdrop-blur-2xl bg-white/40 dark:bg-[#020617]/90 border border-white/40 dark:border-white/5 shadow-xl transition-all duration-300;
+    @apply backdrop-blur-2xl bg-white dark:bg-[#020617] border border-white/40 dark:border-white/5 shadow-xl transition-all duration-300;
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
 }
 
 .premium-glass:hover {
-    @apply bg-white/50 dark:bg-[#020617]/95 border-white/50 dark:border-white/10;
+    @apply bg-white dark:bg-[#020617] border-white/50 dark:border-white/10;
     box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.25);
 }
 

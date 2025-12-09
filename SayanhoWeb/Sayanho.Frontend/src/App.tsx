@@ -21,7 +21,7 @@ import type { CanvasSheet, CanvasItem } from './types';
 import { Toast } from './components/Toast';
 
 function App() {
-    const { getCurrentSheet, setSheet, updateSheet, sheets, setSheets, undo, redo, calculateNetwork, addItem, selectItem, showCurrentValues, toggleShowCurrentValues, isPropertiesPanelOpen, isChatOpen, toggleChat } = useStore();
+    const { getCurrentSheet, setSheet, updateSheet, sheets, setSheets, applyAutoRatingResults, undo, redo, calculateNetwork, addItem, selectItem, showCurrentValues, toggleShowCurrentValues, isPropertiesPanelOpen, isChatOpen, toggleChat } = useStore();
     const currentSheet = getCurrentSheet();
     const { colors, theme } = useTheme();
 
@@ -36,10 +36,12 @@ function App() {
     const [showAutoRatingResult, setShowAutoRatingResult] = useState(false);
     const [autoRatingSuccess, setAutoRatingSuccess] = useState(false);
     const [autoRatingMessage, setAutoRatingMessage] = useState('');
+    const [autoRatingLog, setAutoRatingLog] = useState('');
 
     // Dialog State
     const [showOpen, setShowOpen] = useState(false);
     const [showSaveDialog, setShowSaveDialog] = useState(false);
+    const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
     const [diagrams, setDiagrams] = useState<{ id: string; name: string }[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -86,36 +88,85 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo]);
 
-    // Open save dialog and fetch existing project names
+    // Quick Save: If we know the project ID, overwrite it. If not, open dialog.
     const handleSave = async () => {
         if (sheets.length === 0) return;
+
+        if (currentProjectId) {
+            // Overwrite existing project
+            try {
+                const currentName = diagrams.find(d => d.id === currentProjectId)?.name || sheets[0]?.name || 'Untitled Project';
+                await api.saveDiagram(sheets, currentName, currentProjectId);
+
+                setToastMessage(`Project "${currentName}" saved successfully!`);
+                setToastType('success');
+
+                // Refresh list and ensure name consistency (optional, but good practice)
+                const list = await api.getDiagrams();
+                setDiagrams(list || []);
+            } catch (error) {
+                console.error('Save failed:', error);
+                setToastMessage('Save failed. Check console for details.');
+                setToastType('error');
+            }
+        } else {
+            // Treat as "Save As" (new project)
+            handleSaveAs();
+        }
+    };
+
+    // Save As: Always open dialog to pick a name. Use null ID to force creation.
+    const handleSaveAs = async () => {
+        if (sheets.length === 0) return;
         try {
-            // Fetch existing diagrams to check for duplicate names
             const list = await api.getDiagrams();
             setDiagrams(list || []);
             setShowSaveDialog(true);
         } catch (error) {
             console.error('Failed to fetch diagrams:', error);
-            // Still show dialog, just won't have name validation
             setDiagrams([]);
             setShowSaveDialog(true);
         }
     };
 
-    // Actually save the project with the given name
+    // Callback from Dialog
     const handleConfirmSave = async (projectName: string) => {
         if (sheets.length === 0) return;
         try {
-            // Update the first sheet's name (project name)
-            const updatedSheets = sheets.map((sheet, index) =>
-                index === 0 ? { ...sheet, name: projectName } : sheet
-            );
-            setSheets(updatedSheets);
+            // NOTE: "Save As" logic implies creating a NEW project or overwriting a DIFFERENT one selected by name.
+            // Since SaveProjectDialog currently enforces unique names (or effectively selects existing via name match),
+            // we check if the name matches an existing project to get its ID, or pass null for a new one.
+            // If the user picked a name that exists, we overwrite THAT project.
+            // If the user picked a new name, we create a NEW project.
 
-            await api.saveDiagram(updatedSheets);
+            const existing = diagrams.find(d => d.name.toLowerCase() === projectName.toLowerCase());
+            const targetProjectId = existing ? existing.id : null;
+
+            // API Call
+            await api.saveDiagram(sheets, projectName, targetProjectId);
+
             setShowSaveDialog(false);
             setToastMessage(`Project "${projectName}" saved successfully!`);
             setToastType('success');
+
+            // Refresh list
+            const list = await api.getDiagrams();
+            setDiagrams(list || []);
+
+            // IMPORTANT: If we just saved successfully, this should become the "Current Project"
+            // We need to find the ID of the project we just saved.
+            if (targetProjectId) {
+                setCurrentProjectId(targetProjectId);
+            } else {
+                // We created a new project. The API doesn't return the ID directly in all cases,
+                // but we can find it by name in the refreshed list.
+                const newList = list || [];
+                const newProj = newList.find(d => d.name.toLowerCase() === projectName.toLowerCase());
+                if (newProj) {
+                    setCurrentProjectId(newProj.id);
+                }
+            }
+
         } catch (error) {
             console.error('Save failed:', error);
             setToastMessage('Save failed. Check console for details.');
@@ -141,6 +192,26 @@ function App() {
             // Restore SVG content for all items
             const restoredSheets = await Promise.all(loadedSheets.map(async (sheet) => {
                 const restoredItems = await Promise.all(sheet.canvasItems.map(async (item) => {
+                    if (item.name === 'Portal' && !item.svgContent) {
+                        // Regenerate Portal SVG based on properties
+                        const meta = (item.properties?.[0] || {}) as Record<string, string>;
+                        const dir = (meta['Direction'] || meta['direction'] || 'out').toLowerCase();
+
+                        const w = item.size?.width || 60;
+                        const h = item.size?.height || 40;
+
+                        const arrow = dir === 'in'
+                            ? `<path d="M ${w / 2} ${h * 0.7} L ${w / 2} ${h * 0.3} M ${w / 2} ${h * 0.3} L ${(w / 2) - 6} ${h * 0.3 + 6} M ${w / 2} ${h * 0.3} L ${(w / 2) + 6} ${h * 0.3 + 6}" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+                            : `<path d="M ${w / 2} ${h * 0.3} L ${w / 2} ${h * 0.7} M ${w / 2} ${h * 0.7} L ${(w / 2) - 6} ${h * 0.7 - 6} M ${w / 2} ${h * 0.7} L ${(w / 2) + 6} ${h * 0.7 - 6}" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+                        const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <rect x="2" y="2" width="${w - 4}" height="${h - 4}" rx="6" ry="6" fill="#fff" stroke="#111" stroke-width="2"/>
+  ${arrow}
+</svg>`;
+                        return { ...item, svgContent: svg };
+                    }
+
                     // If svgContent is missing but iconPath exists, fetch the SVG
                     if (!item.svgContent && item.iconPath) {
                         try {
@@ -175,6 +246,7 @@ function App() {
             }));
 
             setSheets(restoredSheets);
+            setCurrentProjectId(id); // Set current project ID
             setShowOpen(false);
 
             // Trigger network analysis to regenerate currentValues
@@ -237,6 +309,68 @@ function App() {
         }
     };
 
+    const handleAutoRate = async () => {
+        try {
+            console.log('Starting auto-rating...');
+            const response = await api.autoRate(sheets);
+            const { sheets: updatedSheets, log, success, message } = response;
+
+            setAutoRatingLog(log);
+
+            if (!success) {
+                setAutoRatingSuccess(false);
+                setAutoRatingMessage(message || 'Auto-rating validation failed.');
+                setShowAutoRatingResult(true);
+                return;
+            }
+
+            // Restore svgContent from original sheets (backend doesn't return it)
+            updatedSheets.forEach((updatedSheet, sheetIndex) => {
+                const originalSheet = sheets[sheetIndex];
+                if (originalSheet) {
+                    updatedSheet.canvasItems.forEach(updatedItem => {
+                        if (!updatedItem.svgContent) {
+                            const originalItem = originalSheet.canvasItems.find(
+                                orig => orig.uniqueID === updatedItem.uniqueID
+                            );
+                            if (originalItem?.svgContent) {
+                                updatedItem.svgContent = originalItem.svgContent;
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Update visuals for all items in the returned sheets
+            updatedSheets.forEach(sheet => {
+                sheet.canvasItems.forEach(item => {
+                    const newSvg = updateItemVisuals(item);
+                    if (newSvg) {
+                        item.svgContent = newSvg;
+                    }
+                });
+            });
+
+            // USE NEW STORE ACTION TO PRESERVE UNDO HISTORY
+            applyAutoRatingResults(updatedSheets);
+
+            // calculateNetwork is called inside applyAutoRatingResults, but calling again doesn't hurt if logic differs.
+            // The logic in applyAutoRatingResults calls calculateNetwork.
+
+            setAutoRatingSuccess(true);
+            setAutoRatingMessage(message || 'Component ratings have been successfully updated based on network analysis.');
+            setShowAutoRatingResult(true);
+        } catch (error: any) {
+            console.error('Auto-rating failed:', error);
+            const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+            const errorLog = error.response?.data?.log || '';
+            setAutoRatingSuccess(false);
+            setAutoRatingMessage(`Auto-rating failed: ${errorMsg}\n\nPlease ensure:\n1. Network analysis has been run\n2. Electrical components are connected\n3. Database is accessible`);
+            setAutoRatingLog(errorLog);
+            setShowAutoRatingResult(true);
+        }
+    };
+
     // Toolbar Handlers
     const handleZoomIn = () => canvasRef.current?.zoomIn();
     const handleZoomOut = () => canvasRef.current?.zoomOut();
@@ -269,6 +403,10 @@ function App() {
                     {showMenu && (
                         <div className="premium-glass rounded-full px-3 py-1 z-50">
                             <MenuBar
+                                onLoad={handleOpen}
+                                onSave={handleSave}
+                                onSaveAs={handleSaveAs}
+                                onSaveImage={handleSaveImage}
                                 onSettings={() => setShowSettings(true)}
                                 onGenerateEstimate={handleGenerateEstimate}
                                 onOpenVoltageDrop={() => setShowVoltageDropDialog(true)}
@@ -280,8 +418,6 @@ function App() {
                     <div className="absolute left-1/2 transform -translate-x-1/2 top-0 pointer-events-auto">
                         <div className="premium-glass rounded-xl p-1.5 flex items-center h-[36px]"> {/* Fixed height to match menu */}
                             <Toolbar
-                                onSave={handleSave}
-                                onSaveImage={handleSaveImage}
                                 onLoad={handleOpen}
                                 onZoomIn={handleZoomIn}
                                 onZoomOut={handleZoomOut}
@@ -292,51 +428,7 @@ function App() {
                                 onToggleMenu={() => setShowMenu(!showMenu)}
                                 showChat={isChatOpen}
                                 onToggleChat={toggleChat}
-                                onAutoRate={async () => {
-                                    try {
-                                        console.log('Starting auto-rating...');
-                                        const updatedSheets = await api.autoRate(sheets);
-
-                                        // Restore svgContent from original sheets (backend doesn't return it)
-                                        updatedSheets.forEach((updatedSheet, sheetIndex) => {
-                                            const originalSheet = sheets[sheetIndex];
-                                            if (originalSheet) {
-                                                updatedSheet.canvasItems.forEach(updatedItem => {
-                                                    if (!updatedItem.svgContent) {
-                                                        const originalItem = originalSheet.canvasItems.find(
-                                                            orig => orig.uniqueID === updatedItem.uniqueID
-                                                        );
-                                                        if (originalItem?.svgContent) {
-                                                            updatedItem.svgContent = originalItem.svgContent;
-                                                        }
-                                                    }
-                                                });
-                                            }
-                                        });
-
-                                        // Update visuals for all items in the returned sheets
-                                        updatedSheets.forEach(sheet => {
-                                            sheet.canvasItems.forEach(item => {
-                                                const newSvg = updateItemVisuals(item);
-                                                if (newSvg) {
-                                                    item.svgContent = newSvg;
-                                                }
-                                            });
-                                        });
-
-                                        setSheets(updatedSheets);
-                                        calculateNetwork();
-                                        setAutoRatingSuccess(true);
-                                        setAutoRatingMessage('Component ratings have been successfully updated based on network analysis.');
-                                        setShowAutoRatingResult(true);
-                                    } catch (error: any) {
-                                        console.error('Auto-rating failed:', error);
-                                        const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
-                                        setAutoRatingSuccess(false);
-                                        setAutoRatingMessage(`Auto-rating failed: ${errorMsg}\n\nPlease ensure:\n1. Network analysis has been run\n2. Electrical components are connected\n3. Database is accessible`);
-                                        setShowAutoRatingResult(true);
-                                    }
-                                }}
+                                onAutoRate={handleAutoRate}
                                 onAddText={() => setIsAddTextMode(!isAddTextMode)}
                                 isAddTextMode={isAddTextMode}
                                 onUndo={undo}
@@ -397,6 +489,7 @@ function App() {
                 onDownloadReport={handleDownloadReport}
                 success={autoRatingSuccess}
                 message={autoRatingMessage}
+                processLog={autoRatingLog}
             />
 
             {/* Save Project Dialog */}

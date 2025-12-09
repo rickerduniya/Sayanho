@@ -2,12 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 interface MenuBarProps {
+    onLoad: () => void;
+    onSave: () => void;
+    onSaveAs: () => void;
+    onSaveImage: () => void;
     onSettings: () => void;
     onGenerateEstimate: () => void;
     onOpenVoltageDrop: () => void;
 }
 
-export const MenuBar: React.FC<MenuBarProps> = ({ onSettings, onGenerateEstimate, onOpenVoltageDrop }) => {
+export const MenuBar: React.FC<MenuBarProps> = ({
+    onLoad, onSave, onSaveAs, onSaveImage,
+    onSettings, onGenerateEstimate, onOpenVoltageDrop
+}) => {
     const { colors } = useTheme();
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -67,6 +74,11 @@ export const MenuBar: React.FC<MenuBarProps> = ({ onSettings, onGenerateEstimate
                         className="absolute left-0 top-full min-w-[200px] shadow-lg border py-1 z-50"
                         style={{ backgroundColor: colors.panelBackground, borderColor: colors.border }}
                     >
+                        <MenuItem label="Load Project" onClick={onLoad} />
+                        <MenuItem label="Save Project" onClick={onSave} />
+                        <MenuItem label="Save Project As..." onClick={onSaveAs} />
+                        <MenuItem label="Save as Image" onClick={onSaveImage} />
+                        <MenuSeparator />
                         <MenuItem label="Generate Estimate" onClick={onGenerateEstimate} />
                         <MenuSeparator />
                         <MenuItem label="Settings" onClick={onSettings} />

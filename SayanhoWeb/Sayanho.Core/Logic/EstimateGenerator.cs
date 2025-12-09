@@ -36,7 +36,15 @@ namespace Sayanho.Core.Logic
 
             // Filter out Bulb, Source, and Portal items
             canvasItems = (canvasItems ?? new List<CanvasItem>()).Where(item => 
-                item.Name != "Bulb" && 
+                item.Name != "Bulb" &&
+                item.Name != "Tube Light" &&
+                item.Name != "Ceiling Fan" &&
+                item.Name != "Exhaust Fan" &&
+                item.Name != "Split AC" &&
+                item.Name != "AC Point" &&
+                item.Name != "Geyser" &&
+                item.Name != "Geyser Point" &&
+                item.Name != "Call Bell" &&
                 item.Name != "Source" &&
                 item.Name != "Portal"
             ).ToList();

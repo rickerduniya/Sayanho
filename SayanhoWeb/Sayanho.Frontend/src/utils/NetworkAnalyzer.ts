@@ -32,8 +32,8 @@ export class NetworkAnalyzer {
             connector.currentValues["Phase"] = "";
         });
 
-        // Find all sources (including HTPN as a starting point if no upstream source)
-        const sources = this.allItems.filter(item => item.name === "Source" || item.name?.includes("HTPN"));
+        // Find all sources (only "Source" items)
+        const sources = this.allItems.filter(item => item.name === "Source");
 
         // Process each source
         sources.forEach(source => {
@@ -171,12 +171,9 @@ export class NetworkAnalyzer {
         } else {
             // Special handling: Portal bridging across sheets
             if (targetItem.name === 'Portal') {
-                // Check incoming allowed
                 const metaP = (targetItem.properties?.[0] || {}) as Record<string, string>;
-                const dirIn = (metaP["Direction"] || metaP["direction"] || '').toLowerCase();
                 const netId = (metaP["NetId"] || metaP["netId"] || '').trim();
                 if (!netId) return;
-                if (dirIn === 'out') return; // cannot accept incoming
 
                 // Prevent cycling through same net repeatedly
                 if (visitedNets.has(netId)) return;
@@ -189,18 +186,15 @@ export class NetworkAnalyzer {
                     const nid = (mp['NetId'] || mp['netId'] || '').trim();
                     return nid === netId;
                 });
-                if (sameNet.length !== 2) return; // invalid net; skip bridging
+
+                // Allow bridging if exactly 2 portals exist with this ID
+                if (sameNet.length !== 2) return;
 
                 const counterpart = sameNet.find(p => p.uniqueID !== targetItem.uniqueID);
                 if (!counterpart) return;
 
-                // Check counterpart allows outgoing
-                const metaQ = (counterpart.properties?.[0] || {}) as Record<string, string>;
-                const dirOut = (metaQ['Direction'] || metaQ['direction'] || '').toLowerCase();
-                const allowsOut = (dirOut === 'out');
-                if (!allowsOut) return;
-
                 // Trace from counterpart's outgoing connectors
+                // We ignore 'Direction' property and rely on connectivity.
                 const outFromCounterpart = this.allConnectors.filter(c => c.sourceItem.uniqueID === counterpart.uniqueID);
 
                 if (outFromCounterpart.length > 0) {

@@ -15,6 +15,7 @@ namespace Sayanho.Backend.Services
                 var document = new PdfDocument();
                 var page = document.AddPage();
                 var gfx = XGraphics.FromPdfPage(page);
+                // Use a standard font likely to be available or mapped
                 var font = new XFont("Arial", 10, XFontStyle.Regular);
                 var boldFont = new XFont("Arial", 10, XFontStyle.Bold);
                 var titleFont = new XFont("Arial", 16, XFontStyle.Bold);

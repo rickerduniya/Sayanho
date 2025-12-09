@@ -19,7 +19,7 @@ export interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
     safetyMarginPercentage: 25.0,
     voltageDropEnabled: true,
-    maxVoltageDropPercentage: 3.0,
+    maxVoltageDropPercentage: 7.0,
     diversificationFactors: {
         "Bulb": 1.0,
         "Tube Light": 1.0,
