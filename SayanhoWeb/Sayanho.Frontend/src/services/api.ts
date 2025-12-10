@@ -128,7 +128,7 @@ export const api = {
 
     saveDiagram: async (sheets: CanvasSheet[], projectName: string, explicitProjectId: string | null = null): Promise<any> => {
         // Optimize payload: strip undoStack, redoStack, svgContent, use IDs for connectors
-        const optimizedSheets = stripSheetsForApi(sheets);
+        const optimizedSheets = stripSheetsForApi(sheets, true);
 
         // Determine Project ID:
         // 1. If explicit (overwrite existing), use it.
@@ -249,5 +249,14 @@ export const api = {
             responseType: 'blob'
         });
         return response.data;
+    },
+
+    checkHealth: async (): Promise<boolean> => {
+        try {
+            await axios.get(`${API_URL}/`);
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 };

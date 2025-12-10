@@ -349,7 +349,10 @@ const CONNECTOR_POINT_ITEMS: ItemRule[] = [
             }
         },
         defaults: {
-            properties: {}
+            properties: {
+                "Avg. Run": "10 M",
+                "Type": "Power"
+            }
         }
     }
 ];

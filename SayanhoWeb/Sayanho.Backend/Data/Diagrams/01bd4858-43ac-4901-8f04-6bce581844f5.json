@@ -1363,12 +1363,14 @@
           "SourceItemId": "554dae20-d2a2-4f12-bc0d-3673fb3793fa",
           "TargetItemId": "6b61d2e2-e495-41e8-8ce6-58ffd8d9320b",
           "Properties": {
-            "Conduit": "Prelaid",
-            "Conduit size": "Any",
-            "Conductor Size": "2 x 16 \u002B 1 x 10 sq.mm",
-            "Rate": "399",
-            "Description": "Supplying and Drawing 1.1 KV single core stranded \u0027FR\u0027\nPVC insulated \u0026 unsheathed single core stranded copper wire\n(Brand approved by EIC) of the following sizes in the prelaid\npolythene pipe and by the prelaid GI fish wire and making\nnecy. connection as required",
-            "GS": "PWD/GS -E-9 : 1"
+            "Conductor": "Aluminium",
+            "Armoured": "Armoured",
+            "Core": "2 Core",
+            "Size": "4 sq.mm.",
+            "Company": "KEI",
+            "Rate": "169",
+            "Description": "Supplying and Delivery following core and size of 1.1 KV Aluminium Armoured PVC/XLPE Cables",
+            "GS": "PRICE LIST : 01-01-2025"
           },
           "CurrentValues": {
             "Current": "0 A",
@@ -1377,8 +1379,8 @@
             "B_Current": "0 A",
             "Phase": "0 A"
           },
-          "AlternativeCompany1": "",
-          "AlternativeCompany2": "",
+          "AlternativeCompany1": "KEI",
+          "AlternativeCompany2": "Polycab",
           "Laying": {
             "Method": "On Wall / surface with Saddles / clamps",
             "Size": "upto 25 sq.mm.",
@@ -1389,7 +1391,7 @@
           },
           "Accessories": [],
           "Length": 0,
-          "MaterialType": "Wiring",
+          "MaterialType": "Cable",
           "IsVirtual": false
         }
       ],
@@ -1401,7 +1403,7 @@
         "Width": 2000,
         "Height": 2000
       },
-      "Scale": 0.51315814
+      "Scale": 0.5644739
     },
     {
       "SheetId": "86d627ac-ccf5-4a51-a2c6-ddb4f9b2d3af",

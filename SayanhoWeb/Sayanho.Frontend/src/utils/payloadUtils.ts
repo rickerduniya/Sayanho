@@ -31,7 +31,7 @@ export interface LightConnector {
 
 /**
  * Lightweight canvas item for API transfers
- * Removes: svgContent, originalPosition, originalSize, originalConnectionPoints
+ * Removes: svgContent
  */
 export interface LightCanvasItem {
     uniqueID: string;
@@ -61,10 +61,10 @@ export interface LightCanvasSheet {
     canvasItems: LightCanvasItem[];
     storedConnectors: LightConnector[];
     existingLinePoints: { x: number; y: number }[][];
-    existingOriginalLinePoints: { x: number; y: number }[][];
     existingConnections: string[];
-    virtualCanvasSize: { width: number; height: number };
     scale: number;
+    viewportX?: number; // Optional: included for storage, excluded for analysis/LLM
+    viewportY?: number;
 }
 
 /**
@@ -87,7 +87,7 @@ export function createLightItem(item: CanvasItem): LightCanvasItem {
         outgoing: item.outgoing,
         accessories: item.accessories,
         rotation: item.rotation
-        // Omitted: svgContent, originalPosition, originalSize, originalConnectionPoints
+        // Omitted: svgContent
     };
 }
 
@@ -116,26 +116,31 @@ export function createLightConnector(connector: Connector): LightConnector {
 /**
  * Strip a CanvasSheet of unnecessary data for API transfer
  */
-export function stripSheetForApi(sheet: CanvasSheet): LightCanvasSheet {
-    return {
+export function stripSheetForApi(sheet: CanvasSheet, includeViewport: boolean = false): LightCanvasSheet {
+    const light: LightCanvasSheet = {
         sheetId: sheet.sheetId,
         name: sheet.name,
         canvasItems: sheet.canvasItems.map(createLightItem),
         storedConnectors: sheet.storedConnectors.map(createLightConnector),
         existingLinePoints: sheet.existingLinePoints,
-        existingOriginalLinePoints: sheet.existingOriginalLinePoints,
         existingConnections: sheet.existingConnections,
-        virtualCanvasSize: sheet.virtualCanvasSize,
         scale: sheet.scale
         // Omitted: undoStack, redoStack
     };
+
+    if (includeViewport) {
+        light.viewportX = sheet.viewportX;
+        light.viewportY = sheet.viewportY;
+    }
+
+    return light;
 }
 
 /**
  * Strip multiple sheets for API transfer
  */
-export function stripSheetsForApi(sheets: CanvasSheet[]): LightCanvasSheet[] {
-    return sheets.map(stripSheetForApi);
+export function stripSheetsForApi(sheets: CanvasSheet[], includeViewport: boolean = false): LightCanvasSheet[] {
+    return sheets.map(s => stripSheetForApi(s, includeViewport));
 }
 
 /**

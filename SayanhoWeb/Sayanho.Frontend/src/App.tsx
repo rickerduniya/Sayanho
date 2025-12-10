@@ -68,6 +68,34 @@ function App() {
         };
     }, []);
 
+    // Wake-up Backend Check
+    useEffect(() => {
+        const wakeUpBackend = async () => {
+            const startTime = Date.now();
+            let notified = false;
+
+            // Initial check - if it takes long, show toast
+            const timer = setTimeout(() => {
+                setToastMessage('Waking up backend server... this may take up to 30 seconds.');
+                setToastType('info');
+                notified = true;
+            }, 2000);
+
+            try {
+                await api.checkHealth();
+                clearTimeout(timer);
+                if (notified) {
+                    setToastMessage('Backend is ready!');
+                    setToastType('success');
+                }
+            } catch (e) {
+                console.error("Backend validation failed", e);
+            }
+        };
+
+        wakeUpBackend();
+    }, []);
+
     // Keyboard Shortcuts for Undo/Redo
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -374,6 +402,18 @@ function App() {
     // Toolbar Handlers
     const handleZoomIn = () => canvasRef.current?.zoomIn();
     const handleZoomOut = () => canvasRef.current?.zoomOut();
+    const handleSetZoom = (newScale: number) => canvasRef.current?.setZoom(newScale);
+    const handleResetZoom = () => {
+        if (canvasRef.current) {
+            canvasRef.current.resetZoom();
+        }
+    };
+    const handleFitContent = () => {
+        if (canvasRef.current) {
+            // @ts-ignore - fitView is newly added
+            canvasRef.current.fitView();
+        }
+    };
     const handleSaveImage = () => canvasRef.current?.saveImage();
 
     return (
@@ -396,12 +436,12 @@ function App() {
                 <div className="flex items-center gap-4 pointer-events-auto animate-slide-in-top w-full relative">
                     {/* Branding - in toolbar */}
                     <div className="absolute left-1/2 transform -translate-x-1/2 -top-1 pointer-events-none z-50">
-                        <h1 className="text-lg font-bold tracking-widest uppercase opacity-70" style={{ color: theme === 'dark' ? '#fff' : '#333' }}>Sayanho <span className="text-xs font-normal opacity-60">V1.1</span></h1>
+                        <h1 className="text-lg font-bold tracking-widest uppercase opacity-70" style={{ color: theme === 'dark' ? '#fff' : '#333' }}>Sayanho <span className="text-xs font-normal opacity-60">V1.2</span></h1>
                     </div>
 
                     {/* Menu Bar */}
                     {showMenu && (
-                        <div className="premium-glass rounded-full px-3 py-1 z-50">
+                        <div className="premium-glass rounded-full px-3 py-1 z-50" style={{ backgroundColor: colors.menuBackground }}>
                             <MenuBar
                                 onLoad={handleOpen}
                                 onSave={handleSave}
@@ -421,6 +461,9 @@ function App() {
                                 onLoad={handleOpen}
                                 onZoomIn={handleZoomIn}
                                 onZoomOut={handleZoomOut}
+                                onSetZoom={handleSetZoom}
+                                onResetZoom={handleResetZoom}
+                                onFitContent={handleFitContent}
                                 scale={scale}
                                 showLeftPanel={showLeftPanel}
                                 onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}

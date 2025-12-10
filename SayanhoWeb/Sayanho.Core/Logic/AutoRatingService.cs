@@ -988,6 +988,15 @@ namespace Sayanho.Core.Logic
                     continue;
                 }
 
+                // Skip cables connected to fixed-spec switch boards (Point SB, Avg 5A SB)
+                if ((connector.TargetItem != null && (connector.TargetItem.Name == "Point Switch Board" || connector.TargetItem.Name == "Avg. 5A Switch Board")) ||
+                    (connector.SourceItem != null && (connector.SourceItem.Name == "Point Switch Board" || connector.SourceItem.Name == "Avg. 5A Switch Board")))
+                {
+                    LogProcess($"Connector {GetConnectorName(connector)}: Connected to fixed-spec board, skipping auto-rating");
+                    connectionsSkipped++;
+                    continue;
+                }
+
                 // Skip if no current values
                 if (connector.CurrentValues == null || !connector.CurrentValues.Any())
                 {

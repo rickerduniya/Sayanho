@@ -34,15 +34,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTheme(prev => prev === 'light' ? 'dark' : 'light');
     };
 
+    // Apply dark mode class to HTML element
+    useEffect(() => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [theme]);
+
     const colors: ThemeColors = {
         canvasBackground: theme === 'dark' ? '#020617' : '#f0f4f8', // Slate 950 / Cool Gray
-        panelBackground: theme === 'dark' ? 'rgba(2, 6, 23, 0.8)' : 'rgba(255, 255, 255, 0.6)', // Deeper dark / More transparent light
+        panelBackground: theme === 'dark' ? '#020617' : '#ffffff', // Solid Opaque
         text: theme === 'dark' ? '#f8fafc' : '#1e293b',
-        menuBackground: theme === 'dark' ? 'rgba(2, 6, 23, 0.9)' : 'rgba(255, 255, 255, 0.8)',
-        toolbarBackground: theme === 'dark' ? 'rgba(2, 6, 23, 0.8)' : 'rgba(255, 255, 255, 0.6)',
+        menuBackground: theme === 'dark' ? '#020617' : '#ffffff', // Solid Opaque
+        toolbarBackground: theme === 'dark' ? '#020617' : '#ffffff', // Solid Opaque
         menuForeground: '#ffffff',
         menuText: theme === 'dark' ? '#f8fafc' : '#1e293b',
-        border: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        border: theme === 'dark' ? '#1e293b' : '#e2e8f0', // Opaque borders (Slate 800 / Slate 200)
         glassBackground: theme === 'dark' ? 'rgba(2, 6, 23, 0.8)' : 'rgba(255, 255, 255, 0.6)',
         glassBorder: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)',
         accent: '#818cf8', // Indigo 400

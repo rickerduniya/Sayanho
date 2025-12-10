@@ -400,9 +400,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                         updatedItem = {
                             ...updatedItem,
                             size: geometry.size,
-                            originalSize: geometry.originalSize,
-                            connectionPoints: geometry.connectionPoints,
-                            originalConnectionPoints: geometry.originalConnectionPoints
+                            connectionPoints: geometry.connectionPoints
                         };
                     }
 

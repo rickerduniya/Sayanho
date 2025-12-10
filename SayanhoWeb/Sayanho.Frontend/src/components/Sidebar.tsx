@@ -25,6 +25,20 @@ const CATEGORIES: Record<string, string[]> = {
     "Others": ["Bell", "Bell Push", "Call Bell Point"]
 };
 
+// Color styles for categories (Light Mode: Soft Background / Dark Mode: Translucent Background)
+const CATEGORY_STYLES: Record<string, string> = {
+    "Distribution Boards": "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200",
+    "Switchgear": "bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200",
+    "Appliances": "bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-200",
+    "Lighting": "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
+    "Fans": "bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-200",
+    "Switch Boards": "bg-slate-200 text-slate-900 dark:bg-slate-800/60 dark:text-slate-300",
+    "Sockets": "bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200",
+    "Infrastructure": "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200",
+    "Meters": "bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-200",
+    "Others": "bg-pink-100 text-pink-900 dark:bg-pink-900/40 dark:text-pink-200"
+};
+
 const getItemCategory = (name: string): string => {
     for (const [category, items] of Object.entries(CATEGORIES)) {
         if (items.some(i => name.includes(i) || name === i)) {
@@ -109,11 +123,8 @@ export const Sidebar = () => {
             uniqueID: crypto.randomUUID(),
             name: itemData.name,
             position: { x: 300, y: 300 },
-            originalPosition: { x: 300, y: 300 },
             size: itemData.size,
-            originalSize: itemData.size,
             connectionPoints: itemData.connectionPoints,
-            originalConnectionPoints: itemData.connectionPoints,
             properties: [],
             alternativeCompany1: '',
             alternativeCompany2: '',
@@ -162,9 +173,7 @@ export const Sidebar = () => {
         const staticDef = getItemDefinition(newItem.name);
         if (staticDef && !["HTPN", "VTPN", "SPN DB"].includes(newItem.name)) {
             newItem.size = staticDef.size;
-            newItem.originalSize = staticDef.size;
             newItem.connectionPoints = staticDef.connectionPoints;
-            newItem.originalConnectionPoints = staticDef.connectionPoints;
         }
 
         // Initialize Distribution Boards and Switches
@@ -180,9 +189,7 @@ export const Sidebar = () => {
             const result = calculateGeometry(newItem);
             if (result) {
                 newItem.size = result.size;
-                newItem.originalSize = result.size;
                 newItem.connectionPoints = result.connectionPoints;
-                newItem.originalConnectionPoints = result.connectionPoints;
             }
         }
 
@@ -229,8 +236,11 @@ export const Sidebar = () => {
                         <div key={category} className="mb-2">
                             <button
                                 onClick={() => toggleGroup(category)}
-                                className="flex items-center w-full px-2 py-1.5 mb-1 text-xs font-bold uppercase tracking-wider opacity-70 hover:opacity-100 transition-opacity"
-                                style={{ color: colors.text }}
+                                className={`
+                                    flex items-center w-full px-2 py-1.5 mb-1 text-xs font-bold uppercase tracking-wider rounded-md transition-all
+                                    ${CATEGORY_STYLES[category] || 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-200'}
+                                    hover:brightness-95 dark:hover:brightness-110
+                                `}
                             >
                                 {expandedGroups[category] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
                                 {category} ({categoryItems.length})

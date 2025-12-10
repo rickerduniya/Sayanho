@@ -112,13 +112,8 @@ export const ChatPanel = () => {
             uniqueID: crypto.randomUUID(),
             name: itemData.name,
             position: position || { x: 300, y: 300 },
-            originalPosition: position
-                ? { x: position.x / scale, y: position.y / scale }
-                : { x: 300 / scale, y: 300 / scale },
             size: itemData.size,
-            originalSize: itemData.size,
             connectionPoints: itemData.connectionPoints,
-            originalConnectionPoints: itemData.connectionPoints,
             properties: [],
             alternativeCompany1: '',
             alternativeCompany2: '',
@@ -167,9 +162,7 @@ export const ChatPanel = () => {
         const staticDef = getItemDefinition(newItem.name);
         if (staticDef && !["HTPN", "VTPN", "SPN DB"].includes(newItem.name)) {
             newItem.size = staticDef.size;
-            newItem.originalSize = staticDef.size;
             newItem.connectionPoints = staticDef.connectionPoints;
-            newItem.originalConnectionPoints = staticDef.connectionPoints;
         }
 
         // Initialize Distribution Boards and Switches
@@ -185,9 +178,7 @@ export const ChatPanel = () => {
             const result = calculateGeometry(newItem);
             if (result) {
                 newItem.size = result.size;
-                newItem.originalSize = result.size;
                 newItem.connectionPoints = result.connectionPoints;
-                newItem.originalConnectionPoints = result.connectionPoints;
             }
         }
 

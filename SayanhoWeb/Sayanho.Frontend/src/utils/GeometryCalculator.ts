@@ -1,6 +1,6 @@
 import { CanvasItem, Point, Size } from '../types/index';
 
-export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoints: Record<string, Point>, originalConnectionPoints: Record<string, Point>, originalSize: Size } | null => {
+export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoints: Record<string, Point> } | null => {
     const properties = item.properties[0];
     if (!properties) return null;
 
@@ -27,13 +27,9 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
     // Heights are implicit from the SVG content or previous size. 
     // However, connection points Y values are fixed (140, 160).
     // Let's assume height is sufficient to cover connection points.
-    // In C#, originalSize is updated. 
-    // For now, we'll keep height as is or update if we find specific logic.
-    // Actually, C# sets size based on transformed icon.
     // Here we are calculating logical size.
 
     let newConnectionPoints: Record<string, Point> = {};
-    let newOriginalConnectionPoints: Record<string, Point> = {};
 
     if (item.name === "HTPN") {
         width = 56 * way * 3;
@@ -45,7 +41,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
         const inX = width / 2;
         const inY = 0;
         newConnectionPoints["in"] = { x: inX, y: inY };
-        newOriginalConnectionPoints["in"] = { x: inX, y: inY };
 
         // Out
         const xStart = 40;
@@ -59,7 +54,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
                 const x = xStart + (k - 1) * xIncrement;
 
                 newConnectionPoints[key] = { x: x, y: yValue };
-                newOriginalConnectionPoints[key] = { x: x, y: yValue };
                 k++;
             }
         });
@@ -72,7 +66,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
         const inX = width / 2;
         const inY = 0;
         newConnectionPoints["in"] = { x: inX, y: inY };
-        newOriginalConnectionPoints["in"] = { x: inX, y: inY };
 
         // Out
         const xStart = 50;
@@ -84,7 +77,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
             const x = xStart + (i - 1) * xIncrement;
 
             newConnectionPoints[key] = { x: x, y: yValue };
-            newOriginalConnectionPoints[key] = { x: x, y: yValue };
         }
 
     } else if (item.name === "SPN DB") {
@@ -95,7 +87,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
         const inX = width / 2;
         const inY = 0;
         newConnectionPoints["in"] = { x: inX, y: inY };
-        newOriginalConnectionPoints["in"] = { x: inX, y: inY };
 
         // Out
         const xStart = 40;
@@ -107,7 +98,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
             const x = xStart + (i - 1) * xIncrement;
 
             newConnectionPoints[key] = { x: x, y: yValue };
-            newOriginalConnectionPoints[key] = { x: x, y: yValue };
         }
     } else {
         return null;
@@ -115,8 +105,6 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
 
     return {
         size: { width, height },
-        originalSize: { width, height },
-        connectionPoints: newConnectionPoints,
-        originalConnectionPoints: newOriginalConnectionPoints
+        connectionPoints: newConnectionPoints
     };
 };

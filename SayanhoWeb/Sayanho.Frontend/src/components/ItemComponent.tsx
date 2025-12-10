@@ -85,15 +85,53 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
 
                 // 2. Modify SVG for Dark Mode if needed
                 if (svgString) {
-                    // Remove white background fills if present (fixes Bulb transparency)
-                    svgString = svgString.replace(/fill\s*=\s*["'](white|#ffffff|#fff)["']/gi, 'fill="none"');
+                    try {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(svgString, "image/svg+xml");
+                        // Select common SVG shapes and text
+                        const elements = doc.querySelectorAll('path, circle, rect, line, polyline, polygon, text');
+                        const targetColor = theme === 'dark' ? '#ffffff' : '#000000';
 
-                    if (theme === 'dark') {
-                        // Inject filter style into the SVG
-                        if (!svgString.includes('filter: invert(1)')) {
-                            svgString = svgString.replace('<svg', '<svg style="filter: invert(1);"');
-                        }
+                        elements.forEach(el => {
+                            const fill = el.getAttribute('fill');
+                            const stroke = el.getAttribute('stroke');
+                            const style = el.getAttribute('style') || '';
+
+                            // 1. Remove white background fills
+                            if (fill && (fill === 'white' || fill === '#ffffff' || fill === '#fff')) {
+                                el.setAttribute('fill', 'none');
+                            }
+
+                            // 2. Replace black strokes with target color
+                            if (stroke && (stroke === 'black' || stroke === '#000000' || stroke === '#000')) {
+                                el.setAttribute('stroke', targetColor);
+                            }
+                            if (style.includes('stroke:black') || style.includes('stroke:#000')) {
+                                el.setAttribute('style', style.replace(/stroke:\s*(black|#000000|#000)/gi, `stroke:${targetColor}`));
+                            }
+
+                            // 3. Replace black fills with target color
+                            if (fill && (fill === 'black' || fill === '#000000' || fill === '#000')) {
+                                el.setAttribute('fill', targetColor);
+                            }
+                            if (style.includes('fill:black') || style.includes('fill:#000')) {
+                                el.setAttribute('style', style.replace(/fill:\s*(black|#000000|#000)/gi, `fill:${targetColor}`));
+                            }
+
+                            // 4. Handle implicit default fill (which is black)
+                            // If an element has NO fill and NO stroke defined, SVG defaults to black fill.
+                            // We must apply target color here.
+                            // Exclude if 'fill' is explicitly 'none'
+                            if (!fill && !stroke && !style.includes('fill:') && !style.includes('stroke:')) {
+                                el.setAttribute('fill', targetColor);
+                            }
+                        });
+
+                        svgString = new XMLSerializer().serializeToString(doc);
+                    } catch (e) {
+                        console.error('[ItemComponent] SVG parsing error:', e);
                     }
+
                     const blob = new Blob([svgString], { type: 'image/svg+xml' });
                     src = URL.createObjectURL(blob);
                 }
@@ -127,6 +165,7 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
 
     return (
         <Group
+            id={item.uniqueID}
             x={item.position.x}
             y={item.position.y}
             draggable={!item.locked && !panMode}
@@ -168,10 +207,9 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
                     stroke="#4f46e5"
                     strokeWidth={2}
                     dash={[8, 4]}
+                    listening={false}
                 />
             )}
-
-
 
             <Rect
                 width={item.size.width}
@@ -179,8 +217,6 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
                 fill="transparent"
                 stroke={isSelected ? "#4f46e5" : "transparent"}
                 strokeWidth={isSelected ? 1 : 0}
-                shadowBlur={isSelected ? 8 : 0}
-                shadowOpacity={isSelected ? 0.3 : 0}
                 cornerRadius={2}
             />
 
@@ -193,7 +229,6 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
                     height={item.rotation === 90 || item.rotation === 270 ? item.size.width : item.size.height}
                     rotation={item.rotation || 0}
                     listening={false}
-                    filters={theme === 'dark' ? [Konva.Filters.Invert] : undefined}
                 />
             )}
 
@@ -280,14 +315,6 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
                     </Group>
                 );
             })}
-            {isSelected && (
-                <Transformer
-                    ref={transformerRef}
-                    keepRatio={false}
-                    enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
-                    rotateEnabled={false}
-                />
-            )}
         </Group>
     );
 };

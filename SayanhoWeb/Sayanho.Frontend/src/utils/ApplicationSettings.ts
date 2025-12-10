@@ -55,6 +55,28 @@ export class ApplicationSettings {
                     }
                 }
 
+                // Migration: Auto-update legacy max voltage drop
+                let mv = parsed.maxVoltageDropPercentage;
+                // Handle possible string type from legacy storage
+                if (typeof mv === 'string') mv = parseFloat(mv);
+
+                // Check for 3.0 (allow small epsilon just in case, or exact 3)
+                if (typeof mv === 'number' && Math.abs(mv - 3.0) < 0.1) {
+                    parsed.maxVoltageDropPercentage = 7.0;
+                    // Force save the migrated value so we don't rely on this check forever
+                    // Merging with defaults here to be safe
+                    const migrated = {
+                        ...DEFAULT_SETTINGS,
+                        ...parsed,
+                        maxVoltageDropPercentage: 7.0
+                    };
+                    try {
+                        localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
+                    } catch (e) {
+                        console.error("Failed to save migrated settings", e);
+                    }
+                }
+
                 // Merge with defaults to ensure all keys exist
                 return {
                     ...DEFAULT_SETTINGS,

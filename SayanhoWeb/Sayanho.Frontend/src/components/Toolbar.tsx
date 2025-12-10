@@ -7,13 +7,16 @@ import {
     Zap, Type, Moon, Sun,
     Undo, Redo, Image as ImageIcon,
     MousePointer2, Hand, Calculator, Copy,
-    Eye, EyeOff
+    Eye, EyeOff, RotateCcw, Maximize
 } from 'lucide-react';
 
 interface ToolbarProps {
     onLoad: () => void;
     onZoomIn: () => void;
     onZoomOut: () => void;
+    onSetZoom: (scale: number) => void;
+    onResetZoom: () => void;
+    onFitContent: () => void;
     scale: number;
     showLeftPanel: boolean;
     onToggleLeftPanel: () => void;
@@ -35,7 +38,7 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
-    onLoad, onZoomIn, onZoomOut, scale,
+    onLoad, onZoomIn, onZoomOut, onSetZoom, onResetZoom, onFitContent, scale,
     showLeftPanel, onToggleLeftPanel,
     showMenu, onToggleMenu,
     showChat, onToggleChat,
@@ -100,10 +103,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <ToolbarSeparator />
 
             <ToolbarButton icon={<ZoomIn size={16} />} onClick={onZoomIn} tooltip="Zoom In" />
-            <div className="text-xs w-10 text-center font-medium" style={{ color: colors.text }}>
-                {Math.round(scale * 100)}%
+
+            <div className="flex items-center gap-1">
+                <input
+                    type="number"
+                    value={Math.round(scale * 100)}
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val > 0 && val <= 500) {
+                            onSetZoom(val / 100);
+                        }
+                    }}
+                    className="w-12 text-xs text-center font-medium bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-0 appearance-none"
+                    style={{ color: colors.text }}
+                    min="10"
+                    max="500"
+                />
+                <span className="text-xs font-medium -ml-1" style={{ color: colors.text }}>%</span>
             </div>
+
             <ToolbarButton icon={<ZoomOut size={16} />} onClick={onZoomOut} tooltip="Zoom Out" />
+            <ToolbarButton icon={<RotateCcw size={14} />} onClick={onResetZoom} tooltip="Reset Zoom (65%)" />
+            <ToolbarButton icon={<Maximize size={16} />} onClick={onFitContent} tooltip="Fit to Content" />
 
             <ToolbarSeparator />
 

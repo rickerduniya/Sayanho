@@ -27,7 +27,7 @@ interface StoreState {
 
     // Item Actions (operate on active sheet)
     setSheet: (sheet: CanvasSheet) => void; // Legacy/Compatibility
-    updateSheet: (updates: Partial<CanvasSheet>) => void;
+    updateSheet: (updates: Partial<CanvasSheet>, options?: { recalcNetwork?: boolean }) => void;
     addItem: (item: CanvasItem) => void;
     updateItemPosition: (id: string, x: number, y: number) => void;
     moveItems: (updates: { id: string, x: number, y: number }[]) => void; // New: Batch move
@@ -109,6 +109,7 @@ interface StoreState {
 }
 
 const MAX_HISTORY = 20;
+const NETWORK_DEBOUNCE_MS = 150;
 
 export const useStore = create<StoreState>((set, get) => ({
     sheets: [{
@@ -117,10 +118,10 @@ export const useStore = create<StoreState>((set, get) => ({
         canvasItems: [],
         storedConnectors: [],
         existingLinePoints: [],
-        existingOriginalLinePoints: [],
         existingConnections: [],
-        virtualCanvasSize: { width: 2000, height: 2000 },
-        scale: 1,
+        scale: 0.65,
+        viewportX: 0,
+        viewportY: 0,
         undoStack: [],
         redoStack: []
     }],
@@ -132,7 +133,7 @@ export const useStore = create<StoreState>((set, get) => ({
     isChatOpen: false,
 
     settings: {
-        maxVoltageDropPercentage: 3.0,
+        maxVoltageDropPercentage: 7.0,
         safetyMarginPercentage: 25.0,
         voltageDropEnabled: true
     },
@@ -183,6 +184,8 @@ export const useStore = create<StoreState>((set, get) => ({
             return {
                 ...s,
                 storedConnectors: validConnectors,
+                viewportX: (s as any).viewportX || 0,
+                viewportY: (s as any).viewportY || 0,
                 undoStack: s.undoStack || [],
                 redoStack: s.redoStack || []
             };
@@ -204,10 +207,10 @@ export const useStore = create<StoreState>((set, get) => ({
             canvasItems: [],
             storedConnectors: [],
             existingLinePoints: [],
-            existingOriginalLinePoints: [],
             existingConnections: [],
-            virtualCanvasSize: { width: 2000, height: 2000 },
-            scale: 1,
+            scale: 0.65,
+            viewportX: 0,
+            viewportY: 0,
             undoStack: [],
             redoStack: []
         };
@@ -259,9 +262,7 @@ export const useStore = create<StoreState>((set, get) => ({
             canvasItems: activeSheet.canvasItems,
             storedConnectors: activeSheet.storedConnectors,
             existingLinePoints: activeSheet.existingLinePoints,
-            existingOriginalLinePoints: activeSheet.existingOriginalLinePoints,
             existingConnections: activeSheet.existingConnections,
-            virtualCanvasSize: activeSheet.virtualCanvasSize,
             scale: activeSheet.scale
         };
 
@@ -284,9 +285,7 @@ export const useStore = create<StoreState>((set, get) => ({
             canvasItems: activeSheet.canvasItems,
             storedConnectors: activeSheet.storedConnectors,
             existingLinePoints: activeSheet.existingLinePoints,
-            existingOriginalLinePoints: activeSheet.existingOriginalLinePoints,
             existingConnections: activeSheet.existingConnections,
-            virtualCanvasSize: activeSheet.virtualCanvasSize,
             scale: activeSheet.scale
         };
 
@@ -314,9 +313,7 @@ export const useStore = create<StoreState>((set, get) => ({
             canvasItems: activeSheet.canvasItems,
             storedConnectors: activeSheet.storedConnectors,
             existingLinePoints: activeSheet.existingLinePoints,
-            existingOriginalLinePoints: activeSheet.existingOriginalLinePoints,
             existingConnections: activeSheet.existingConnections,
-            virtualCanvasSize: activeSheet.virtualCanvasSize,
             scale: activeSheet.scale
         };
 
@@ -342,11 +339,13 @@ export const useStore = create<StoreState>((set, get) => ({
         sheets: state.sheets.map(s => s.sheetId === state.activeSheetId ? sheet : s)
     })),
 
-    updateSheet: (updates) => {
+    updateSheet: (updates, options) => {
         set((state) => ({
             sheets: state.sheets.map(s => s.sheetId === state.activeSheetId ? { ...s, ...updates } : s)
         }));
-        get().calculateNetwork();
+        if (options?.recalcNetwork !== false) {
+            get().calculateNetwork();
+        }
     },
 
     addItem: (item) => {
@@ -805,15 +804,11 @@ export const useStore = create<StoreState>((set, get) => ({
             newItem.uniqueID = newId;
 
             // Apply offset
+            // Apply offset
             if (position) {
                 newItem.position = { x: item.position.x + offsetX, y: item.position.y + offsetY };
-                newItem.originalPosition = { x: (item.position.x + offsetX) / scale, y: (item.position.y + offsetY) / scale };
             } else {
                 newItem.position = { x: item.position.x + offset, y: item.position.y + offset };
-                newItem.originalPosition = {
-                    x: newItem.originalPosition.x + (offset / scale),
-                    y: newItem.originalPosition.y + (offset / scale)
-                };
             }
             newItems.push(newItem);
         });
@@ -921,22 +916,13 @@ export const useStore = create<StoreState>((set, get) => ({
                         newConnectionPoints[key] = rotatePoint(newConnectionPoints[key], item.size.width, item.size.height, direction);
                     });
 
-                    // Rotate original connection points using CURRENT original dimensions (before swap)
-                    const newOriginalConnectionPoints = { ...item.originalConnectionPoints };
-                    Object.keys(newOriginalConnectionPoints).forEach(key => {
-                        newOriginalConnectionPoints[key] = rotatePoint(newOriginalConnectionPoints[key], item.originalSize.width, item.originalSize.height, direction);
-                    });
-
                     // Swap dimensions
                     const newSize = { width: item.size.height, height: item.size.width };
-                    const newOriginalSize = { width: item.originalSize.height, height: item.originalSize.width };
 
                     return {
                         ...item,
                         size: newSize,
-                        originalSize: newOriginalSize,
                         connectionPoints: newConnectionPoints,
-                        originalConnectionPoints: newOriginalConnectionPoints,
                         rotation: newRotation
                     };
                 })
@@ -955,14 +941,19 @@ export const useStore = create<StoreState>((set, get) => ({
 
     // --- Network Analysis ---
 
-    calculateNetwork: () => {
-        const { sheets } = get();
-        const sheetsCopy = JSON.parse(JSON.stringify(sheets));
-        const analyzer = new NetworkAnalyzer(sheetsCopy);
-        analyzer.analyzeNetwork();
-
-        set({ sheets: sheetsCopy });
-    },
+    calculateNetwork: (() => {
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        return () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                const { sheets } = get();
+                const sheetsCopy = JSON.parse(JSON.stringify(sheets));
+                const analyzer = new NetworkAnalyzer(sheetsCopy);
+                analyzer.analyzeNetwork();
+                set({ sheets: sheetsCopy });
+            }, NETWORK_DEBOUNCE_MS);
+        };
+    })(),
 
     // --- Settings ---
     showCurrentValues: localStorage.getItem('showCurrentValues') !== 'false', // Default to true
@@ -1050,11 +1041,8 @@ export const useStore = create<StoreState>((set, get) => ({
                         uniqueID: crypto.randomUUID(),
                         name: 'Portal',
                         position: { x: position.x, y: position.y },
-                        originalPosition: { x: position.x, y: position.y },
                         size: def.size,
-                        originalSize: def.size,
                         connectionPoints: connPts as any,
-                        originalConnectionPoints: connPts as any,
                         properties: [{ Label: netId, NetId: netId, Direction: direction }],
                         alternativeCompany1: '',
                         alternativeCompany2: '',
@@ -1113,11 +1101,8 @@ export const useStore = create<StoreState>((set, get) => ({
                         uniqueID: crypto.randomUUID(),
                         name: 'Portal',
                         position: { x: pos.x, y: pos.y },
-                        originalPosition: { x: pos.x, y: pos.y },
                         size: def.size,
-                        originalSize: def.size,
                         connectionPoints: connPts as any,
-                        originalConnectionPoints: connPts as any,
                         properties: [{ Label: netId, NetId: netId, Direction: compDir }],
                         alternativeCompany1: '',
                         alternativeCompany2: '',

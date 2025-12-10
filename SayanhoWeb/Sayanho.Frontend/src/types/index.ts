@@ -23,16 +23,13 @@ export interface CanvasItem {
     uniqueID: string;
     name: string;
     position: Point;
-    originalPosition: Point;
     size: Size;
-    originalSize: Size;
     connectionPoints: Record<string, Point>;
-    originalConnectionPoints: Record<string, Point>;
     properties: Record<string, string>[];
     alternativeCompany1: string;
     alternativeCompany2: string;
     svgContent?: string;
-    iconPath?: string; // Icon path from backend
+    iconPath?: string;
     locked: boolean;
     idPoints: Record<string, Point>;
     incomer: Record<string, string>;
@@ -63,9 +60,7 @@ export interface CanvasSheetState {
     canvasItems: CanvasItem[];
     storedConnectors: Connector[];
     existingLinePoints: Point[][];
-    existingOriginalLinePoints: Point[][];
     existingConnections: string[];
-    virtualCanvasSize: Size;
     scale: number;
 }
 
@@ -75,10 +70,10 @@ export interface CanvasSheet {
     canvasItems: CanvasItem[];
     storedConnectors: Connector[];
     existingLinePoints: Point[][];
-    existingOriginalLinePoints: Point[][];
     existingConnections: string[];
-    virtualCanvasSize: Size;
     scale: number;
+    viewportX: number;
+    viewportY: number;
     undoStack: CanvasSheetState[];
     redoStack: CanvasSheetState[];
 }

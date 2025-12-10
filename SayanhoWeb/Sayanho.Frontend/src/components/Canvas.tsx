@@ -112,6 +112,8 @@ export interface CanvasRef {
     zoomIn: () => void;
     zoomOut: () => void;
     resetZoom: () => void;
+    setZoom: (scale: number) => void;
+    fitView: () => void;
 }
 
 interface CanvasProps {
@@ -243,6 +245,47 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
         }
     }, [scale, stageRef]);
 
+    const calculateContentBounds = () => {
+        if (!currentSheet || currentSheet.canvasItems.length === 0) return null;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        currentSheet.canvasItems.forEach(item => {
+            minX = Math.min(minX, item.position.x);
+            minY = Math.min(minY, item.position.y);
+            maxX = Math.max(maxX, item.position.x + item.size.width);
+            maxY = Math.max(maxY, item.position.y + item.size.height);
+        });
+
+        // Calculate bounding box of all connectors
+        const existingPaths: Point[][] = [];
+        currentSheet.storedConnectors.forEach(connector => {
+            const sourceItem = currentSheet.canvasItems.find(ci => ci.uniqueID === connector.sourceItem.uniqueID) || connector.sourceItem;
+            const targetItem = currentSheet.canvasItems.find(ci => ci.uniqueID === connector.targetItem.uniqueID) || connector.targetItem;
+
+            // Calculate path at scale 1 (world coordinates)
+            const result = ConnectorUtils.calculateConnectorPath(
+                { ...connector, sourceItem, targetItem },
+                currentSheet.canvasItems,
+                existingPaths,
+                1 // Force scale 1 for world coordinate calculation
+            );
+
+            existingPaths.push(result.points);
+
+            result.points.forEach(p => {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            });
+        });
+
+        if (minX === Infinity) return null;
+
+        return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+    };
+
     useImperativeHandle(ref, () => ({
         saveImage: async () => {
             console.log('[SAVE IMAGE] Starting save image process...');
@@ -260,56 +303,22 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                     // Force layer redraw to ensure connection points are hidden
                     stage.getLayers().forEach((layer: any) => layer.batchDraw());
 
-                    // 1. Calculate bounding box of all items
-                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-                    if (currentSheet.canvasItems.length === 0) {
+                    const bounds = calculateContentBounds();
+                    if (!bounds) {
                         console.log('[SAVE IMAGE] Canvas is empty');
                         alert("Canvas is empty.");
                         return;
                     }
 
-                    console.log('[SAVE IMAGE] Processing', currentSheet.canvasItems.length, 'items');
-                    currentSheet.canvasItems.forEach(item => {
-                        minX = Math.min(minX, item.position.x);
-                        minY = Math.min(minY, item.position.y);
-                        maxX = Math.max(maxX, item.position.x + item.size.width);
-                        maxY = Math.max(maxY, item.position.y + item.size.height);
-                    });
-
-                    // 2. Calculate bounding box of all connectors
-                    const existingPaths: Point[][] = [];
-                    currentSheet.storedConnectors.forEach(connector => {
-                        const sourceItem = currentSheet.canvasItems.find(ci => ci.uniqueID === connector.sourceItem.uniqueID) || connector.sourceItem;
-                        const targetItem = currentSheet.canvasItems.find(ci => ci.uniqueID === connector.targetItem.uniqueID) || connector.targetItem;
-
-                        // Calculate path at scale 1 (world coordinates)
-                        const result = ConnectorUtils.calculateConnectorPath(
-                            { ...connector, sourceItem, targetItem },
-                            currentSheet.canvasItems,
-                            existingPaths,
-                            1 // Force scale 1 for world coordinate calculation
-                        );
-
-                        existingPaths.push(result.points);
-
-                        result.points.forEach(p => {
-                            minX = Math.min(minX, p.x);
-                            minY = Math.min(minY, p.y);
-                            maxX = Math.max(maxX, p.x);
-                            maxY = Math.max(maxY, p.y);
-                        });
-                    });
-
                     // Add padding/margin
                     const padding = 50;
-                    minX -= padding;
-                    minY -= padding;
-                    maxX += padding;
-                    maxY += padding;
-
+                    const minX = bounds.minX - padding;
+                    const minY = bounds.minY - padding;
+                    const maxX = bounds.maxX + padding;
+                    const maxY = bounds.maxY + padding;
                     const width = maxX - minX;
                     const height = maxY - minY;
+
                     console.log('[SAVE IMAGE] Bounding box:', { minX, minY, maxX, maxY, width, height });
 
                     // 3. Create a temporary canvas for the final image
@@ -437,19 +446,102 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
             setScale(prev => Math.max(prev / 1.2, 0.1));
         },
         resetZoom: () => {
-            setScale(1);
+            setScale(0.65);
             setPosition({ x: 0, y: 0 });
+        },
+        setZoom: (newScale: number) => {
+            setScale(Math.max(0.1, Math.min(newScale, 5)));
+        },
+        fitView: () => {
+            const bounds = calculateContentBounds();
+            if (!bounds) return;
+
+            const padding = 50;
+            const boundsWidth = bounds.width + padding * 2;
+            const boundsHeight = bounds.height + padding * 2;
+
+            const stage = stageRef.current?.getStage();
+            if (!stage) return;
+
+            // Container size (visible area)
+            const stageWidth = stage.width();
+            const stageHeight = stage.height();
+
+            // Calculate scale to fit
+            const scaleX = stageWidth / boundsWidth;
+            const scaleY = stageHeight / boundsHeight;
+            let newScale = Math.min(scaleX, scaleY);
+
+            // Clamp scale (don't zoom in too much for small items, don't zoom out too far)
+            newScale = Math.max(0.1, Math.min(newScale, 1.5)); // Max 1.5x to avoid looking huge
+
+            // Calculate position to center the content
+            // The content top-left is at (bounds.minX - padding, bounds.minY - padding)
+            // We want to move that point to be centered
+
+            // Center of bounds in world coordinates
+            const boundsCenterX = bounds.minX + bounds.width / 2;
+            const boundsCenterY = bounds.minY + bounds.height / 2;
+
+            // Center of viewport in world coordinates (if we want it centered)
+            // Viewport center in screen pixels is (stageWidth/2, stageHeight/2)
+            // World pos = (ScreenPos - StagePos) / Scale
+            // We want: ScreenPos = StagePos + WorldPos * Scale
+            // StagePos = ScreenPos - WorldPos * Scale
+
+            const newX = (stageWidth / 2) - (boundsCenterX * newScale);
+            const newY = (stageHeight / 2) - (boundsCenterY * newScale);
+
+            setScale(newScale);
+            setPosition({ x: newX, y: newY });
         }
     }));
 
+    // --- Viewport Persistence ---
+
+    // 1. Restore Viewport when Sheet Changes
     useEffect(() => {
-        if (updateSheet) {
-            updateSheet({ scale });
+        if (currentSheet) {
+            // Only restore if we are switching to a DIFFERENT sheet (or initial load)
+            // But how do we distinguish "store update" from "sheet switch"?
+            // We rely on sheetId. If sheetId changes, we MUST restore.
+            // What if we just reloaded the same sheet?
+
+            // To be safe, we check if the local state diverges significantly from the store 
+            // AND we define this as a "reset" condition? 
+            // Actually, simplest is: depend on sheetId.
+            setPosition({ x: currentSheet.viewportX || 0, y: currentSheet.viewportY || 0 });
+            setScale(currentSheet.scale || 0.65);
         }
+    }, [currentSheet?.sheetId]);
+
+    // 2. Sync Viewport to Store (Debounced)
+    useEffect(() => {
+        if (!updateSheet || !currentSheet) return;
+
+        const timer = setTimeout(() => {
+            const hasChanged =
+                Math.abs(currentSheet.scale - scale) > 0.001 ||
+                Math.abs((currentSheet.viewportX || 0) - position.x) > 1 ||
+                Math.abs((currentSheet.viewportY || 0) - position.y) > 1;
+
+            if (hasChanged) {
+                updateSheet({
+                    scale,
+                    viewportX: position.x,
+                    viewportY: position.y
+                }, { recalcNetwork: false });
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [scale, position, updateSheet, currentSheet]); // Dependent on values to trigger debounce
+
+    useEffect(() => {
         if (props.onScaleChange) {
             props.onScaleChange(scale);
         }
-    }, [scale, updateSheet, props.onScaleChange]);
+    }, [scale, props.onScaleChange]);
 
     const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault();
@@ -473,11 +565,8 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
             uniqueID: crypto.randomUUID(),
             name: itemData.name,
             position: { x: adjustedX, y: adjustedY },
-            originalPosition: { x: adjustedX, y: adjustedY },
             size: itemData.size,
-            originalSize: itemData.size,
             connectionPoints: itemData.connectionPoints,
-            originalConnectionPoints: itemData.connectionPoints,
             properties: [],
             alternativeCompany1: '',
             alternativeCompany2: '',
@@ -536,13 +625,11 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
         const staticDef = getItemDefinition(newItem.name);
         if (staticDef && !["HTPN", "VTPN", "SPN DB"].includes(newItem.name)) {
             newItem.size = staticDef.size;
-            newItem.originalSize = staticDef.size;
             newItem.connectionPoints = staticDef.connectionPoints;
-            newItem.originalConnectionPoints = staticDef.connectionPoints;
         }
 
         // Initialize Distribution Boards and Switches
-        if (["HTPN", "VTPN", "SPN DB", "Main Switch", "Change Over Switch", "Point Switch Board"].includes(newItem.name)) {
+        if (["HTPN", "VTPN", "SPN DB", "Main Switch", "Change Over Switch", "Point Switch Board", "Avg. 5A Switch Board"].includes(newItem.name)) {
             if (!newItem.properties[0]) newItem.properties[0] = {};
             let wayVal = newItem.properties[0]["Way"];
             if (!wayVal || wayVal.includes(',')) {
@@ -565,9 +652,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
             const geometry = calculateGeometry(newItem);
             if (geometry) {
                 newItem.size = geometry.size;
-                newItem.originalSize = geometry.originalSize;
                 newItem.connectionPoints = geometry.connectionPoints;
-                newItem.originalConnectionPoints = geometry.originalConnectionPoints;
             }
 
             if (newItem.svgContent) {
@@ -1083,18 +1168,18 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                 updatedConnector,
                 currentSheet.canvasItems,
                 existingPaths,
-                scale
+                1 // Fixed scale 1 for path logic (ignore zoom)
             );
             existingPaths.push(result.points);
             return { ...result, connector: updatedConnector };
         });
-    }, [currentSheet?.storedConnectors, currentSheet?.canvasItems, scale]);
+    }, [currentSheet?.storedConnectors, currentSheet?.canvasItems]);
 
     // Background Pattern Style
     const backgroundStyle: React.CSSProperties = {
         backgroundColor: colors.canvasBackground,
         backgroundImage: theme === 'dark'
-            ? 'radial-gradient(#444 1px, transparent 1px)'
+            ? 'radial-gradient(#1e293b 1px, transparent 1px)' // Darker dots (Slate 800)
             : 'radial-gradient(#ccc 1px, transparent 1px)',
         backgroundSize: `${20 * scale}px ${20 * scale}px`,
         backgroundPosition: `${position.x}px ${position.y}px`
@@ -1145,11 +1230,8 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                     uniqueID: crypto.randomUUID(),
                                     name: "Text",
                                     position: { x, y },
-                                    originalPosition: { x, y },
                                     size: { width: 200, height: 50 },
-                                    originalSize: { width: 200, height: 50 },
                                     connectionPoints: {},
-                                    originalConnectionPoints: {},
                                     properties: [{
                                         "Text": "Double-click to edit",
                                         "FontSize": "16",
@@ -1589,6 +1671,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                             }}
                         />
                     ))}
+
                 </Layer>
             </Stage>
 
