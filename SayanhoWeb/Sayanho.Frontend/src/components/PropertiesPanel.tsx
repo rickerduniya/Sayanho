@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { shallow } from 'zustand/shallow';
 import { CanvasItem, Connector } from '../types';
@@ -9,6 +10,7 @@ import { fetchProperties } from '../utils/api';
 import { calculateGeometry } from '../utils/GeometryCalculator';
 
 import { LOAD_ITEM_DEFAULTS, DefaultRulesEngine } from '../utils/DefaultRulesEngine';
+import { PanelDesignerDialog } from './PanelDesignerDialog.tsx';
 
 // Property Options Constants
 const OPTIONS = {
@@ -57,6 +59,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
     const [dbOutgoingOptions, setDbOutgoingOptions] = useState<string[]>([]);
     const [layingOptions, setLayingOptions] = useState<Record<string, string>[]>([]);
     const [isLoadingProperties, setIsLoadingProperties] = useState(false);
+    const [panelDevices, setPanelDevices] = useState<{ mccb: Record<string, string>[], acb: Record<string, string>[], sfu: Record<string, string>[], mcb: Record<string, string>[] }>({ mccb: [], acb: [], sfu: [], mcb: [] });
 
     // State for 2-page wizard
     const [currentPage, setCurrentPage] = useState(1);
@@ -144,6 +147,21 @@ export const PropertiesPanel: React.FC = React.memo(() => {
 
                     setDbIncomerOptions(fpIncomer);
                     setDbOutgoingOptions(spOutgoing);
+                    setDbIncomerOptions(fpIncomer);
+                    setDbOutgoingOptions(spOutgoing);
+                } else if (selectedItem.name === "LT Cubical Panel") {
+                    // Fetch all device types for Panel Configuration
+                    const mccbData = await fetchProperties("MCCB");
+                    const acbData = await fetchProperties("ACB");
+                    const sfuData = await fetchProperties("Main Switch"); // Represents SFU
+                    const mcbData = await fetchProperties("MCB");
+
+                    setPanelDevices({
+                        mccb: mccbData.properties,
+                        acb: acbData.properties,
+                        sfu: sfuData.properties,
+                        mcb: mcbData.properties
+                    });
                 } else {
                     setDbIncomerOptions([]);
                     setDbOutgoingOptions([]);
@@ -604,10 +622,81 @@ export const PropertiesPanel: React.FC = React.memo(() => {
         </div>
     );
 
+    // Helper to render LT Cubical Panel properties
+    const [isDesignerOpen, setIsDesignerOpen] = useState(false);
+
+    // Lazy import would be better but simple import for now
+    // We need to move this import to top level, but for this tool call we can't.
+    // Assuming we do a multi-replace to add import at top + change here.
+
+    const renderLTCubicalPanel = () => {
+        return (
+            <div className="space-y-4">
+                <div className="p-4 bg-white/40 dark:bg-black/20 rounded-lg border border-white/20 text-center">
+                    <p className="text-sm opacity-70 mb-3">LT Cubical Panel requires complex configuration.</p>
+                    <button
+                        onClick={() => setIsDesignerOpen(true)}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Open Visual Designer
+                    </button>
+                </div>
+
+                {/* Show basic summary */}
+                <div className="text-xs opacity-60">
+                    Incomers: {editedProperties["Incomer Count"] || 0}<br />
+                    Outgoings: {editedOutgoing.length}
+                </div>
+
+                {/* Dialog Component - Rendered via Portal to break out of sidebar container */}
+                {isDesignerOpen && selectedItem &&
+                    createPortal(
+                        <PanelDesignerDialog
+                            isOpen={isDesignerOpen}
+                            onClose={() => setIsDesignerOpen(false)}
+                            item={{
+                                ...selectedItem,
+                                properties: [editedProperties],
+                                outgoing: editedOutgoing,
+                                incomer: editedIncomer
+                            }}
+                            onSave={(updatedItem) => {
+                                setEditedProperties(updatedItem.properties[0]);
+                                setEditedOutgoing(updatedItem.outgoing);
+                                if (currentSheet) {
+                                    // Recalculate Geometry (Size & Connection Points)
+                                    const geometry = calculateGeometry(updatedItem);
+                                    if (geometry) {
+                                        updatedItem.size = geometry.size;
+                                        updatedItem.connectionPoints = geometry.connectionPoints;
+                                    }
+
+                                    const newItems = currentSheet.canvasItems.map(i =>
+                                        i.uniqueID === updatedItem.uniqueID ? updatedItem : i
+                                    );
+                                    updateSheet({ canvasItems: newItems });
+                                }
+                                setIsDesignerOpen(false);
+                            }}
+                            availableDevices={panelDevices}
+                        />,
+                        document.body
+                    )
+                }
+            </div>
+        );
+    };
+
+
+
     // Helper to render dynamic properties
     const renderDynamicProperties = (children?: React.ReactNode) => {
         if (isLoadingProperties) {
             return <div className="text-xs p-2">Loading options...</div>;
+        }
+
+        if (selectedItem?.name === "LT Cubical Panel") {
+            return renderLTCubicalPanel();
         }
 
         if (availableProperties.length === 0) {
