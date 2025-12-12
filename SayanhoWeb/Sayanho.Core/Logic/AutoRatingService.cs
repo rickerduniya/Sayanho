@@ -446,14 +446,14 @@ namespace Sayanho.Core.Logic
                 new[] { "Load" }, // Loads first (though they don't need rating updates)
                 new[] { "MCB", "MCCB", "Switch" }, // Individual switches
                 new[] { "SPN DB", "HTPN" }, // Distribution boards
-                new[] { "VTPN" }, // Main distribution panels
+                new[] { "VTPN", "Cubical Panel" }, // Main distribution panels
                 new[] { "Main Switch", "Change Over Switch" } // Main switches
             };
 
             foreach (var componentGroup in processOrder)
             {
                 var componentsToProcess = allItems.Where(item => 
-                    componentGroup.Any(type => item.Name.Contains(type))).ToList();
+                    componentGroup.Any(type => item.Name != null && item.Name.Contains(type))).ToList();
 
                 foreach (var component in componentsToProcess)
                 {
@@ -467,16 +467,17 @@ namespace Sayanho.Core.Logic
         /// </summary>
         private void SetOptimalRating(CanvasItem component)
         {
-            if (!maxCurrentPerItem.ContainsKey(component))
+            // For Cubical Panel, we calculate current internally per section, so we don't strictly require maxCurrentPerItem
+            if (!component.Name.Contains("Cubical Panel") && !maxCurrentPerItem.ContainsKey(component))
                 return;
 
-            double requiredCurrent = maxCurrentPerItem[component];
+            double requiredCurrent = maxCurrentPerItem.ContainsKey(component) ? maxCurrentPerItem[component] : 0;
             
             // For distribution boards, use the actual incoming current
             // For main switches and change over switches, consider downstream requirements
             double totalRequiredCurrent = requiredCurrent;
             
-            if (component.Name.Contains("Main Switch") || component.Name.Contains("Change Over Switch"))
+            if (component.Name != null && (component.Name.Contains("Main Switch") || component.Name.Contains("Change Over Switch")))
             {
                 // For main switches, also consider downstream load requirement
                 double downstreamCurrent = CalculateDownstreamCurrent(component);
@@ -493,6 +494,10 @@ namespace Sayanho.Core.Logic
                 if (component.Name.Contains("VTPN"))
                 {
                     SetVTPNRating(component, minimumRating);
+                }
+                else if (component.Name.Contains("Cubical Panel"))
+                {
+                    SetCubicalPanelRating(component, safetyMargin);
                 }
                 else if (component.Name.Contains("HTPN"))
                 {
@@ -516,7 +521,7 @@ namespace Sayanho.Core.Logic
                     double downstreamCurrent = CalculateDownstreamCurrent(component);
                     Console.WriteLine($"Set rating for {component.Name}: Required {minimumRating:F2} A (Current: {requiredCurrent:F2} A, Downstream: {downstreamCurrent:F2} A)");
                 }
-                else
+                else if (!component.Name.Contains("Cubical Panel"))
                 {
                     Console.WriteLine($"Set rating for {component.Name}: Required {minimumRating:F2} A (Current: {requiredCurrent:F2} A)");
                 }
@@ -524,6 +529,156 @@ namespace Sayanho.Core.Logic
             catch (Exception ex)
             {
                 Console.WriteLine($"Error setting rating for {component.Name}: {ex.Message}");
+            }
+        }
+
+        // ... existing CalculateDownstreamCurrent ...
+
+        /// <summary>
+        /// Set Cubical Panel rating (Per Incomer/Section)
+        /// </summary>
+        private void SetCubicalPanelRating(CanvasItem panel, double safetyMargin)
+        {
+            if (panel.Properties == null || !panel.Properties.Any())
+                return;
+
+            var properties = panel.Properties.First();
+            string company = properties.GetValueOrDefault("Company", "");
+
+            // 1. Determine number of Sections/Incomers
+            // We can look for "IncomerCount" or loop "Incomer{i}_Type"
+            int incomerCount = 1; 
+            if (properties.ContainsKey("IncomerCount"))
+            {
+               int.TryParse(properties["IncomerCount"], out incomerCount);
+            }
+            // Fallback: Check keys
+            while (properties.ContainsKey($"Incomer{incomerCount + 1}_Type")) incomerCount++;
+
+            Console.WriteLine($"Auto-Rating Cubical Panel: {incomerCount} Sections");
+
+            // 2. Loop through each section
+            for (int i = 1; i <= incomerCount; i++)
+            {
+                // Calculate Load for Section i
+                // Load = Sum of loads of all Outgoings in this section
+                double sectionLoad = 0;
+
+                // Find outgoings belonging to this section
+                if (panel.Outgoing != null)
+                {
+                    for (int outIdx = 0; outIdx < panel.Outgoing.Count; outIdx++)
+                    {
+                        var outProp = panel.Outgoing[outIdx];
+                        bool inSection = false;
+                        if (outProp.ContainsKey("Section"))
+                        {
+                             if (int.TryParse(outProp["Section"], out int s) && s == i) inSection = true;
+                        }
+                        else if (i == 1) inSection = true; // Default
+
+                        if (inSection)
+                        {
+                            // Find the connector for this outgoing point (out{outIdx+1})
+                            // We need to query allConnectors again for this specific point
+                            string sourcePointKey = $"out{outIdx + 1}";
+                            var connector = allConnectors.FirstOrDefault(c => c.SourceItem == panel && c.SourcePointKey == sourcePointKey);
+                            
+                            if (connector != null && connector.CurrentValues != null)
+                            {
+                                double rCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("R_Current", "0 A"));
+                                double yCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("Y_Current", "0 A"));
+                                double bCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("B_Current", "0 A"));
+                                double maxC = Math.Max(rCurrent, Math.Max(yCurrent, bCurrent));
+                                sectionLoad += maxC;
+                            }
+                        }
+                    }
+                }
+
+                double requiredRating = sectionLoad * safetyMargin;
+                Console.WriteLine($"  Section {i} Load: {sectionLoad:F2} A -> Req: {requiredRating:F2} A");
+
+                // Select Rating for Incomer i
+                // Incomer Type is stored in "Incomer{i}_Type" (e.g. "MCCB", "ACB")
+                string incomerType = properties.GetValueOrDefault($"Incomer{i}_Type", "MCCB");
+                if (string.IsNullOrEmpty(incomerType)) incomerType = "MCCB";
+
+                // Load database options for this type
+                // Note: "ACB" table might not exist in default DB loader, fallback to MCCB if needed or handle error
+                var options = DatabaseLoader.LoadDefaultPropertiesFromDatabase(incomerType, 2).Properties
+                    .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
+                    .ToList();
+                
+                // If options empty and type is ACB, maybe try MCCB? Or specific ACB logic?
+                // Assuming MCCB for now if ACB fails, or just proceed.
+                
+                var selected = SelectOptimalRating(options, requiredRating, incomerType);
+
+                if (selected != null)
+                {
+                    properties[$"Incomer{i}_Rating"] = selected["Current Rating"];
+                    if (selected.ContainsKey("Rate")) properties[$"Incomer{i}_Rate"] = selected["Rate"];
+                    // Store other props?
+                    Console.WriteLine($"  -> Selected {incomerType}: {selected["Current Rating"]}");
+                }
+                else
+                {
+                    Console.WriteLine($"  -> Warning: No suitable {incomerType} found.");
+                }
+            }
+
+            // 3. Set Outgoing Ratings
+            SetCubicalPanelOutgoingRatings(panel, company);
+        }
+
+        private void SetCubicalPanelOutgoingRatings(CanvasItem panel, string company)
+        {
+            if (panel.Outgoing == null) return;
+
+            for (int i = 0; i < panel.Outgoing.Count; i++)
+            {
+                var outProp = panel.Outgoing[i];
+                // Check load for this circuit
+                string sourcePointKey = $"out{i + 1}";
+                var connector = allConnectors.FirstOrDefault(c => c.SourceItem == panel && c.SourcePointKey == sourcePointKey);
+                
+                double load = 0;
+                if (connector != null && connector.CurrentValues != null)
+                {
+                    double rCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("R_Current", "0 A"));
+                    double yCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("Y_Current", "0 A"));
+                    double bCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("B_Current", "0 A"));
+                    load = Math.Max(rCurrent, Math.Max(yCurrent, bCurrent));
+                }
+
+                if (load > 0)
+                {
+                    double req = load * 1.25; // 25% margin for outgoing
+                    string type = outProp.GetValueOrDefault("Type", "MCB"); // e.g. "MCB", "MCCB"
+                    // If Type is empty, default?
+                    if (string.IsNullOrEmpty(type)) type = "MCB";
+                    
+                    // Pole? Usually TP for panel? Or specified?
+                    // We'll read from outProp or default to TP
+                    string pole = outProp.GetValueOrDefault("Pole", "TP");
+
+                    var options = DatabaseLoader.LoadDefaultPropertiesFromDatabase(type, 2).Properties
+                        .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
+                        // Filter by Pole if MCB
+                        .Where(row => type != "MCB" || row["Pole"]?.ToString() == pole) 
+                        .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
+                        .ToList();
+
+                    var selected = SelectOptimalRating(options, req, type);
+                    if (selected != null)
+                    {
+                        outProp["Rating"] = selected["Current Rating"];
+                        if (selected.ContainsKey("Rate")) outProp["Rate"] = selected["Rate"];
+                        Console.WriteLine($"  -> Outgoing {i+1} ({type}): {selected["Current Rating"]}");
+                    }
+                }
             }
         }
 

@@ -9,14 +9,14 @@ import { updateItemVisuals } from '../utils/SvgUpdater';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 const CATEGORIES: Record<string, string[]> = {
-    "Distribution Boards": ["VTPN", "HTPN", "SPN DB"],
+    "Distribution Boards": ["VTPN", "HTPN", "SPN DB", "LT Cubical Panel"],
     "Switchgear": ["Main Switch", "Change Over Switch"],
     "Appliances": ["AC Point", "Geyser Point", "Computer Point"],
-    "Lighting": ["Light Point", "Tube Light", "Wall Light"],
-    "Fans": ["Fan Point", "Exhaust Fan", "Ceiling Rose"],
+    "Lighting": ["Light Point", "Tube Light", "Bulb"],
+    "Fans": ["Ceiling Fan", "Exhaust Fan", "Ceiling Rose"],
     "Switch Boards": [
         "Point Switch Board",
-        "1 Switch Board", "2 Switch Board", "3 Switch Board", "4 Switch Board",
+        "Avg. 5A Switch Board", "2 Switch Board", "3 Switch Board", "4 Switch Board",
         "6 Switch Board", "8 Switch Board", "12 Switch Board", "18 Switch Board"
     ],
     "Sockets": ["5A Socket", "15A Socket", "5A Socket Board", "15A Socket Board"],
@@ -176,8 +176,8 @@ export const Sidebar = () => {
             newItem.connectionPoints = staticDef.connectionPoints;
         }
 
-        // Initialize Distribution Boards and Switches
-        if (["HTPN", "VTPN", "SPN DB", "Main Switch", "Change Over Switch", "Point Switch Board"].includes(newItem.name)) {
+        // Initialize Distribution Boards (Way-based)
+        if (["HTPN", "VTPN", "SPN DB"].includes(newItem.name)) {
             if (!newItem.properties[0]) newItem.properties[0] = {};
             let wayVal = newItem.properties[0]["Way"];
             if (!wayVal || wayVal.includes(',')) {
@@ -186,6 +186,16 @@ export const Sidebar = () => {
             const way = parseInt(wayVal, 10);
             newItem.properties[0]["Way"] = wayVal;
 
+            const result = calculateGeometry(newItem);
+            if (result) {
+                newItem.size = result.size;
+                newItem.connectionPoints = result.connectionPoints;
+            }
+        }
+
+        // Initialize LT Cubical Panel (uses Incomer Count and outgoing array)
+        if (newItem.name === "LT Cubical Panel") {
+            // Geometry will be calculated after backend initializes outgoing array
             const result = calculateGeometry(newItem);
             if (result) {
                 newItem.size = result.size;

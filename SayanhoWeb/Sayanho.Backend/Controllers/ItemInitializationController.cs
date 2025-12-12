@@ -255,6 +255,14 @@ namespace Sayanho.Backend.Controllers
                     }
                 }
             }
+            else if (request.Name == "LT Cubical Panel")
+            {
+                // Return blank/empty configuration as requested
+                // User will configure Incomers/Couplers/Outgoings manually in UI
+                response.Incomer = new Dictionary<string, string>(); // Empty
+                response.Outgoing = new List<Dictionary<string, string>>(); // Empty
+                response.Accessories = new List<Dictionary<string, string>>(); // Empty
+            }
 
             return Ok(response);
         }

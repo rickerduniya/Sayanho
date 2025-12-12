@@ -19,10 +19,12 @@ namespace Sayanho.Backend.Controllers
             {
                 "Source", "Main Switch", "Change Over Switch", "SPN DB", 
                 "Bulb", "Ceiling Fan", "VTPN", "HTPN", "Point Switch Board",
-                "Avg. 5A Switch Board", "AC Point", "Geyser Point", "Exhaust Fan"
+                "Avg. 5A Switch Board", "AC Point", "Geyser Point", "Exhaust Fan",
+                "LT Cubical Panel"
             };
 
             var items = new List<ItemData>();
+
 
             foreach (var name in itemNames)
             {
@@ -81,6 +83,7 @@ namespace Sayanho.Backend.Controllers
                 "Change Over Switch" => new System.Drawing.Size(80, 80),
                 "SPN DB" => new System.Drawing.Size(100, 120),
                 "VTPN" => new System.Drawing.Size(120, 150),
+                "LT Cubical Panel" => new System.Drawing.Size(300, 200),
                 "HTPN" => new System.Drawing.Size(150, 120),
                 "Bulb" => new System.Drawing.Size(40, 40),
                 "Ceiling Fan" => new System.Drawing.Size(50, 50),
@@ -149,7 +152,7 @@ namespace Sayanho.Backend.Controllers
                 { "Call Bell", "call-bell.svg" },
                 { "Garden Light", "garden-light.svg" },
                 { "Gate Light", "gate-light.svg" },
-                { "Cubicle Panel", "cubicle_panel.svg" }
+                { "LT Cubical Panel", "cubicle_panel.svg" }
             };
 
             if (iconMap.TryGetValue(name, out var iconFile))

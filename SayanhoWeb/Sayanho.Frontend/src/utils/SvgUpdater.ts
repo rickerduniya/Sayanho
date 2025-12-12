@@ -30,7 +30,7 @@ export const updateItemVisuals = (item: CanvasItem): string => {
         case "HTPN":
             modified = updateDistributionBoardVisuals(doc, item);
             break;
-        case "Cubicle Panel":
+        case "LT Cubical Panel":
             modified = updateCubiclePanelVisuals(doc, item);
             break;
         case "Source":
@@ -305,9 +305,35 @@ const createOutgoingGroup = (doc: Document, id: string, rating: string, pole: st
     return group;
 };
 
+import { PanelRenderer } from './PanelRenderer';
+
+// ...
+
 const updateCubiclePanelVisuals = (doc: Document, item: CanvasItem): boolean => {
-    // Placeholder for Cubicle Panel updates
-    return false;
+    const newSvgString = PanelRenderer.generateSvg(item);
+    // Parse the new SVG and replace the document content
+    const parser = new DOMParser();
+    const newDoc = parser.parseFromString(newSvgString, "image/svg+xml");
+
+    // Replace the root element attributes and content
+    const oldRoot = doc.documentElement;
+    const newRoot = newDoc.documentElement;
+
+    // Copy attributes
+    for (let i = 0; i < newRoot.attributes.length; i++) {
+        const attr = newRoot.attributes[i];
+        oldRoot.setAttribute(attr.name, attr.value);
+    }
+
+    // Replace content
+    while (oldRoot.firstChild) {
+        oldRoot.removeChild(oldRoot.firstChild);
+    }
+    while (newRoot.firstChild) {
+        oldRoot.appendChild(newRoot.firstChild.cloneNode(true));
+    }
+
+    return true;
 };
 
 const updateSourceVisuals = (doc: Document, item: CanvasItem): boolean => {

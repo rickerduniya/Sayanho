@@ -117,7 +117,7 @@ export class NetworkAnalyzer {
                         phase = incoming?.currentValues?.["Phase"] || "R";
                     }
                 }
-            } else if (sourceItem?.name?.includes("VTPN") || sourceItem?.name?.includes("Cubicle Panel")) {
+            } else if (sourceItem?.name?.includes("VTPN") || sourceItem?.name === "LT Cubical Panel") {
                 phase = "ALL";
             } else if (sourceItem?.name === "Source") {
                 if (sourceItem.properties?.[0]?.["Type"]?.includes("3-phase")) {
@@ -228,13 +228,48 @@ export class NetworkAnalyzer {
                 let yPhaseCurrent = 0;
                 let bPhaseCurrent = 0;
 
-                if (targetItem.name?.includes("VTPN") || targetItem.name?.includes("Cubicle Panel")) {
+                if (targetItem.name?.includes("VTPN")) {
                     outgoingConnectors.forEach(outConnector => {
                         this.traceAndCalculateCurrent(outConnector, 415, phaseType, phase, visited, visitedNets);
                         totalCurrent += this.parseCurrent(outConnector.currentValues?.["Current"]);
                         rPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["R_Current"]);
                         yPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["Y_Current"]);
                         bPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["B_Current"]);
+                    });
+                } else if (targetItem.name === "LT Cubical Panel") {
+                    // Section-Aware Tracing for LT Cubical Panel
+                    const targetPointKey = connector.targetPointKey || "";
+                    let targetSectionId = "1";
+
+                    if (targetPointKey.startsWith("in")) {
+                        targetSectionId = targetPointKey.substring(2);
+                    }
+
+                    const outgoings = targetItem.outgoing || [];
+
+                    outgoingConnectors.forEach(outConnector => {
+                        // Check if this outgoing connector belongs to the same section
+                        const sourcePointKey = outConnector.sourcePointKey || ""; // e.g. "out1"
+                        let outgoingIndex = -1;
+
+                        if (sourcePointKey.startsWith("out")) {
+                            const indexPart = sourcePointKey.substring(3).split('_')[0]; // Handle out1 or out1_R
+                            outgoingIndex = parseInt(indexPart) - 1; // 0-based index
+                        }
+
+                        if (outgoingIndex >= 0 && outgoingIndex < outgoings.length) {
+                            const outItem = outgoings[outgoingIndex];
+                            const section = outItem["Section"];
+
+                            // Only trace if sections match
+                            if (section === targetSectionId) {
+                                this.traceAndCalculateCurrent(outConnector, 415, phaseType, phase, visited, visitedNets);
+                                totalCurrent += this.parseCurrent(outConnector.currentValues?.["Current"]);
+                                rPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["R_Current"]);
+                                yPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["Y_Current"]);
+                                bPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["B_Current"]);
+                            }
+                        }
                     });
                 } else if (targetItem.name === "SPN DB") {
                     const spnPhase = phase;

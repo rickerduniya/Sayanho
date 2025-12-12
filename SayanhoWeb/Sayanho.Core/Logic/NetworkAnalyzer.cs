@@ -213,7 +213,7 @@ namespace Sayanho.Core.Logic
                     }
                 }
                 // For VTPN or other three-phase sources, we'll handle all phases
-                else if (connector.SourceItem != null && (connector.SourceItem.Name.Contains("VTPN")||connector.SourceItem.Name.Contains("Cubicle Panel")))
+                else if (connector.SourceItem != null && (connector.SourceItem.Name.Contains("VTPN")||connector.SourceItem.Name.Contains("Cubical Panel")))
                 {
                     phase = "ALL";
                 }
@@ -391,12 +391,13 @@ namespace Sayanho.Core.Logic
                     float bPhaseCurrent = 0;
                     
                     // For VTPN, we need to handle the three phases
-                    if (targetItem.Name != null && (targetItem.Name.Contains("VTPN") || targetItem.Name.Contains("Cubicle Panel")))
+// For VTPN, we need to handle the three phases
+                    if (targetItem.Name != null && targetItem.Name.Contains("VTPN"))
                     {
-                        // For VTPN or Cubicle Panel, sum up the currents from all phases
+                        // For VTPN, sum up the currents from all phases
                         foreach (var outConnector in outgoingConnectors)
                         {
-                            // VTPN and Cubicle Panel outgoing connections use 415V (three phase)
+                            // VTPN outgoing connections use 415V (three phase)
                             // Pass the phase information to the next level
                             TraceAndCalculateCurrent(outConnector, 415f, phaseType, phase, visited);
                             
@@ -435,6 +436,81 @@ namespace Sayanho.Core.Logic
                                 if (float.TryParse(bCurrentStr.Split(' ')[0], out float bBranchCurrent))
                                 {
                                     bPhaseCurrent += bBranchCurrent;
+                                }
+                            }
+                        }
+                    }
+                    else if (targetItem.Name != null && targetItem.Name.Contains("Cubical Panel"))
+                    {
+                        // Cubical Panel Logic: Map Input Section to Output Section
+                        int inputSection = 1;
+                        string inKey = connector.TargetPointKey ?? "";
+                        if (inKey.StartsWith("in"))
+                        {
+                            int.TryParse(inKey.Substring(2), out inputSection);
+                        }
+
+                        foreach (var outConnector in outgoingConnectors)
+                        {
+                            string outKey = outConnector.SourcePointKey ?? "";
+                            int outIndex = -1;
+                            if (outKey.StartsWith("out"))
+                            {
+                                if (int.TryParse(outKey.Substring(3), out int parsedIdx))
+                                {
+                                    outIndex = parsedIdx - 1; // 1-based to 0-based
+                                }
+                            }
+
+                            bool belongsToSection = false;
+                            if (outIndex >= 0 && targetItem.Outgoing != null && outIndex < targetItem.Outgoing.Count)
+                            {
+                                var outProp = targetItem.Outgoing[outIndex];
+                                if (outProp.ContainsKey("Section"))
+                                {
+                                    if (int.TryParse(outProp["Section"], out int secId) && secId == inputSection)
+                                    {
+                                        belongsToSection = true;
+                                    }
+                                }
+                                else if (inputSection == 1) // Default to section 1
+                                {
+                                    belongsToSection = true;
+                                }
+                            }
+
+                            if (belongsToSection)
+                            {
+                                TraceAndCalculateCurrent(outConnector, 415f, phaseType, phase, visited);
+
+                                if (outConnector.CurrentValues.ContainsKey("Current"))
+                                {
+                                    string currentStr = outConnector.CurrentValues["Current"];
+                                    if (float.TryParse(currentStr.Split(' ')[0], out float branchCurrent))
+                                    {
+                                        totalCurrent += branchCurrent;
+                                    }
+                                }
+                                
+                                if (outConnector.CurrentValues.ContainsKey("R_Current"))
+                                {
+                                    string rCurrentStr = outConnector.CurrentValues["R_Current"];
+                                    if (float.TryParse(rCurrentStr.Split(' ')[0], out float rBranchCurrent))
+                                        rPhaseCurrent += rBranchCurrent;
+                                }
+                                
+                                if (outConnector.CurrentValues.ContainsKey("Y_Current"))
+                                {
+                                    string yCurrentStr = outConnector.CurrentValues["Y_Current"];
+                                    if (float.TryParse(yCurrentStr.Split(' ')[0], out float yBranchCurrent))
+                                        yPhaseCurrent += yBranchCurrent;
+                                }
+                                
+                                if (outConnector.CurrentValues.ContainsKey("B_Current"))
+                                {
+                                    string bCurrentStr = outConnector.CurrentValues["B_Current"];
+                                    if (float.TryParse(bCurrentStr.Split(' ')[0], out float bBranchCurrent))
+                                        bPhaseCurrent += bBranchCurrent;
                                 }
                             }
                         }

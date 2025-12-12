@@ -104,8 +104,8 @@ export const STATIC_ITEM_DEFINITIONS: Record<string, { size: Size, connectionPoi
             "in": { x: 50, y: 0 }
         }
     },
-    "Cubicle Panel": {
-        size: { width: 240, height: 140 },
+    "LT Cubical Panel": {
+        size: { width: 300, height: 200 },
         connectionPoints: {}
     },
     // Default fallback for others

@@ -380,15 +380,22 @@ const OTHER_ITEMS: ItemRule[] = [
         }
     },
     {
-        name: "Cubicle Panel",
-        category: "other",
+        name: "LT Cubical Panel",
+        category: "distribution",
         geometry: {
-            size: { width: 240, height: 140 },
+            size: { width: 300, height: 200 }, // Default size, will be dynamic
             connectionPoints: {}
         },
         defaults: {
-            properties: {}
-        }
+            properties: {
+                "Orientation": "Vertical",
+                "Cable Alley": "Both",
+                "Incomer Count": "1",
+                "Busbar Material": "Aluminium",
+                "Bus Coupling": "None"
+            }
+        },
+        requiresBackendInit: true
     },
     {
         name: "Text",
@@ -595,7 +602,8 @@ export class DefaultRulesEngine {
     private static readonly THREE_PHASE_ITEMS = [
         "VTPN",
         "HTPN",
-        "Source"  // Source is typically 3-phase
+        "Source",  // Source is typically 3-phase
+        "LT Cubical Panel"
     ];
 
     /**
