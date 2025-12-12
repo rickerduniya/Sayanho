@@ -153,7 +153,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     // Fetch all device types for Panel Configuration
                     const mccbData = await fetchProperties("MCCB");
                     const acbData = await fetchProperties("ACB");
-                    const sfuData = await fetchProperties("Main Switch"); // Represents SFU
+                    const sfuData = await fetchProperties("Main Switch Open"); // Represents SFU
                     const mcbData = await fetchProperties("MCB");
 
                     setPanelDevices({

@@ -308,6 +308,57 @@ namespace Sayanho.Backend.Services
                             }
                         }
                     }
+                    else if (item.Name == "LT Cubical Panel")
+                    {
+                        // 1. Process Incomers
+                        if (propertiesDictionary.ContainsKey("Incomer Count"))
+                        {
+                            int count = 0;
+                            int.TryParse(propertiesDictionary["Incomer Count"], out count);
+
+                            for (int i = 1; i <= count; i++)
+                            {
+                                string prefix = $"Incomer{i}_";
+                                // Ensure we have a valid type selected
+                                if (propertiesDictionary.ContainsKey($"{prefix}Type") && !string.IsNullOrEmpty(propertiesDictionary[$"{prefix}Type"]))
+                                {
+                                    string type = propertiesDictionary[$"{prefix}Type"];
+                                    // Construct a temporary dictionary for this device
+                                    var deviceProps = new Dictionary<string, string>();
+                                    
+                                    // Map specific fields (stripping prefix)
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Rate")) deviceProps["Rate"] = propertiesDictionary[$"{prefix}Rate"];
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Description")) deviceProps["Description"] = propertiesDictionary[$"{prefix}Description"];
+                                    if (propertiesDictionary.ContainsKey($"{prefix}GS")) deviceProps["GS"] = propertiesDictionary[$"{prefix}GS"];
+                                    
+                                    // Map other attributes just in case
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Rating")) deviceProps["Current Rating"] = propertiesDictionary[$"{prefix}Rating"];
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Pole")) deviceProps["Pole"] = propertiesDictionary[$"{prefix}Pole"];
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Company")) deviceProps["Company"] = propertiesDictionary[$"{prefix}Company"];
+
+                                    // Only calculate if we valid data
+                                    if (deviceProps.ContainsKey("Rate") && deviceProps.ContainsKey("Description"))
+                                    {
+                                        Calculation(type, deviceProps, 1, item.AlternativeCompany1, item.AlternativeCompany2);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Process Outgoings
+                        if (item.Outgoing != null)
+                        {
+                            foreach (var outItem in item.Outgoing)
+                            {
+                                if (outItem.ContainsKey("Type") && outItem.ContainsKey("Rate") && outItem.ContainsKey("Description"))
+                                {
+                                    string type = outItem["Type"];
+                                    // outItem already has Rate, Description, GS, etc. directly
+                                    Calculation(type, outItem, 1, item.AlternativeCompany1, item.AlternativeCompany2);
+                                }
+                            }
+                        }
+                    }
                     else
                     {
                         Calculation(item.Name, propertiesDictionary, 1,

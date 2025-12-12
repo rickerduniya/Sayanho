@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Maximize2, Minimize2, Copy, Trash, Plus, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Copy, Trash, Plus } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { PanelRenderer } from '../utils/PanelRenderer';
-import { ItemData, CanvasItem } from '../types';
+import { CanvasItem } from '../types';
 
 interface PanelDesignerProps {
     isOpen: boolean;
@@ -34,42 +34,138 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     const incomerCount = Math.max(parseInt(properties["Incomer Count"] || "1", 10), 1);
     const outgoings = localItem.outgoing || [];
 
-    const getDeviceOptions = (type: string) => {
-        if (!type) return [];
-        const normalizedType = type.toLowerCase().replace(" ", "");
-        if (normalizedType.includes("mccb")) return availableDevices.mccb;
-        if (normalizedType.includes("sfu") || normalizedType.includes("mainswitch")) return availableDevices.sfu;
-        if (normalizedType.includes("mcb")) return availableDevices.mcb;
-        return [];
+    // Helper to find specific rows in the loaded database data
+    const findDeviceRow = (type: string, pole: string, rating: string, company: string) => {
+        let dataset: any[] = [];
+        const normType = type.toLowerCase().replace(/\s+/g, "");
+
+        if (normType.includes("mccb")) dataset = availableDevices.mccb;
+        else if (normType.includes("mcb")) dataset = availableDevices.mcb;
+        else if (normType.includes("mainswitch") || normType.includes("sfu")) dataset = availableDevices.sfu;
+
+        return dataset.find(d => {
+            const matchesType = d["Item"] === "Main Switch Open" ? d["Type"] === "TPN SFU" : true; // SFU check
+            const matchesPole = d["Pole"] ? d["Pole"] === pole : true; // Main Switch Open usually has no pole col
+            const matchesRating = d["Current Rating"] === rating;
+            const matchesCompany = d["Company"] === company;
+            return matchesType && matchesPole && matchesRating && matchesCompany;
+        });
     };
 
-    const getRatingsForType = (type: string) => {
-        const options = getDeviceOptions(type);
-        return options
-            .map(p => p["Current Rating"])
-            .filter((v, i, a) => v && a.indexOf(v) === i)
-            .sort((a, b) => parseInt(a) - parseInt(b));
+    // Generic helper to get options based on filters
+    const getOptions = (datasetKey: 'mccb' | 'mcb' | 'sfu', filters: { pole?: string, rating?: string } = {}) => {
+        let data = availableDevices[datasetKey] || [];
+
+        // Filter for Main Switch Open specific type
+        if (datasetKey === 'sfu') {
+            data = data.filter(d => d["Type"] === "TPN SFU");
+        }
+
+        if (filters.pole) {
+            data = data.filter(d => d["Pole"] === filters.pole);
+        }
+        if (filters.rating) {
+            data = data.filter(d => d["Current Rating"] === filters.rating);
+        }
+        return data;
     };
 
-    const getPolesForType = (type: string) => {
-        const options = getDeviceOptions(type);
-        return options
-            .map(p => p["Pole"])
-            .filter((v, i, a) => v && a.indexOf(v) === i)
-            .sort();
+    // Get unique values for dropdowns
+    const getUniqueValues = (data: any[], key: string) => {
+        return [...new Set(data.map(d => d[key]).filter(Boolean))].sort((a, b) => {
+            // Try numeric sort for ratings
+            const numA = parseInt(a);
+            const numB = parseInt(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+        });
     };
 
     const handleUpdateProperty = (key: string, value: string) => {
         const newProps = { ...properties, [key]: value };
+
+        // Auto-populate other fields if we have a full selection
+        // Logic depends on what changed. 
+        // We handle the strict Type->Pole->Rating->Company flow in the UI render mostly, 
+        // ensuring invalid downstream options are cleared.
+
         setLocalItem({ ...localItem, properties: [newProps] });
     };
+
+    const handleUpdateIncomer = (section: string, field: string, value: string) => {
+        const prefix = `Incomer${section}_`;
+        let newProps = { ...properties, [prefix + field]: value };
+
+        // Clear downstream if upstream changes
+        if (field === 'Type') {
+            newProps[prefix + 'Pole'] = "";
+            newProps[prefix + 'Rating'] = "";
+            newProps[prefix + 'Company'] = "";
+        } else if (field === 'Pole') {
+            newProps[prefix + 'Rating'] = "";
+            newProps[prefix + 'Company'] = "";
+        } else if (field === 'Rating') {
+            newProps[prefix + 'Company'] = "";
+        } else if (field === 'Company') {
+            // Full selection made, find and populate Rate/Desc/GS
+            const type = newProps[prefix + 'Type'];
+            const pole = newProps[prefix + 'Pole'] || (type === "Main Switch Open" ? "TPN" : "");
+            const rating = newProps[prefix + 'Rating'];
+
+            const row = findDeviceRow(type, pole, rating, value);
+            if (row) {
+                newProps[prefix + 'Rate'] = row['Rate'];
+                newProps[prefix + 'Description'] = row['Description'];
+                newProps[prefix + 'GS'] = row['GS'];
+            }
+        }
+
+        setLocalItem({ ...localItem, properties: [newProps] });
+    };
+
+    const handleUpdateOutgoing = (index: number, field: string, value: string) => {
+        const newOut = [...outgoings];
+        const item = { ...newOut[index] };
+        item[field] = value;
+
+        // Clear downstream
+        if (field === 'Type') {
+            item['Pole'] = "";
+            item['Current Rating'] = "";
+            item['Company'] = "";
+        } else if (field === 'Pole') {
+            item['Current Rating'] = "";
+            item['Company'] = "";
+        } else if (field === 'Current Rating') {
+            item['Company'] = "";
+        } else if (field === 'Company') {
+            // Full selection
+            const type = item['Type'];
+            const pole = item['Pole'] || (type === "Main Switch Open" ? "TPN" : "");
+            const rating = item['Current Rating'];
+            const row = findDeviceRow(type, pole, rating, value);
+            if (row) {
+                item['Rate'] = row['Rate'];
+                item['Description'] = row['Description'];
+                item['GS'] = row['GS'];
+            }
+        }
+
+        newOut[index] = item;
+        setLocalItem({ ...localItem, outgoing: newOut });
+    };
+
 
     const handleAddOutgoing = (section: number) => {
         const newOut = [...outgoings, {
             "Section": section.toString(),
-            "Type": "MCCB",
+            "Type": "MCB", // Default
+            "Pole": "",
             "Current Rating": "",
-            "Pole": "TP"
+            "Company": "",
+            "Rate": "",
+            "Description": "",
+            "GS": ""
         }];
         setLocalItem({ ...localItem, outgoing: newOut });
     };
@@ -82,8 +178,14 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                 return;
             }
             handleUpdateProperty("Incomer Count", (incomerCount - 1).toString());
+            // Remove incomer properties for this section to clean up
+            const newProps = { ...properties };
+            Object.keys(newProps).forEach(k => {
+                if (k.startsWith(`Incomer${section}_`)) delete newProps[k];
+            });
+
             const newOut = outgoings.filter((o: any) => o["Section"] !== section.toString());
-            setLocalItem({ ...localItem, outgoing: newOut });
+            setLocalItem({ ...localItem, properties: [newProps], outgoing: newOut });
             setSelectedIds([]);
         } else {
             const newOut = outgoings.filter((_, idx) => !selectedIds.includes(idx.toString()));
@@ -99,7 +201,6 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         }
         handleUpdateProperty("Incomer Count", (incomerCount + 1).toString());
     };
-
     const handleCopy = () => {
         if (selectedIds[0]?.startsWith("Incomer")) return;
         const selectedItems = outgoings.filter((_, idx) => selectedIds.includes(idx.toString()));
@@ -114,10 +215,11 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         if (targetIndex !== null) {
             clipboard.forEach((clipItem, i) => {
                 const destIdx = targetIndex + i;
+                const newItem = { ...clipItem, "Section": section.toString() };
                 if (destIdx < newOutgoings.length) {
-                    newOutgoings[destIdx] = { ...clipItem, "Section": section.toString() };
+                    newOutgoings[destIdx] = newItem;
                 } else {
-                    newOutgoings.push({ ...clipItem, "Section": section.toString() });
+                    newOutgoings.push(newItem);
                 }
             });
         } else {
@@ -144,6 +246,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         }
     };
 
+    // Rendering Logic
     const margin = 5;
     const topSpace = 85;
     const busbarY = margin + topSpace;
@@ -162,6 +265,90 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         if (width < minSectionWidth) width = minSectionWidth;
         sectionWidths.push(width);
     }
+
+    // --- Render Dropdowns Components ---
+
+    // --- Render Dropdowns Components ---
+
+    const RenderDeviceConfig = ({ type, pole, rating, company, rate, onChange, canDelete, onDelete, title }: any) => {
+        // Determine dataset
+        const isSfu = type === "Main Switch Open";
+        const isMccb = type === "MCCB";
+        const isMcb = type === "MCB";
+
+        let datasetKey: 'mccb' | 'mcb' | 'sfu' | null = null;
+        if (isSfu) datasetKey = 'sfu';
+        if (isMccb) datasetKey = 'mccb';
+        if (isMcb) datasetKey = 'mcb';
+
+        const poles = datasetKey ? getUniqueValues(getOptions(datasetKey), "Pole") : [];
+        if (isSfu && poles.length === 0) poles.push("TPN"); // SFU usually implies TPN if no column
+
+        const ratings = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: isSfu ? undefined : pole }), "Current Rating") : [];
+
+        const companies = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: isSfu ? undefined : pole, rating }), "Company") : [];
+
+        // Check if rate is logically valid (requires full selection)
+        const showRate = rate && type && (isSfu || pole) && rating && company;
+
+        return (
+            <div className="space-y-2">
+                <div className="text-xs opacity-70">{title}</div>
+                <select
+                    value={type || ""}
+                    onChange={(e) => onChange("Type", e.target.value)}
+                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                >
+                    <option value="" disabled>Select Type...</option>
+                    <option value="MCCB">MCCB</option>
+                    <option value="Main Switch Open">Main Switch (SFU)</option>
+                    <option value="MCB">MCB</option>
+                </select>
+
+                <select
+                    value={pole || ""}
+                    onChange={(e) => onChange("Pole", e.target.value)}
+                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    disabled={!type || (isSfu && poles.length <= 1)}
+                >
+                    <option value="">Select Pole...</option>
+                    {poles.map((p: string) => <option key={p} value={p}>{p}</option>)}
+                </select>
+
+                <select
+                    value={rating || ""}
+                    onChange={(e) => onChange("Current Rating", e.target.value)}
+                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    disabled={!type || (!isSfu && !pole)}
+                >
+                    <option value="">Select Rating...</option>
+                    {ratings.map((r: string) => <option key={r} value={r}>{r}</option>)}
+                </select>
+
+                <select
+                    value={company || ""}
+                    onChange={(e) => onChange("Company", e.target.value)}
+                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    disabled={!rating}
+                >
+                    <option value="">Select Company...</option>
+                    {companies.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                </select>
+
+                {showRate && (
+                    <div className="text-[10px] text-green-600 dark:text-green-400 font-medium px-1">
+                        Rate: ₹{rate}
+                    </div>
+                )}
+
+                {canDelete && (
+                    <button onClick={onDelete} className="w-full py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
+                        Delete
+                    </button>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -189,6 +376,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
                 <div className="flex-1 flex overflow-hidden">
                     <div className="w-64 border-r border-gray-200 dark:border-gray-800 p-4 space-y-6 overflow-y-auto bg-gray-50/50 dark:bg-black/20">
+                        {/* Global Settings */}
                         <div>
                             <label className="text-xs font-bold uppercase opacity-60 mb-1 block">Incomers</label>
                             <select
@@ -202,66 +390,27 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                             </select>
                         </div>
 
-                        <div>
-                            <label className="text-xs font-bold uppercase opacity-60 mb-1 block">Cable Alley</label>
-                            <select
-                                value={properties["Cable Alley"] || "None"}
-                                onChange={(e) => handleUpdateProperty("Cable Alley", e.target.value)}
-                                className="w-full p-2 text-sm rounded border bg-transparent"
-                            >
-                                <option value="None">None</option>
-                                <option value="Left">Left Side</option>
-                                <option value="Right">Right Side</option>
-                                <option value="Both">Both Sides</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold uppercase opacity-60 mb-1 block">Busbar Material</label>
-                            <select
-                                value={properties["Busbar Material"] || "Aluminum"}
-                                onChange={(e) => handleUpdateProperty("Busbar Material", e.target.value)}
-                                className="w-full p-2 text-sm rounded border bg-transparent"
-                            >
-                                <option value="Aluminum">Aluminum</option>
-                                <option value="Copper">Copper</option>
-                            </select>
-                        </div>
-
+                        {/* Selection Logic */}
                         {selectedIds.length > 0 && selectedIds[0].startsWith("Incomer") ? (
                             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-800">
                                 <h3 className="text-sm font-bold text-green-700 dark:text-green-300 mb-2">Incomer Config</h3>
                                 {(() => {
                                     const section = selectedIds[0].split(":")[1];
-                                    const currentType = properties[`Incomer${section}_Type`];
                                     return (
-                                        <div className="space-y-2">
-                                            <div className="text-xs opacity-70">Incomer for Section {section}</div>
-                                            <select
-                                                value={currentType || ""}
-                                                onChange={(e) => handleUpdateProperty(`Incomer${section}_Type`, e.target.value)}
-                                                className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                                            >
-                                                <option value="" disabled>Select Type...</option>
-                                                <option value="MCCB">MCCB</option>
-                                                <option value="Main Switch">Main Switch (SFU)</option>
-                                            </select>
-                                            <select
-                                                value={properties[`Incomer${section}_Rating`] || ""}
-                                                onChange={(e) => handleUpdateProperty(`Incomer${section}_Rating`, e.target.value)}
-                                                className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                                            >
-                                                <option value="">Select Rating...</option>
-                                                {currentType && getRatingsForType(currentType).map(r => (
-                                                    <option key={r} value={r}>{r}</option>
-                                                ))}
-                                            </select>
-                                            {incomerCount > 1 && (
-                                                <button onClick={handleDeleteSelected} className="w-full py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
-                                                    Delete Incomer {section}
-                                                </button>
-                                            )}
-                                        </div>
+                                        <RenderDeviceConfig
+                                            type={properties[`Incomer${section}_Type`]}
+                                            pole={properties[`Incomer${section}_Pole`] || (properties[`Incomer${section}_Type`] === "Main Switch Open" ? "TPN" : "")}
+                                            rating={properties[`Incomer${section}_Rating`]}
+                                            company={properties[`Incomer${section}_Company`]}
+                                            rate={properties[`Incomer${section}_Rate`]}
+                                            onChange={(field: string, val: string) => {
+                                                if (field === "Current Rating") handleUpdateIncomer(section, "Rating", val); // Remap
+                                                else handleUpdateIncomer(section, field, val);
+                                            }}
+                                            canDelete={incomerCount > 1}
+                                            onDelete={handleDeleteSelected}
+                                            title={`Incomer for Section ${section}`}
+                                        />
                                     );
                                 })()}
                             </div>
@@ -289,68 +438,33 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                         ) : selectedIds.length > 0 && (
                             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-800">
                                 <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300 mb-2">{selectedIds.length} Items Selected</h3>
-                                <div className="space-y-2">
-                                    {selectedIds.length === 1 ? (
-                                        (() => {
-                                            const idx = parseInt(selectedIds[0]);
-                                            const item = outgoings[idx];
-                                            if (!item) return null;
-                                            return (
-                                                <div className="space-y-2">
-                                                    <select
-                                                        value={item["Type"]}
-                                                        onChange={(e) => {
-                                                            const newOut = [...outgoings];
-                                                            newOut[idx] = { ...newOut[idx], "Type": e.target.value, "Current Rating": "", "Pole": "" };
-                                                            setLocalItem({ ...localItem, outgoing: newOut });
-                                                        }}
-                                                        className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                                                    >
-                                                        <option value="MCCB">MCCB</option>
-                                                        <option value="MCB">MCB</option>
-                                                        <option value="Main Switch">Main Switch / SFU</option>
-                                                    </select>
-                                                    <select
-                                                        value={item["Current Rating"] || ""}
-                                                        onChange={(e) => {
-                                                            const newOut = [...outgoings];
-                                                            newOut[idx] = { ...newOut[idx], "Current Rating": e.target.value };
-                                                            setLocalItem({ ...localItem, outgoing: newOut });
-                                                        }}
-                                                        className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                                                    >
-                                                        <option value="">Rating...</option>
-                                                        {getRatingsForType(item["Type"]).map(r => (
-                                                            <option key={r} value={r}>{r}</option>
-                                                        ))}
-                                                    </select>
-                                                    <select
-                                                        value={item["Pole"] || ""}
-                                                        onChange={(e) => {
-                                                            const newOut = [...outgoings];
-                                                            newOut[idx] = { ...newOut[idx], "Pole": e.target.value };
-                                                            setLocalItem({ ...localItem, outgoing: newOut });
-                                                        }}
-                                                        className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent mt-1"
-                                                    >
-                                                        <option value="">Pole...</option>
-                                                        {getPolesForType(item["Type"]).map(p => (
-                                                            <option key={p} value={p}>{p}</option>
-                                                        ))}
-                                                    </select>
-                                                    <div className="text-[10px] text-gray-500 italic text-center pt-2">
-                                                        Drag items in the visual designer to reorder
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()
-                                    ) : (
+                                {selectedIds.length === 1 ? (
+                                    (() => {
+                                        const idx = parseInt(selectedIds[0]);
+                                        const item = outgoings[idx];
+                                        if (!item) return null;
+                                        return (
+                                            <RenderDeviceConfig
+                                                type={item["Type"]}
+                                                pole={item["Pole"] || (item["Type"] === "Main Switch Open" ? "TPN" : "")}
+                                                rating={item["Current Rating"]}
+                                                company={item["Company"]}
+                                                rate={item["Rate"]}
+                                                onChange={(field: string, val: string) => handleUpdateOutgoing(idx, field, val)}
+                                                canDelete={true}
+                                                onDelete={handleDeleteSelected}
+                                                title={`Circuit ${idx + 1}`}
+                                            />
+                                        );
+                                    })()
+                                ) : (
+                                    <div className="space-y-2">
                                         <div className="text-xs opacity-70">Bulk edit not supported yet.</div>
-                                    )}
-                                    <button onClick={handleDeleteSelected} className="w-full py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
-                                        Delete Selected
-                                    </button>
-                                </div>
+                                        <button onClick={handleDeleteSelected} className="w-full py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
+                                            Delete Selected
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -360,6 +474,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                         </div>
                     </div>
 
+                    {/* Visualizer Area */}
                     <div className="flex-1 overflow-auto p-8 bg-slate-100 dark:bg-slate-900 flex justify-center items-start relative"
                         onClick={() => { setSelectedIds([]); setContextMenu(null); }}
                         onContextMenu={(e) => { e.preventDefault(); }}
@@ -387,6 +502,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
                                     const result = (
                                         <React.Fragment key={section}>
+                                            {/* Incomer Click Zone */}
                                             <div
                                                 className={`absolute cursor-pointer border-2 hover:border-blue-400 rounded ${selectedIds.includes(`Incomer:${section}`) ? "border-blue-600 bg-blue-500/20" : "border-transparent"}`}
                                                 style={{ left: sectionCenter - 25, top: margin + 10, width: 50, height: 60 }}
@@ -450,6 +566,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                 );
                                             })}
 
+                                            {/* Add Outgoing Button */}
                                             <div
                                                 className="absolute cursor-pointer hover:bg-green-500/20 flex items-center justify-center group rounded-full border border-dashed border-gray-400"
                                                 style={{
@@ -487,11 +604,12 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                     e.preventDefault(); e.stopPropagation();
                                                     setContextMenu({ x: e.clientX, y: e.clientY, section, index: null });
                                                 }}
-                                                title="Add New Circuit / Drop to Move Here"
+                                                title="Add New Circuit"
                                             >
                                                 <Plus size={16} className="opacity-50 group-hover:opacity-100" />
                                             </div>
 
+                                            {/* Coupler Zone */}
                                             {i < incomerCount - 1 && (
                                                 <div
                                                     className={`absolute cursor-pointer border-2 hover:border-purple-400 rounded ${selectedIds.includes(`Coupler:${section}`) ? "border-purple-600 bg-purple-500/20" : "border-transparent"}`}
@@ -516,6 +634,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                 });
                             })()}
 
+                            {/* Add Incomer Button */}
                             {incomerCount < 3 && (
                                 <div
                                     className="absolute cursor-pointer hover:bg-blue-500/20 flex items-center justify-center group rounded-full border border-dashed border-blue-400"
