@@ -543,17 +543,18 @@ namespace Sayanho.Core.Logic
                 return;
 
             var properties = panel.Properties.First();
-            string company = properties.GetValueOrDefault("Company", "");
 
             // 1. Determine number of Sections/Incomers
-            // We can look for "IncomerCount" or loop "Incomer{i}_Type"
             int incomerCount = 1; 
-            if (properties.ContainsKey("IncomerCount"))
+            if (properties.ContainsKey("Incomer Count"))
             {
-               int.TryParse(properties["IncomerCount"], out incomerCount);
+               int.TryParse(properties["Incomer Count"], out incomerCount);
             }
-            // Fallback: Check keys
-            while (properties.ContainsKey($"Incomer{incomerCount + 1}_Type")) incomerCount++;
+            // Fallback
+            else
+            {
+                while (properties.ContainsKey($"Incomer{incomerCount + 1}_Type")) incomerCount++;
+            }
 
             Console.WriteLine($"Auto-Rating Cubical Panel: {incomerCount} Sections");
 
@@ -580,7 +581,6 @@ namespace Sayanho.Core.Logic
                         if (inSection)
                         {
                             // Find the connector for this outgoing point (out{outIdx+1})
-                            // We need to query allConnectors again for this specific point
                             string sourcePointKey = $"out{outIdx + 1}";
                             var connector = allConnectors.FirstOrDefault(c => c.SourceItem == panel && c.SourcePointKey == sourcePointKey);
                             
@@ -599,47 +599,65 @@ namespace Sayanho.Core.Logic
                 double requiredRating = sectionLoad * safetyMargin;
                 Console.WriteLine($"  Section {i} Load: {sectionLoad:F2} A -> Req: {requiredRating:F2} A");
 
-                // Select Rating for Incomer i
-                // Incomer Type is stored in "Incomer{i}_Type" (e.g. "MCCB", "ACB")
-                string incomerType = properties.GetValueOrDefault($"Incomer{i}_Type", "MCCB");
+                // Get Current Configuration for Incomer i
+                string prefix = $"Incomer{i}_";
+                string incomerType = properties.GetValueOrDefault($"{prefix}Type", "MCCB");
+                string company = properties.GetValueOrDefault($"{prefix}Company", "");
+                string pole = properties.GetValueOrDefault($"{prefix}Pole", "");
+
                 if (string.IsNullOrEmpty(incomerType)) incomerType = "MCCB";
 
-                // Load database options for this type
-                // Note: "ACB" table might not exist in default DB loader, fallback to MCCB if needed or handle error
-                var options = DatabaseLoader.LoadDefaultPropertiesFromDatabase(incomerType, 2).Properties
+                // Load database options
+                // Handle "Main Switch Open" if passed, though usually Incomers are MCCB/ACB/SFU
+                string dbType = incomerType;
+                
+                var dbResult = DatabaseLoader.LoadDefaultPropertiesFromDatabase(dbType, 2);
+                var options = dbResult.Properties
                     .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
                     .ToList();
-                
-                // If options empty and type is ACB, maybe try MCCB? Or specific ACB logic?
-                // Assuming MCCB for now if ACB fails, or just proceed.
-                
+
+                // Filter by Pole if specified (and applicable)
+                // SFU / Main Switch Open often doesn't have Pole column or is fixed TPN
+                bool isSfu = incomerType.Contains("Main Switch") || incomerType.Contains("SFU");
+                if (!isSfu && !string.IsNullOrEmpty(pole))
+                {
+                     options = options.Where(row => row.ContainsKey("Pole") && row["Pole"]?.ToString() == pole).ToList();
+                }
+
+                options = options.OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue).ToList();
+
                 var selected = SelectOptimalRating(options, requiredRating, incomerType);
 
                 if (selected != null)
                 {
-                    properties[$"Incomer{i}_Rating"] = selected["Current Rating"];
-                    if (selected.ContainsKey("Rate")) properties[$"Incomer{i}_Rate"] = selected["Rate"];
-                    // Store other props?
+                    properties[$"{prefix}Rating"] = selected["Current Rating"];
+                    if (selected.ContainsKey("Rate")) properties[$"{prefix}Rate"] = selected["Rate"];
+                    if (selected.ContainsKey("Description")) properties[$"{prefix}Description"] = selected["Description"];
+                    if (selected.ContainsKey("GS")) properties[$"{prefix}GS"] = selected["GS"];
+                    
                     Console.WriteLine($"  -> Selected {incomerType}: {selected["Current Rating"]}");
                 }
                 else
                 {
-                    Console.WriteLine($"  -> Warning: No suitable {incomerType} found.");
+                    Console.WriteLine($"  -> Warning: No suitable {incomerType} found for {requiredRating}A.");
                 }
             }
 
             // 3. Set Outgoing Ratings
-            SetCubicalPanelOutgoingRatings(panel, company);
+            SetCubicalPanelOutgoingRatings(panel);
         }
 
-        private void SetCubicalPanelOutgoingRatings(CanvasItem panel, string company)
+        private void SetCubicalPanelOutgoingRatings(CanvasItem panel)
         {
             if (panel.Outgoing == null) return;
 
             for (int i = 0; i < panel.Outgoing.Count; i++)
             {
                 var outProp = panel.Outgoing[i];
+                
+                // Get configured Company from the item itself (since it's per-device now)
+                string company = outProp.GetValueOrDefault("Company", "");
+
                 // Check load for this circuit
                 string sourcePointKey = $"out{i + 1}";
                 var connector = allConnectors.FirstOrDefault(c => c.SourceItem == panel && c.SourcePointKey == sourcePointKey);
@@ -653,29 +671,40 @@ namespace Sayanho.Core.Logic
                     load = Math.Max(rCurrent, Math.Max(yCurrent, bCurrent));
                 }
 
+                // If load is 0, we might still want to set a default minimum if the user just added it?
+                // But generally auto-rating responds to load.
                 if (load > 0)
                 {
                     double req = load * 1.25; // 25% margin for outgoing
-                    string type = outProp.GetValueOrDefault("Type", "MCB"); // e.g. "MCB", "MCCB"
-                    // If Type is empty, default?
+                    string type = outProp.GetValueOrDefault("Type", "MCB"); 
                     if (string.IsNullOrEmpty(type)) type = "MCB";
                     
-                    // Pole? Usually TP for panel? Or specified?
-                    // We'll read from outProp or default to TP
-                    string pole = outProp.GetValueOrDefault("Pole", "TP");
+                    string pole = outProp.GetValueOrDefault("Pole", "");
 
-                    var options = DatabaseLoader.LoadDefaultPropertiesFromDatabase(type, 2).Properties
+                    // Load DB options
+                    var dbResult = DatabaseLoader.LoadDefaultPropertiesFromDatabase(type, 2);
+                    var options = dbResult.Properties
                         .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
-                        // Filter by Pole if MCB
-                        .Where(row => type != "MCB" || row["Pole"]?.ToString() == pole) 
-                        .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
                         .ToList();
+
+                    // Filter by Pole if applicable
+                    // Main Switch Open typically implies TPN, check logic
+                    bool isSfu = type == "Main Switch Open";
+                    if (!isSfu && !string.IsNullOrEmpty(pole))
+                    {
+                         options = options.Where(row => row.ContainsKey("Pole") && row["Pole"]?.ToString() == pole).ToList();
+                    }
+                    
+                    options = options.OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue).ToList();
 
                     var selected = SelectOptimalRating(options, req, type);
                     if (selected != null)
                     {
-                        outProp["Rating"] = selected["Current Rating"];
+                        outProp["Current Rating"] = selected["Current Rating"];
                         if (selected.ContainsKey("Rate")) outProp["Rate"] = selected["Rate"];
+                        if (selected.ContainsKey("Description")) outProp["Description"] = selected["Description"];
+                        if (selected.ContainsKey("GS")) outProp["GS"] = selected["GS"];
+                        
                         Console.WriteLine($"  -> Outgoing {i+1} ({type}): {selected["Current Rating"]}");
                     }
                 }

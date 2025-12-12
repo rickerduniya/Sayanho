@@ -1,0 +1,520 @@
+{
+  "ProjectId": "e9d70ed2-a671-4cf4-93ef-b76649a523b0",
+  "Name": "Sheet 1",
+  "CanvasSheets": [
+    {
+      "SheetId": "default",
+      "Name": "Sheet 1",
+      "CanvasItems": [
+        {
+          "UniqueID": "77139e19-c850-4050-9965-7f4a55b8e8ef",
+          "Name": "VTPN",
+          "Position": {
+            "IsEmpty": false,
+            "X": 1257,
+            "Y": 195
+          },
+          "Size": {
+            "IsEmpty": false,
+            "Width": 280,
+            "Height": 170
+          },
+          "ConnectionPoints": {
+            "in": {
+              "IsEmpty": false,
+              "X": 140,
+              "Y": 0
+            },
+            "out1": {
+              "IsEmpty": false,
+              "X": 50,
+              "Y": 170
+            },
+            "out2": {
+              "IsEmpty": false,
+              "X": 115,
+              "Y": 170
+            },
+            "out3": {
+              "IsEmpty": false,
+              "X": 180,
+              "Y": 170
+            },
+            "out4": {
+              "IsEmpty": false,
+              "X": 245,
+              "Y": 170
+            }
+          },
+          "Properties": [
+            {
+              "Current Rating": "125 A",
+              "Way": "4 way",
+              "Company": "Schneider",
+              "Rate": "7032",
+              "Description": "Supplying  and  fixing following double  door  Vertical  TPN  MCB Distribution  board  for  MCCB  incomer  with  IP-42/43 protection, on angle iron frame on wall \u0026 mending good the damages to original finish incl. Inter connection with suitable size of copper wire and neutral link \u0026 provision for earthing attachment",
+              "GS": "PWD/GS -D-11 : 15"
+            }
+          ],
+          "AlternativeCompany1": "Schneider",
+          "AlternativeCompany2": "",
+          "SvgContent": null,
+          "IconPath": "/icons/vtpn.svg",
+          "Rotation": 0,
+          "Locked": false,
+          "IdPoints": {},
+          "Incomer": {
+            "Current Rating": "125 A",
+            "Pole": "FP",
+            "Company": "Schneider",
+            "Rate": "7032",
+            "Description": "Supplying and fixing following 415 V Four Pole MCCB of Breaking capacity 25kA/35kA with fixed thermal and fixed magnetic / adjustable thermal and fixed magnetic setting in existing DBs / enclosure and necessary connection",
+            "GS": "PWD/GS -D-8 : 10"
+          },
+          "Outgoing": [
+            {
+              "Current Rating": "125 A",
+              "Pole": "TP",
+              "Company": "Schneider",
+              "Rate": "6920",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "TP",
+              "Company": "Schneider",
+              "Rate": "734",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "TP",
+              "Company": "Schneider",
+              "Rate": "734",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "TP",
+              "Company": "Schneider",
+              "Rate": "734",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            }
+          ],
+          "Accessories": []
+        },
+        {
+          "UniqueID": "45afa83e-f1f1-4c93-9c4c-e5ba29880a69",
+          "Name": "HTPN",
+          "Position": {
+            "IsEmpty": false,
+            "X": 697,
+            "Y": 623
+          },
+          "Size": {
+            "IsEmpty": false,
+            "Width": 672,
+            "Height": 170
+          },
+          "ConnectionPoints": {
+            "in": {
+              "IsEmpty": false,
+              "X": 336,
+              "Y": 0
+            },
+            "out1_Red Phase": {
+              "IsEmpty": false,
+              "X": 40,
+              "Y": 170
+            },
+            "out2_Red Phase": {
+              "IsEmpty": false,
+              "X": 95,
+              "Y": 170
+            },
+            "out3_Red Phase": {
+              "IsEmpty": false,
+              "X": 150,
+              "Y": 170
+            },
+            "out4_Red Phase": {
+              "IsEmpty": false,
+              "X": 205,
+              "Y": 170
+            },
+            "out1_Yellow Phase": {
+              "IsEmpty": false,
+              "X": 260,
+              "Y": 170
+            },
+            "out2_Yellow Phase": {
+              "IsEmpty": false,
+              "X": 315,
+              "Y": 170
+            },
+            "out3_Yellow Phase": {
+              "IsEmpty": false,
+              "X": 370,
+              "Y": 170
+            },
+            "out4_Yellow Phase": {
+              "IsEmpty": false,
+              "X": 425,
+              "Y": 170
+            },
+            "out1_Blue Phase": {
+              "IsEmpty": false,
+              "X": 480,
+              "Y": 170
+            },
+            "out2_Blue Phase": {
+              "IsEmpty": false,
+              "X": 535,
+              "Y": 170
+            },
+            "out3_Blue Phase": {
+              "IsEmpty": false,
+              "X": 590,
+              "Y": 170
+            },
+            "out4_Blue Phase": {
+              "IsEmpty": false,
+              "X": 645,
+              "Y": 170
+            }
+          },
+          "Properties": [
+            {
+              "Way": "4 way",
+              "Company": "Legrand",
+              "Rate": "2851",
+              "Description": "Supplying and fixing following double door Horizontal TPN MCB Distribution board with IP-42/43 protection, concealed in wall after cutting the wall \u0026 mending good the damages to original finish incl. Inter connection with suitable size of copper wire and neutral link \u0026 provision for earthing attachment",
+              "GS": "PWD/GS -D-9:13"
+            }
+          ],
+          "AlternativeCompany1": "Legrand",
+          "AlternativeCompany2": "Schneider",
+          "SvgContent": null,
+          "IconPath": "/icons/HTPN.svg",
+          "Rotation": 0,
+          "Locked": false,
+          "IdPoints": {},
+          "Incomer": {
+            "Current Rating": "125 A",
+            "Pole": "FP",
+            "Company": "Legrand",
+            "Rate": "7708",
+            "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+            "GS": "PWD/GS -D-6:7"
+          },
+          "Outgoing": [
+            {
+              "Current Rating": "63 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "422",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            },
+            {
+              "Current Rating": "6 A",
+              "Pole": "SP",
+              "Company": "Legrand",
+              "Rate": "190",
+              "Description": "Supplying and fixing following 240/415 V MCB of Breaking capacity 10kA \u0026 C characteristics on din rail of existing DBs and necessary connection",
+              "GS": "PWD/GS -D-6:7"
+            }
+          ],
+          "Accessories": []
+        },
+        {
+          "UniqueID": "809079d2-812d-401b-9990-ec0d6a456f7a",
+          "Name": "AC Point",
+          "Position": {
+            "IsEmpty": false,
+            "X": 451,
+            "Y": 927
+          },
+          "Size": {
+            "IsEmpty": false,
+            "Width": 80,
+            "Height": 60
+          },
+          "ConnectionPoints": {
+            "in": {
+              "IsEmpty": false,
+              "X": 40,
+              "Y": 0
+            }
+          },
+          "Properties": [
+            {
+              "Power": "22000 W",
+              "Description": "AC Point",
+              "Type": "Appliance",
+              "Phase": "R"
+            }
+          ],
+          "AlternativeCompany1": "",
+          "AlternativeCompany2": "",
+          "SvgContent": null,
+          "IconPath": "/icons/split-ac.svg",
+          "Rotation": 0,
+          "Locked": false,
+          "IdPoints": {},
+          "Incomer": {},
+          "Outgoing": [],
+          "Accessories": [
+            {}
+          ]
+        },
+        {
+          "UniqueID": "4176f275-f9bf-4b00-baf8-55e3b1821600",
+          "Name": "Source",
+          "Position": {
+            "IsEmpty": false,
+            "X": 1696,
+            "Y": 92
+          },
+          "Size": {
+            "IsEmpty": false,
+            "Width": 60,
+            "Height": 60
+          },
+          "ConnectionPoints": {
+            "out": {
+              "IsEmpty": false,
+              "X": 30,
+              "Y": 60
+            }
+          },
+          "Properties": [
+            {
+              "Type": "3-phase",
+              "Voltage": "415 V",
+              "Frequency": "50 Hz"
+            }
+          ],
+          "AlternativeCompany1": "",
+          "AlternativeCompany2": "",
+          "SvgContent": null,
+          "IconPath": "/icons/source.svg",
+          "Rotation": 0,
+          "Locked": false,
+          "IdPoints": {},
+          "Incomer": {},
+          "Outgoing": [],
+          "Accessories": []
+        }
+      ],
+      "StoredConnectors": [
+        {
+          "SourceItem": null,
+          "SourcePointKey": "out1",
+          "TargetItem": null,
+          "TargetPointKey": "in",
+          "SourceItemId": "77139e19-c850-4050-9965-7f4a55b8e8ef",
+          "TargetItemId": "45afa83e-f1f1-4c93-9c4c-e5ba29880a69",
+          "Properties": {
+            "Conductor": "Aluminium",
+            "Armoured": "Armoured",
+            "Core": "4 Core",
+            "Size": "50 sq.mm.",
+            "Company": "KEI",
+            "Rate": "848",
+            "Description": "Supplying and Delivery following core and size of 1.1 KV Aluminium Armoured PVC/XLPE Cables",
+            "GS": "PRICE LIST : 01-01-2025"
+          },
+          "CurrentValues": {
+            "Current": "0 A",
+            "R_Current": "0 A",
+            "Y_Current": "0 A",
+            "B_Current": "0 A",
+            "Phase": "0 A"
+          },
+          "AlternativeCompany1": "KEI",
+          "AlternativeCompany2": "Polycab",
+          "Laying": {
+            "Method": "On Wall / surface with Saddles / clamps",
+            "Size": "upto 25 sq.mm.",
+            "Core": "2 Core",
+            "Rate": "57",
+            "Description": "Laying of cable upto 2 core 25 sqmm on wall/surface incl. S \u0026 F\nMS saddles with earthing attachment in 10 SWG GI (Hot Dip)\nWire, making holes etc. as necy. mending good damages and\npainting",
+            "GS": "PWD/GS -F-1:2 (a)"
+          },
+          "Accessories": [],
+          "Length": 0,
+          "MaterialType": "Cable",
+          "IsVirtual": false
+        },
+        {
+          "SourceItem": null,
+          "SourcePointKey": "out1_Red Phase",
+          "TargetItem": null,
+          "TargetPointKey": "in",
+          "SourceItemId": "45afa83e-f1f1-4c93-9c4c-e5ba29880a69",
+          "TargetItemId": "809079d2-812d-401b-9990-ec0d6a456f7a",
+          "Properties": {
+            "Conductor": "Aluminium",
+            "Armoured": "Armoured",
+            "Core": "2 Core",
+            "Size": "35 sq.mm.",
+            "Company": "KEI",
+            "Rate": "379",
+            "Description": "Supplying and Delivery following core and size of 1.1 KV Aluminium Armoured PVC/XLPE Cables",
+            "GS": "PRICE LIST : 01-01-2025"
+          },
+          "CurrentValues": {
+            "Current": "0 A",
+            "R_Current": "0 A",
+            "Y_Current": "0 A",
+            "B_Current": "0 A",
+            "Phase": "0 A"
+          },
+          "AlternativeCompany1": "KEI",
+          "AlternativeCompany2": "Polycab",
+          "Laying": {
+            "Method": "On Wall / surface with Saddles / clamps",
+            "Size": "upto 25 sq.mm.",
+            "Core": "2 Core",
+            "Rate": "57",
+            "Description": "Laying of cable upto 2 core 25 sqmm on wall/surface incl. S \u0026 F\nMS saddles with earthing attachment in 10 SWG GI (Hot Dip)\nWire, making holes etc. as necy. mending good damages and\npainting",
+            "GS": "PWD/GS -F-1:2 (a)"
+          },
+          "Accessories": [],
+          "Length": 0,
+          "MaterialType": "Cable",
+          "IsVirtual": false
+        },
+        {
+          "SourceItem": null,
+          "SourcePointKey": "out",
+          "TargetItem": null,
+          "TargetPointKey": "in",
+          "SourceItemId": "4176f275-f9bf-4b00-baf8-55e3b1821600",
+          "TargetItemId": "77139e19-c850-4050-9965-7f4a55b8e8ef",
+          "Properties": {
+            "Conductor": "Aluminium",
+            "Armoured": "Armoured",
+            "Core": "4 Core",
+            "Size": "50 sq.mm.",
+            "Company": "KEI",
+            "Rate": "848",
+            "Description": "Supplying and Delivery following core and size of 1.1 KV Aluminium Armoured PVC/XLPE Cables",
+            "GS": "PRICE LIST : 01-01-2025"
+          },
+          "CurrentValues": {
+            "Current": "0 A",
+            "R_Current": "0 A",
+            "Y_Current": "0 A",
+            "B_Current": "0 A",
+            "Phase": "0 A"
+          },
+          "AlternativeCompany1": "KEI",
+          "AlternativeCompany2": "Polycab",
+          "Laying": {
+            "Method": "On Wall / surface with Saddles / clamps",
+            "Size": "upto 25 sq.mm.",
+            "Core": "2 Core",
+            "Rate": "57",
+            "Description": "Laying of cable upto 2 core 25 sqmm on wall/surface incl. S \u0026 F\nMS saddles with earthing attachment in 10 SWG GI (Hot Dip)\nWire, making holes etc. as necy. mending good damages and\npainting",
+            "GS": "PWD/GS -F-1:2 (a)"
+          },
+          "Accessories": [],
+          "Length": 0,
+          "MaterialType": "Cable",
+          "IsVirtual": false
+        }
+      ],
+      "ExistingLinePoints": [],
+      "ExistingConnections": [],
+      "Scale": 0.5371901,
+      "ViewportX": 163.85764545454566,
+      "ViewportY": 23.012139669421487
+    }
+  ]
+}

@@ -330,7 +330,7 @@ const updateCubiclePanelVisuals = (doc: Document, item: CanvasItem): boolean => 
         oldRoot.removeChild(oldRoot.firstChild);
     }
     while (newRoot.firstChild) {
-        oldRoot.appendChild(newRoot.firstChild.cloneNode(true));
+        oldRoot.appendChild(newRoot.firstChild);
     }
 
     return true;
