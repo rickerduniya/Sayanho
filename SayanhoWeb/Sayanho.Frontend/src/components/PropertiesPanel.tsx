@@ -59,7 +59,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
     const [dbOutgoingOptions, setDbOutgoingOptions] = useState<string[]>([]);
     const [layingOptions, setLayingOptions] = useState<Record<string, string>[]>([]);
     const [isLoadingProperties, setIsLoadingProperties] = useState(false);
-    const [panelDevices, setPanelDevices] = useState<{ mccb: Record<string, string>[], acb: Record<string, string>[], sfu: Record<string, string>[], mcb: Record<string, string>[] }>({ mccb: [], acb: [], sfu: [], mcb: [] });
+    const [panelDevices, setPanelDevices] = useState<{ mccb: Record<string, string>[], acb: Record<string, string>[], sfu: Record<string, string>[], mcb: Record<string, string>[], changeOver?: Record<string, string>[] }>({ mccb: [], acb: [], sfu: [], mcb: [] });
 
     // State for 2-page wizard
     const [currentPage, setCurrentPage] = useState(1);
@@ -155,12 +155,14 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     const acbData = await fetchProperties("ACB");
                     const sfuData = await fetchProperties("Main Switch Open"); // Represents SFU
                     const mcbData = await fetchProperties("MCB");
+                    const changeOverData = await fetchProperties("Change Over Switch Open");
 
                     setPanelDevices({
                         mccb: mccbData.properties,
                         acb: acbData.properties,
                         sfu: sfuData.properties,
-                        mcb: mcbData.properties
+                        mcb: mcbData.properties,
+                        changeOver: changeOverData.properties
                     });
                 } else {
                     setDbIncomerOptions([]);

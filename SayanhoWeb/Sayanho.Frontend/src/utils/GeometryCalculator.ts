@@ -16,7 +16,7 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
 
         // --- MATCHING CONSTANTS WITH PANEL RENDERER ---
         const margin = 5;
-        const topSpace = 85;
+        const topSpace = 180;
         const busbarHeight = 10;
         const outgoingLength = 60;
         const bottomLabelSpace = 35;
@@ -28,11 +28,29 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
         // --- CALCULATE WIDTHS ---
         const sectionWidths: number[] = [];
         for (let i = 1; i <= incomerCount; i++) {
+            sectionWidths.push(minSectionWidth);
+        }
+
+        for (let i = 1; i <= incomerCount; i++) {
+            const isChangeOverNext = i < incomerCount && (properties[`BusCoupler${i}_Type`] === "Change Over Switch Open" || properties[`BusCoupler${i}_Type`] === "Change Over Switch");
+            if (isChangeOverNext) {
+                const combinedOutgoings = outgoings.filter((o: any) => o["Section"] === i.toString() || o["Section"] === (i + 1).toString());
+                const combinedCount = Math.max(combinedOutgoings.length, 1);
+
+                const requiredSectionsWidth = Math.max(minSectionWidth * 2, combinedCount * outgoingSpacing);
+                const perSectionWidth = Math.max(minSectionWidth, requiredSectionsWidth / 2);
+
+                sectionWidths[i - 1] = perSectionWidth;
+                sectionWidths[i] = perSectionWidth;
+                i++;
+                continue;
+            }
+
             const sectionOutgoings = outgoings.filter((o: any) => o["Section"] === i.toString());
             const outCount = Math.max(sectionOutgoings.length, 1);
             let sWidth = outCount * outgoingSpacing;
             if (sWidth < minSectionWidth) sWidth = minSectionWidth;
-            sectionWidths.push(sWidth);
+            sectionWidths[i - 1] = sWidth;
         }
 
         width = margin * 2;
@@ -47,6 +65,39 @@ export const calculateGeometry = (item: CanvasItem): { size: Size, connectionPoi
         let currentX = margin;
 
         for (let sec = 1; sec <= incomerCount; sec++) {
+            const isChangeOverNext = sec < incomerCount && (properties[`BusCoupler${sec}_Type`] === "Change Over Switch Open" || properties[`BusCoupler${sec}_Type`] === "Change Over Switch");
+
+            if (isChangeOverNext) {
+                const sec1Width = sectionWidths[sec - 1];
+                const sec2Width = sectionWidths[sec];
+                const totalBlockWidth = sec1Width + couplerWidth + sec2Width;
+                const blockCenterX = currentX + totalBlockWidth / 2;
+                const sec1Center = currentX + sec1Width / 2;
+                const sec2Center = currentX + sec1Width + couplerWidth + sec2Width / 2;
+
+                // Incomer Points (Top)
+                newConnectionPoints[`in${sec}`] = { x: sec1Center, y: margin };
+                newConnectionPoints[`in${sec + 1}`] = { x: sec2Center, y: margin };
+
+                // Outgoing Points (Bottom) - shared bus
+                const sec1Outgoings = outgoings.filter((o: any) => o["Section"] === sec.toString());
+                const sec2Outgoings = outgoings.filter((o: any) => o["Section"] === (sec + 1).toString());
+                const combinedOutgoings = [...sec1Outgoings, ...sec2Outgoings];
+                const outCount = Math.max(combinedOutgoings.length, 1);
+                const totalOutWidth = (outCount - 1) * outgoingSpacing;
+                const startOutX = blockCenterX - (totalOutWidth / 2);
+
+                combinedOutgoings.forEach((out: any, idx: number) => {
+                    const ox = startOutX + idx * outgoingSpacing;
+                    const globalIdx = outgoings.findIndex((o: any) => o === out);
+                    newConnectionPoints[`out${globalIdx + 1}`] = { x: ox, y: height - margin };
+                });
+
+                currentX += totalBlockWidth + (sec + 1 < incomerCount ? couplerWidth : 0);
+                sec++;
+                continue;
+            }
+
             const sectionWidth = sectionWidths[sec - 1];
             const sectionCenter = currentX + sectionWidth / 2;
             const sectionOutgoings = outgoings.filter((o: any) => o["Section"] === sec.toString());

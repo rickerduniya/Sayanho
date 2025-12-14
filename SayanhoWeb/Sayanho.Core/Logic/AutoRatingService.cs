@@ -537,6 +537,10 @@ namespace Sayanho.Core.Logic
         /// <summary>
         /// Set Cubical Panel rating (Per Incomer/Section)
         /// </summary>
+        /// <summary>
+        /// Set Cubical Panel rating (Per Incomer/Section)
+        /// Handles Change Over Switch logic where two incomers share the load of two sections.
+        /// </summary>
         private void SetCubicalPanelRating(CanvasItem panel, double safetyMargin)
         {
             if (panel.Properties == null || !panel.Properties.Any())
@@ -550,7 +554,6 @@ namespace Sayanho.Core.Logic
             {
                int.TryParse(properties["Incomer Count"], out incomerCount);
             }
-            // Fallback
             else
             {
                 while (properties.ContainsKey($"Incomer{incomerCount + 1}_Type")) incomerCount++;
@@ -558,93 +561,163 @@ namespace Sayanho.Core.Logic
 
             Console.WriteLine($"Auto-Rating Cubical Panel: {incomerCount} Sections");
 
-            // 2. Loop through each section
+            // 2. Loop through sections
             for (int i = 1; i <= incomerCount; i++)
             {
-                // Calculate Load for Section i
-                // Load = Sum of loads of all Outgoings in this section
-                double sectionLoad = 0;
+                // Check for Change Over Switch coupling with next section
+                bool isChangeOverNext = i < incomerCount && 
+                                      (properties.GetValueOrDefault($"BusCoupler{i}_Type", "") == "Change Over Switch Open" ||
+                                       properties.GetValueOrDefault($"BusCoupler{i}_Type", "") == "Change Over Switch");
 
-                // Find outgoings belonging to this section
-                if (panel.Outgoing != null)
+                if (isChangeOverNext)
                 {
-                    for (int outIdx = 0; outIdx < panel.Outgoing.Count; outIdx++)
-                    {
-                        var outProp = panel.Outgoing[outIdx];
-                        bool inSection = false;
-                        if (outProp.ContainsKey("Section"))
-                        {
-                             if (int.TryParse(outProp["Section"], out int s) && s == i) inSection = true;
-                        }
-                        else if (i == 1) inSection = true; // Default
+                    // --- Change Over Switch Logic (Sec i and Sec i+1) ---
+                    double load1 = CalculateCubicalSectionLoad(panel, i);
+                    double load2 = CalculateCubicalSectionLoad(panel, i + 1);
+                    double combinedLoad = load1 + load2;
+                    double requiredRating = combinedLoad * safetyMargin;
 
-                        if (inSection)
-                        {
-                            // Find the connector for this outgoing point (out{outIdx+1})
-                            string sourcePointKey = $"out{outIdx + 1}";
-                            var connector = allConnectors.FirstOrDefault(c => c.SourceItem == panel && c.SourcePointKey == sourcePointKey);
-                            
-                            if (connector != null && connector.CurrentValues != null)
-                            {
-                                double rCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("R_Current", "0 A"));
-                                double yCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("Y_Current", "0 A"));
-                                double bCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("B_Current", "0 A"));
-                                double maxC = Math.Max(rCurrent, Math.Max(yCurrent, bCurrent));
-                                sectionLoad += maxC;
-                            }
-                        }
-                    }
-                }
+                    Console.WriteLine($"  Change Over Detected (Sec {i} & {i+1}): Total Load {combinedLoad:F2} A -> Req {requiredRating:F2} A");
 
-                double requiredRating = sectionLoad * safetyMargin;
-                Console.WriteLine($"  Section {i} Load: {sectionLoad:F2} A -> Req: {requiredRating:F2} A");
-
-                // Get Current Configuration for Incomer i
-                string prefix = $"Incomer{i}_";
-                string incomerType = properties.GetValueOrDefault($"{prefix}Type", "MCCB");
-                string company = properties.GetValueOrDefault($"{prefix}Company", "");
-                string pole = properties.GetValueOrDefault($"{prefix}Pole", "");
-
-                if (string.IsNullOrEmpty(incomerType)) incomerType = "MCCB";
-
-                // Load database options
-                // Handle "Main Switch Open" if passed, though usually Incomers are MCCB/ACB/SFU
-                string dbType = incomerType;
-                
-                var dbResult = DatabaseLoader.LoadDefaultPropertiesFromDatabase(dbType, 2);
-                var options = dbResult.Properties
-                    .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                // Filter by Pole if specified (and applicable)
-                // SFU / Main Switch Open often doesn't have Pole column or is fixed TPN
-                bool isSfu = incomerType.Contains("Main Switch") || incomerType.Contains("SFU");
-                if (!isSfu && !string.IsNullOrEmpty(pole))
-                {
-                     options = options.Where(row => row.ContainsKey("Pole") && row["Pole"]?.ToString() == pole).ToList();
-                }
-
-                options = options.OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue).ToList();
-
-                var selected = SelectOptimalRating(options, requiredRating, incomerType);
-
-                if (selected != null)
-                {
-                    properties[$"{prefix}Rating"] = selected["Current Rating"];
-                    if (selected.ContainsKey("Rate")) properties[$"{prefix}Rate"] = selected["Rate"];
-                    if (selected.ContainsKey("Description")) properties[$"{prefix}Description"] = selected["Description"];
-                    if (selected.ContainsKey("GS")) properties[$"{prefix}GS"] = selected["GS"];
+                    // Rate Incomer i
+                    RateCubicalIncomer(properties, i, requiredRating);
                     
-                    Console.WriteLine($"  -> Selected {incomerType}: {selected["Current Rating"]}");
+                    // Rate Incomer i+1
+                    RateCubicalIncomer(properties, i + 1, requiredRating);
+
+                    // Rate the Change Over Switch Coupler
+                    RateChangeOverSwitch(properties, i, requiredRating);
+
+                    // Skip next section as we handled it
+                    i++;
                 }
                 else
                 {
-                    Console.WriteLine($"  -> Warning: No suitable {incomerType} found for {requiredRating}A.");
+                    // --- Normal Logic (Section i) ---
+                    double sectionLoad = CalculateCubicalSectionLoad(panel, i);
+                    double requiredRating = sectionLoad * safetyMargin;
+                    
+                    Console.WriteLine($"  Section {i} Load: {sectionLoad:F2} A -> Req: {requiredRating:F2} A");
+
+                    // Rate Incomer i
+                    RateCubicalIncomer(properties, i, requiredRating);
+                    
+                    // Note: Standard Bus Couplers are typically rated for the bus bar capacity or manually set.
+                    // If auto-rating is needed for standard couplers, it would go here.
+                    // For now, we only auto-rate the specific requested Change Over Switch.
                 }
             }
 
             // 3. Set Outgoing Ratings
             SetCubicalPanelOutgoingRatings(panel);
+        }
+
+        private double CalculateCubicalSectionLoad(CanvasItem panel, int sectionIndex)
+        {
+            double sectionLoad = 0;
+            if (panel.Outgoing != null)
+            {
+                for (int outIdx = 0; outIdx < panel.Outgoing.Count; outIdx++)
+                {
+                    var outProp = panel.Outgoing[outIdx];
+                    bool inSection = false;
+                    if (outProp.ContainsKey("Section"))
+                    {
+                         if (int.TryParse(outProp["Section"], out int s) && s == sectionIndex) inSection = true;
+                    }
+                    else if (sectionIndex == 1) inSection = true; // Default to section 1
+
+                    if (inSection)
+                    {
+                        string sourcePointKey = $"out{outIdx + 1}";
+                        var connector = allConnectors.FirstOrDefault(c => c.SourceItem == panel && c.SourcePointKey == sourcePointKey);
+                        
+                        if (connector != null && connector.CurrentValues != null)
+                        {
+                            double rCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("R_Current", "0 A"));
+                            double yCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("Y_Current", "0 A"));
+                            double bCurrent = ParseCurrent(connector.CurrentValues.GetValueOrDefault("B_Current", "0 A"));
+                            double maxC = Math.Max(rCurrent, Math.Max(yCurrent, bCurrent));
+                            sectionLoad += maxC;
+                        }
+                    }
+                }
+            }
+            return sectionLoad;
+        }
+
+        private void RateCubicalIncomer(Dictionary<string, string> properties, int index, double requiredRating)
+        {
+            string prefix = $"Incomer{index}_";
+            string incomerType = properties.GetValueOrDefault($"{prefix}Type", "MCCB");
+            string company = properties.GetValueOrDefault($"{prefix}Company", "");
+            string pole = properties.GetValueOrDefault($"{prefix}Pole", "");
+
+            if (string.IsNullOrEmpty(incomerType)) incomerType = "MCCB";
+
+            // Load database options
+            string dbType = incomerType;
+            if (incomerType == "Change Over Switch Open") dbType = "Change Over Switch Open"; // Explicit check just in case
+
+            var dbResult = DatabaseLoader.LoadDefaultPropertiesFromDatabase(dbType, 2);
+            var options = dbResult.Properties
+                .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            bool isSfu = incomerType.Contains("Main Switch") || incomerType.Contains("SFU");
+            if (!isSfu && !string.IsNullOrEmpty(pole))
+            {
+                 options = options.Where(row => row.ContainsKey("Pole") && row["Pole"]?.ToString() == pole).ToList();
+            }
+
+            options = options.OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue).ToList();
+
+            var selected = SelectOptimalRating(options, requiredRating, incomerType);
+
+            if (selected != null)
+            {
+                properties[$"{prefix}Rating"] = selected["Current Rating"];
+                if (selected.ContainsKey("Rate")) properties[$"{prefix}Rate"] = selected["Rate"];
+                if (selected.ContainsKey("Description")) properties[$"{prefix}Description"] = selected["Description"];
+                if (selected.ContainsKey("GS")) properties[$"{prefix}GS"] = selected["GS"];
+                
+                Console.WriteLine($"  -> Incomer {index} Selected {incomerType}: {selected["Current Rating"]}");
+            }
+            else
+            {
+                Console.WriteLine($"  -> Warning: No suitable {incomerType} found for {requiredRating}A.");
+            }
+        }
+
+        private void RateChangeOverSwitch(Dictionary<string, string> properties, int couplerIndex, double requiredRating)
+        {
+            string prefix = $"BusCoupler{couplerIndex}_";
+            string type = "Change Over Switch Open"; // Force this type for search
+            // Company might not be set for coupler specifically? Use Incomer 1 company or default?
+            // Usually couplers pick up the panel make or have their own property.
+            // Let's assume we search for ALL companies if not specified, or use Incomer1 company as fallback.
+            string company = properties.GetValueOrDefault($"Incomer{couplerIndex}_Company", ""); 
+
+            var dbResult = DatabaseLoader.LoadDefaultPropertiesFromDatabase(type, 2);
+            var options = dbResult.Properties
+                .Where(row => string.IsNullOrEmpty(company) || string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            options = options.OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue).ToList();
+
+            var selected = SelectOptimalRating(options, requiredRating, type);
+
+            if (selected != null)
+            {
+                properties[$"{prefix}Rating"] = selected["Current Rating"];
+                // Also set other props onto the coupler config if we want BOM to pick it up
+                // The PanelRenderer uses `BusCoupler{sec}_Rating` so this is correct.
+                Console.WriteLine($"  -> Coupler {couplerIndex} Selected {type}: {selected["Current Rating"]}");
+            }
+            else
+            {
+                Console.WriteLine($"  -> Warning: No suitable {type} found for {requiredRating}A.");
+            }
         }
 
         private void SetCubicalPanelOutgoingRatings(CanvasItem panel)

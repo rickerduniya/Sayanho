@@ -245,6 +245,29 @@ export class NetworkAnalyzer {
                         targetSectionId = targetPointKey.substring(2);
                     }
 
+                    const panelProps = (targetItem.properties?.[0] || {}) as Record<string, string>;
+                    const rawCount = parseInt(panelProps["Incomer Count"] || "1", 10);
+                    const incomerCount = isNaN(rawCount) ? 1 : Math.max(rawCount, 1);
+
+                    const sectionNum = parseInt(targetSectionId, 10);
+                    const allowedSections = new Set<string>();
+                    if (Number.isFinite(sectionNum) && sectionNum >= 1) {
+                        allowedSections.add(sectionNum.toString());
+                        const isChangeOverType = (t?: string) => {
+                            if (!t) return false;
+                            return t === "Change Over Switch Open" || t === "Change Over Switch" || t.includes("Change Over Switch");
+                        };
+
+                        if (sectionNum > 1 && isChangeOverType(panelProps[`BusCoupler${sectionNum - 1}_Type`])) {
+                            allowedSections.add((sectionNum - 1).toString());
+                        }
+                        if (sectionNum < incomerCount && isChangeOverType(panelProps[`BusCoupler${sectionNum}_Type`])) {
+                            allowedSections.add((sectionNum + 1).toString());
+                        }
+                    } else {
+                        allowedSections.add(targetSectionId);
+                    }
+
                     const outgoings = targetItem.outgoing || [];
 
                     outgoingConnectors.forEach(outConnector => {
@@ -262,7 +285,7 @@ export class NetworkAnalyzer {
                             const section = outItem["Section"];
 
                             // Only trace if sections match
-                            if (section === targetSectionId) {
+                            if (allowedSections.has(section)) {
                                 // Determine Phase/Voltage based on Pole/Phase config
                                 let linkVoltage = 415;
                                 let linkPhase = "ALL"; // Default 3-phase

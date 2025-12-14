@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Copy, Trash, Plus } from 'lucide-react';
+import { X, Save, Copy, Clipboard, Plus } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { PanelRenderer } from '../utils/PanelRenderer';
 import { CanvasItem } from '../types';
@@ -9,7 +9,7 @@ interface PanelDesignerProps {
     onClose: () => void;
     item: CanvasItem;
     onSave: (updatedItem: CanvasItem) => void;
-    availableDevices: { mccb: any[], acb: any[], sfu: any[], mcb: any[] };
+    availableDevices: { mccb: any[], acb: any[], sfu: any[], mcb: any[], changeOver?: any[] };
 }
 
 export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
@@ -28,11 +28,39 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         }
     }, [isOpen, item]);
 
-    if (!isOpen) return null;
-
     const properties = localItem.properties[0] || {};
     const incomerCount = Math.max(parseInt(properties["Incomer Count"] || "1", 10), 1);
     const outgoings = localItem.outgoing || [];
+
+    useEffect(() => {
+        if (selectedIds.length === 0) return;
+        const first = selectedIds[0];
+        if (first.startsWith("Incomer:")) {
+            const sec = parseInt(first.split(":")[1], 10);
+            if (!Number.isFinite(sec) || sec < 1 || sec > incomerCount) setSelectedIds([]);
+            return;
+        }
+        if (first.startsWith("Coupler:")) {
+            const sec = parseInt(first.split(":")[1], 10);
+            if (!Number.isFinite(sec) || sec < 1 || sec >= incomerCount) setSelectedIds([]);
+            return;
+        }
+        const idx = parseInt(first, 10);
+        if (!Number.isFinite(idx) || idx < 0 || idx >= outgoings.length) setSelectedIds([]);
+    }, [incomerCount, outgoings.length, selectedIds]);
+
+    if (!isOpen) return null;
+
+    // Helper to determine current coupling mode
+    // If ANY coupler is "Change Over Switch...", we assume Change Over Mode
+    let isChangeOverMode = false;
+    for (let i = 1; i < incomerCount; i++) {
+        const type = properties[`BusCoupler${i}_Type`];
+        if (type && type.includes("Change Over Switch")) {
+            isChangeOverMode = true;
+            break;
+        }
+    }
 
     // Helper to find specific rows in the loaded database data
     const findDeviceRow = (type: string, pole: string, rating: string, company: string) => {
@@ -42,10 +70,15 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         if (normType.includes("mccb")) dataset = availableDevices.mccb;
         else if (normType.includes("mcb")) dataset = availableDevices.mcb;
         else if (normType.includes("mainswitch") || normType.includes("sfu")) dataset = availableDevices.sfu;
+        else if (normType.includes("changeover")) dataset = availableDevices.changeOver || [];
 
-        return dataset.find(d => {
-            const matchesType = d["Item"] === "Main Switch Open" ? d["Type"] === "TPN SFU" : true; // SFU check
-            const matchesPole = d["Pole"] ? d["Pole"] === pole : true; // Main Switch Open usually has no pole col
+        return dataset.find((d: any) => {
+            let matchesType = true;
+            if (d["Item"] === "Main Switch Open") matchesType = d["Type"] === "TPN SFU";
+            // For Change Over, explicitly ignore Type column check as it might be 'open execution type'
+            else if (d["Item"] === "Change Over Switch Open") matchesType = true;
+
+            const matchesPole = d["Pole"] ? d["Pole"] === pole : true;
             const matchesRating = d["Current Rating"] === rating;
             const matchesCompany = d["Company"] === company;
             return matchesType && matchesPole && matchesRating && matchesCompany;
@@ -53,19 +86,19 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     };
 
     // Generic helper to get options based on filters
-    const getOptions = (datasetKey: 'mccb' | 'mcb' | 'sfu', filters: { pole?: string, rating?: string } = {}) => {
-        let data = availableDevices[datasetKey] || [];
+    const getOptions = (datasetKey: 'mccb' | 'mcb' | 'sfu' | 'changeOver', filters: { pole?: string, rating?: string } = {}) => {
+        let data = (availableDevices as any)[datasetKey] || [];
 
         // Filter for Main Switch Open specific type
         if (datasetKey === 'sfu') {
-            data = data.filter(d => d["Type"] === "TPN SFU");
+            data = data.filter((d: any) => d["Type"] === "TPN SFU");
         }
 
         if (filters.pole) {
-            data = data.filter(d => d["Pole"] === filters.pole);
+            data = data.filter((d: any) => d["Pole"] === filters.pole);
         }
         if (filters.rating) {
-            data = data.filter(d => d["Current Rating"] === filters.rating);
+            data = data.filter((d: any) => d["Current Rating"] === filters.rating);
         }
         return data;
     };
@@ -83,14 +116,29 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
     const handleUpdateProperty = (key: string, value: string) => {
         const newProps = { ...properties, [key]: value };
-
-        // Auto-populate other fields if we have a full selection
-        // Logic depends on what changed. 
-        // We handle the strict Type->Pole->Rating->Company flow in the UI render mostly, 
-        // ensuring invalid downstream options are cleared.
-
         setLocalItem({ ...localItem, properties: [newProps] });
     };
+
+    const handleSystemModeChange = (mode: "BusCoupler" | "ChangeOver") => {
+        const newProps = { ...properties };
+
+        // Loop through all potential couplers and set type appropriately
+        // Max incomers is usually 3, so couplers at 1 and 2
+        for (let i = 1; i < incomerCount; i++) {
+            if (mode === "ChangeOver") {
+                newProps[`BusCoupler${i}_Type`] = "Change Over Switch Open";
+                newProps[`BusCoupler${i}_Pole`] = "FP"; // Default to FP
+                newProps[`BusCoupler${i}_Rating`] = "";
+                newProps[`BusCoupler${i}_Company`] = "";
+            } else {
+                newProps[`BusCoupler${i}_Type`] = ""; // Reset to empty/select
+                newProps[`BusCoupler${i}_Pole`] = "";
+                newProps[`BusCoupler${i}_Rating`] = "";
+                newProps[`BusCoupler${i}_Company`] = "";
+            }
+        }
+        setLocalItem({ ...localItem, properties: [newProps] });
+    }
 
     const handleUpdateIncomer = (section: string, field: string, value: string) => {
         const prefix = `Incomer${section}_`;
@@ -124,6 +172,9 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     };
 
     const handleUpdateCoupler = (section: string, field: string, value: string) => {
+        // If in C/O mode, disallow Type change? Or allow rating change?
+        // Requirement implies type is fixed for C/O mode.
+
         const prefix = `BusCoupler${section}_`;
         let newProps = { ...properties, [prefix + field]: value };
 
@@ -132,6 +183,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
             newProps[prefix + 'Pole'] = "";
             newProps[prefix + 'Rating'] = "";
             newProps[prefix + 'Company'] = "";
+            if (value === "Change Over Switch Open") newProps[prefix + 'Pole'] = "FP";
         } else if (field === 'Pole') {
             newProps[prefix + 'Rating'] = "";
             newProps[prefix + 'Company'] = "";
@@ -140,8 +192,8 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
             newProps[prefix + 'Company'] = "";
         } else if (field === 'Company') {
             // Full selection made
-            const type = newProps[prefix + 'Type'];
-            const pole = newProps[prefix + 'Pole'] || (type === "Main Switch Open" ? "TPN" : "");
+            const type = newProps[prefix + 'Type'] || (isChangeOverMode ? "Change Over Switch Open" : "");
+            const pole = newProps[prefix + 'Pole'] || (type === "Main Switch Open" ? "TPN" : (type === "Change Over Switch Open" ? "FP" : ""));
             const rating = newProps[prefix + 'Rating']; // Stored as Rating
 
             const row = findDeviceRow(type, pole, rating, value);
@@ -188,9 +240,9 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     };
 
 
-    const handleAddOutgoing = (section: number) => {
+    const handleAddOutgoing = (section: string) => {
         const newOut = [...outgoings, {
-            "Section": section.toString(),
+            "Section": section,
             "Type": "", // Default
             "Pole": "",
             "Current Rating": "",
@@ -266,7 +318,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
             setClipboard([data]);
         } else {
             const selectedItems = outgoings.filter((_, idx) => selectedIds.includes(idx.toString()));
-            setClipboard(selectedItems.map(i => ({ ...i, _metaType: "Outgoing" })));
+            setClipboard(selectedItems.map(item => ({ ...item, _metaType: "Outgoing" })));
         }
         setContextMenu(null);
     };
@@ -371,7 +423,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
     // Rendering Logic
     const margin = 5;
-    const topSpace = 85;
+    const topSpace = 180;
     const busbarY = margin + topSpace;
     const busbarHeight = 10;
     const outgoingTopY = busbarY + busbarHeight;
@@ -382,52 +434,77 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
     const sectionWidths: number[] = [];
     for (let i = 1; i <= incomerCount; i++) {
+        sectionWidths.push(minSectionWidth);
+    }
+
+    for (let i = 1; i <= incomerCount; i++) {
+        const isChangeOverNext = i < incomerCount && (properties[`BusCoupler${i}_Type`] === "Change Over Switch Open" || properties[`BusCoupler${i}_Type`] === "Change Over Switch");
+        if (isChangeOverNext) {
+            const combinedOutgoings = (outgoings || []).filter((o: any) => o["Section"] === i.toString() || o["Section"] === (i + 1).toString());
+            const combinedCount = Math.max(combinedOutgoings.length, 1);
+
+            const requiredSectionsWidth = Math.max(minSectionWidth * 2, combinedCount * outgoingSpacing);
+            const perSectionWidth = Math.max(minSectionWidth, requiredSectionsWidth / 2);
+
+            sectionWidths[i - 1] = perSectionWidth;
+            sectionWidths[i] = perSectionWidth;
+            i++;
+            continue;
+        }
+
         const sectionOutgoings = (outgoings || []).filter((o: any) => o["Section"] === i.toString());
         const count = Math.max(sectionOutgoings.length, 1);
         let width = count * outgoingSpacing;
         if (width < minSectionWidth) width = minSectionWidth;
-        sectionWidths.push(width);
+        sectionWidths[i - 1] = width;
     }
 
     // --- Render Dropdowns Components ---
 
-    // --- Render Dropdowns Components ---
-
     const RenderDeviceConfig = ({ type, pole, rating, company, rate, phase, onChange, canDelete, onDelete, title }: any) => {
-        // Determine dataset
-        const isSfu = type === "Main Switch Open";
-        const isMccb = type === "MCCB";
-        const isMcb = type === "MCB";
+        const isCoupler = title.includes("Coupler");
+        const forcedType = isChangeOverMode && isCoupler ? "Change Over Switch Open" : type;
+        const disableType = isChangeOverMode && isCoupler;
 
-        let datasetKey: 'mccb' | 'mcb' | 'sfu' | null = null;
+        const effectiveType = forcedType || "";
+        const isSfu = effectiveType === "Main Switch Open";
+        const isMccb = effectiveType === "MCCB";
+        const isMcb = effectiveType === "MCB";
+        const isChangeOver = effectiveType === "Change Over Switch Open";
+
+        let datasetKey: 'mccb' | 'mcb' | 'sfu' | 'changeOver' | null = null;
         if (isSfu) datasetKey = 'sfu';
         if (isMccb) datasetKey = 'mccb';
         if (isMcb) datasetKey = 'mcb';
+        if (isChangeOver) datasetKey = 'changeOver';
 
         let poles = datasetKey ? getUniqueValues(getOptions(datasetKey), "Pole") : [];
         if (isSfu && poles.length === 0) poles.push("TPN");
+        if (isChangeOver) poles = ["FP"];
 
         // Filter "SP" for MCB if requested
         if (isMcb) {
             poles = poles.filter(p => p !== "SP");
         }
 
-        const ratings = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: isSfu ? undefined : pole }), "Current Rating") : [];
+        const effectivePole = isChangeOver ? (pole || "FP") : pole;
 
-        const companies = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: isSfu ? undefined : pole, rating }), "Company") : [];
+        const ratings = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: (isSfu || isChangeOver) ? undefined : effectivePole }), "Current Rating") : [];
 
-        // Check if phase selection is needed (Single Phase devices: DP, SPN, 1P)
-        const showPhase = pole && (pole.startsWith("DP") || pole.startsWith("SP") || pole.startsWith("1P"));
+        const companies = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: (isSfu || isChangeOver) ? undefined : effectivePole, rating }), "Company") : [];
 
-        const showRate = rate && type && (isSfu || pole) && rating && company;
+        const showPhase = effectivePole && (effectivePole.startsWith("DP") || effectivePole.startsWith("SP") || effectivePole.startsWith("1P"));
+
+        const showRate = rate && effectiveType && ((isSfu || isChangeOver) ? true : !!effectivePole) && rating && company;
 
         return (
             <div className="space-y-2">
                 <div className="text-xs opacity-70">{title}</div>
                 <select
-                    value={type || ""}
+                    value={effectiveType || ""}
                     onChange={(e) => onChange("Type", e.target.value)}
                     className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    disabled={disableType}
                 >
                     <option value="" disabled>Select Type...</option>
                     <option value="MCCB">MCCB</option>
@@ -437,15 +514,17 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                     {(title.includes("Coupler") ? (
                         <>
                             <option value="Direct">Direct Link (Solid)</option>
+                            {/* REMOVED MANUAL OPTION: <option value="Change Over Switch Open">Change Over Switch (Open Execution)</option> */}
+                            {isChangeOverMode && <option value="Change Over Switch Open">Change Over Switch (Open Execution)</option>}
                         </>
                     ) : null)}
                 </select>
 
                 <select
-                    value={pole || ""}
+                    value={effectivePole || ""}
                     onChange={(e) => onChange("Pole", e.target.value)}
                     className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                    disabled={!type || (isSfu && poles.length <= 1)}
+                    disabled={!effectiveType || isChangeOver || (isSfu && poles.length <= 1)}
                 >
                     <option value="">Select Pole...</option>
                     {poles.map((p: string) => <option key={p} value={p}>{p}</option>)}
@@ -455,7 +534,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                     value={rating || ""}
                     onChange={(e) => onChange("Current Rating", e.target.value)}
                     className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                    disabled={!type || (!isSfu && !pole)}
+                    disabled={!effectiveType || (!isSfu && !isChangeOver && !effectivePole)}
                 >
                     <option value="">Select Rating...</option>
                     {ratings.map((r: string) => <option key={r} value={r}>{r}</option>)}
@@ -526,17 +605,54 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                 <div className="flex-1 flex overflow-hidden">
                     <div className="w-64 border-r border-gray-200 dark:border-gray-800 p-4 space-y-6 overflow-y-auto bg-gray-50/50 dark:bg-black/20">
                         {/* Global Settings */}
-                        <div>
-                            <label className="text-xs font-bold uppercase opacity-60 mb-1 block">Incomers</label>
-                            <select
-                                value={properties["Incomer Count"]}
-                                onChange={(e) => handleUpdateProperty("Incomer Count", e.target.value)}
-                                className="w-full p-2 text-sm rounded border bg-transparent"
-                            >
-                                <option value="1">1 Incomer</option>
-                                <option value="2">2 Incomers</option>
-                                <option value="3">3 Incomers</option>
-                            </select>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold uppercase opacity-60 mb-1 block">Incomers</label>
+                                <select
+                                    value={properties["Incomer Count"]}
+                                    onChange={(e) => handleUpdateProperty("Incomer Count", e.target.value)}
+                                    className="w-full p-2 text-sm rounded border bg-transparent"
+                                >
+                                    <option value="1">1 Incomer</option>
+                                    <option value="2">2 Incomers</option>
+                                    <option value="3">3 Incomers</option>
+                                </select>
+                            </div>
+
+                            {/* System Linking Selection (Only if > 1 Incomer) */}
+                            {incomerCount > 1 && (
+                                <div>
+                                    <label className="text-xs font-bold uppercase opacity-60 mb-1 block">System Configuration</label>
+                                    <div className="flex flex-col gap-2">
+                                        <label className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${!isChangeOverMode ? "bg-blue-100 border-blue-500 dark:bg-blue-900/30" : "border-transparent hover:bg-gray-100 dark:hover:bg-slate-800"}`}>
+                                            <input
+                                                type="radio"
+                                                name="systemLink"
+                                                checked={!isChangeOverMode}
+                                                onChange={() => handleSystemModeChange("BusCoupler")}
+                                                className="accent-blue-600"
+                                            />
+                                            <span className="text-sm">Bus Coupler System</span>
+                                        </label>
+                                        <label className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${isChangeOverMode ? "bg-blue-100 border-blue-500 dark:bg-blue-900/30" : "border-transparent hover:bg-gray-100 dark:hover:bg-slate-800"}`}>
+                                            <input
+                                                type="radio"
+                                                name="systemLink"
+                                                checked={isChangeOverMode}
+                                                onChange={() => handleSystemModeChange("ChangeOver")}
+                                                className="accent-blue-600"
+                                            />
+                                            <span className="text-sm">Change Over System</span>
+                                        </label>
+                                    </div>
+                                    <div className="text-[10px] opacity-60 mt-1 pl-1">
+                                        {isChangeOverMode
+                                            ? "Incomers will be interlocked via a central Change Over Switch."
+                                            : "Incomers will be linked via Bus Couplers (Direct, MCCB, SFU)."
+                                        }
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Selection Logic */}
@@ -640,98 +756,56 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                             }}
                         >
                             {(() => {
+                                const elements = [];
                                 let currentX = margin;
-                                return [...Array(incomerCount)].map((_, i) => {
-                                    const section = i + 1;
-                                    const width = sectionWidths[i];
-                                    const sectionCenter = currentX + (width / 2);
-                                    const sectionOutgoings = outgoings.map((o, idx) => ({ ...o, globalIdx: idx } as any))
-                                        .filter(o => o["Section"] === section.toString());
-                                    const outCount = Math.max(sectionOutgoings.length, 1);
-                                    const totalOutWidth = (outCount - 1) * outgoingSpacing;
-                                    const startOutX = sectionCenter - (totalOutWidth / 2);
+                                // Must match PanelRenderer constants exactly
+                                const rendererTopSpace = 180;
+                                const rendererBusbarY = margin + rendererTopSpace;
 
-                                    const result = (
-                                        <React.Fragment key={section}>
-                                            {/* Incomer Click Zone */}
+                                // Functions to generate elements to avoid duplication
+                                const pushIncomerOverlay = (centerX: number, secNum: number) => {
+                                    elements.push(
+                                        <div
+                                            key={`ic-${secNum}`}
+                                            className={`absolute cursor-pointer border-2 hover:border-blue-400 rounded ${selectedIds.includes(`Incomer:${secNum}`) ? "border-blue-600 bg-blue-500/20" : "border-transparent"}`}
+                                            style={{ left: centerX - 25, top: margin + 10, width: 50, height: 60 }}
+                                            onClick={(e) => { e.stopPropagation(); setSelectedIds([`Incomer:${secNum}`]); }}
+                                            title={`Incomer ${secNum}`}
+                                            onContextMenu={(e) => {
+                                                e.preventDefault(); e.stopPropagation();
+                                                setSelectedIds([`Incomer:${secNum}`]);
+                                                setContextMenu({ x: e.clientX, y: e.clientY, section: secNum, index: null, type: 'Incomer' });
+                                            }}
+                                        />
+                                    );
+                                };
+
+                                const pushOutgoingOverlays = (secNum: number, startX: number, outList: any[]) => {
+                                    outList.forEach((out, idx) => {
+                                        const itemX = startX + (idx * outgoingSpacing);
+                                        const isSelected = selectedIds.includes(out.globalIdx.toString());
+                                        // FIXED: Start overlay higher to cover text labels (approx busbarY + 15)
+                                        // SVG text starts at busbarY + 20 to 42. Switch at +20 to +40. 
+                                        const overlayTop = rendererBusbarY + busbarHeight + 10;
+                                        const overlayHeight = 70; // Covers text + switch + connection
+
+                                        elements.push(
                                             <div
-                                                className={`absolute cursor-pointer border-2 hover:border-blue-400 rounded ${selectedIds.includes(`Incomer:${section}`) ? "border-blue-600 bg-blue-500/20" : "border-transparent"}`}
-                                                style={{ left: sectionCenter - 25, top: margin + 10, width: 50, height: 60 }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedIds([`Incomer:${section}`]);
-                                                }}
-                                                title={`Incomer ${section}`}
-                                                onContextMenu={(e) => {
-                                                    e.preventDefault(); e.stopPropagation();
-                                                    setSelectedIds([`Incomer:${section}`]);
-                                                    setContextMenu({ x: e.clientX, y: e.clientY, section, index: null, type: 'Incomer' });
-                                                }}
-                                            />
-
-                                            {sectionOutgoings.map((out, idx) => {
-                                                const itemX = startOutX + (idx * outgoingSpacing);
-                                                const isSelected = selectedIds.includes(out.globalIdx.toString());
-
-                                                return (
-                                                    <div
-                                                        key={idx}
-                                                        className={`absolute cursor-pointer transition-all border-2 ${isSelected ? "border-blue-500 bg-blue-500/10" : "border-transparent hover:border-blue-300/50"}`}
-                                                        style={{
-                                                            left: itemX - 20,
-                                                            top: outgoingTopY + 10,
-                                                            width: 40,
-                                                            height: outgoingLength,
-                                                            borderRadius: '4px'
-                                                        }}
-                                                        draggable={true}
-                                                        onDragStart={(e) => {
-                                                            e.stopPropagation();
-                                                            e.dataTransfer.effectAllowed = "move";
-                                                            e.dataTransfer.setData("text/plain", out.globalIdx.toString());
-                                                        }}
-                                                        onDragOver={(e) => {
-                                                            e.preventDefault();
-                                                            e.dataTransfer.dropEffect = "move";
-                                                        }}
-                                                        onDrop={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
-                                                            const targetIdx = out.globalIdx;
-
-                                                            if (!isNaN(sourceIdx) && sourceIdx !== targetIdx) {
-                                                                const newOut = [...outgoings];
-                                                                const [movedItem] = newOut.splice(sourceIdx, 1);
-                                                                movedItem["Section"] = section.toString();
-                                                                let adjustedTarget = targetIdx;
-                                                                if (sourceIdx < targetIdx) adjustedTarget -= 1;
-                                                                newOut.splice(adjustedTarget, 0, movedItem);
-                                                                setLocalItem({ ...localItem, outgoing: newOut });
-                                                            }
-                                                        }}
-                                                        onClick={(e) => handleSlotClick(e, section, idx, out.globalIdx)}
-                                                        onContextMenu={(e) => {
-                                                            e.preventDefault(); e.stopPropagation();
-                                                            if (!selectedIds.includes(out.globalIdx.toString())) {
-                                                                setSelectedIds([out.globalIdx.toString()]);
-                                                            }
-                                                            setContextMenu({ x: e.clientX, y: e.clientY, section, index: out.globalIdx, type: 'Outgoing' });
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-
-                                            {/* Add Outgoing Button */}
-                                            <div
-                                                className="absolute cursor-pointer hover:bg-green-500/20 flex items-center justify-center group rounded-full border border-dashed border-gray-400"
+                                                key={`og-${out.globalIdx}`}
+                                                className={`absolute cursor-pointer transition-all border-2 ${isSelected ? "border-blue-500 bg-blue-500/10" : "border-transparent hover:border-blue-300/50"}`}
                                                 style={{
-                                                    left: startOutX + (sectionOutgoings.length * outgoingSpacing) - 15,
-                                                    top: outgoingTopY + 20,
-                                                    width: 30,
-                                                    height: 30
+                                                    left: itemX - 25, // Centered on itemX (width 50)
+                                                    top: overlayTop,
+                                                    width: 50, // Wider to catch text
+                                                    height: overlayHeight,
+                                                    borderRadius: '4px'
                                                 }}
-                                                onClick={(e) => { e.stopPropagation(); handleAddOutgoing(section); }}
+                                                draggable={true}
+                                                onDragStart={(e) => {
+                                                    e.stopPropagation();
+                                                    e.dataTransfer.effectAllowed = "move";
+                                                    e.dataTransfer.setData("text/plain", out.globalIdx.toString());
+                                                }}
                                                 onDragOver={(e) => {
                                                     e.preventDefault();
                                                     e.dataTransfer.dropEffect = "move";
@@ -740,77 +814,190 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                     const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
-                                                    if (!isNaN(sourceIdx)) {
+                                                    const targetIdx = out.globalIdx;
+
+                                                    if (!isNaN(sourceIdx) && sourceIdx !== targetIdx) {
                                                         const newOut = [...outgoings];
                                                         const [movedItem] = newOut.splice(sourceIdx, 1);
-                                                        movedItem["Section"] = section.toString();
-                                                        let lastSectionIdx = -1;
-                                                        newOut.forEach((o, i) => {
-                                                            if (o["Section"] === section.toString()) lastSectionIdx = i;
-                                                        });
-                                                        if (lastSectionIdx !== -1) {
-                                                            newOut.splice(lastSectionIdx + 1, 0, movedItem);
-                                                        } else {
-                                                            newOut.push(movedItem);
-                                                        }
+                                                        movedItem["Section"] = secNum.toString();
+                                                        let adjustedTarget = targetIdx;
+                                                        if (sourceIdx < targetIdx) adjustedTarget -= 1;
+                                                        newOut.splice(adjustedTarget, 0, movedItem);
                                                         setLocalItem({ ...localItem, outgoing: newOut });
                                                     }
                                                 }}
+                                                onClick={(e) => handleSlotClick(e, secNum, idx, out.globalIdx)}
                                                 onContextMenu={(e) => {
                                                     e.preventDefault(); e.stopPropagation();
-                                                    setContextMenu({ x: e.clientX, y: e.clientY, section, index: null, type: 'Outgoing' }); // Add logic if needed
+                                                    if (!selectedIds.includes(out.globalIdx.toString())) {
+                                                        setSelectedIds([out.globalIdx.toString()]);
+                                                    }
+                                                    setContextMenu({ x: e.clientX, y: e.clientY, section: secNum, index: out.globalIdx, type: 'Outgoing' });
                                                 }}
-                                                title="Add New Circuit"
-                                            >
-                                                <Plus size={16} className="opacity-50 group-hover:opacity-100" />
-                                            </div>
+                                            />
+                                        );
+                                    });
+                                };
 
-                                            {/* Coupler Zone */}
-                                            {i < incomerCount - 1 && (
+                                const pushAddButton = (secNum: number, startX: number, count: number) => {
+                                    // FIXED: Position purely based on busbar line to avoid dependency on overlayTop
+                                    // Overlay ends at busbarY + 10 + 70 = +80. So +85 gives 5px gap.
+                                    const addButtonTop = rendererBusbarY + busbarHeight + 85;
+
+                                    elements.push(
+                                        <div
+                                            key={`add-${secNum}`}
+                                            className="absolute cursor-pointer hover:bg-green-500/20 flex items-center justify-center group rounded-full border border-dashed border-gray-400"
+                                            style={{
+                                                left: startX + (count * outgoingSpacing) - 15,
+                                                top: addButtonTop,
+                                                width: 30,
+                                                height: 30
+                                            }}
+                                            onClick={(e) => { e.stopPropagation(); handleAddOutgoing(secNum.toString()); }}
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                e.dataTransfer.dropEffect = "move";
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                                                if (!isNaN(sourceIdx)) {
+                                                    const newOut = [...outgoings];
+                                                    const [movedItem] = newOut.splice(sourceIdx, 1);
+                                                    movedItem["Section"] = secNum.toString();
+
+                                                    // Add to end of this section
+                                                    let lastSectionIdx = -1;
+                                                    newOut.forEach((o, i) => {
+                                                        if (o["Section"] === secNum.toString()) lastSectionIdx = i;
+                                                    });
+                                                    if (lastSectionIdx !== -1) {
+                                                        newOut.splice(lastSectionIdx + 1, 0, movedItem);
+                                                    } else {
+                                                        newOut.push(movedItem);
+                                                    }
+                                                    setLocalItem({ ...localItem, outgoing: newOut });
+                                                }
+                                            }}
+                                            title="Add New Circuit"
+                                        >
+                                            <Plus size={16} className="opacity-50 group-hover:opacity-100" />
+                                        </div>
+                                    );
+                                };
+
+                                for (let sec = 1; sec <= incomerCount; sec++) {
+                                    const isChangeOverNext = sec < incomerCount && (properties[`BusCoupler${sec}_Type`] === "Change Over Switch Open" || properties[`BusCoupler${sec}_Type`] === "Change Over Switch");
+
+                                    if (isChangeOverNext) {
+                                        // --- CHANGE OVER SWITCH LOGIC ---
+                                        // IMPORTANT: we mutate `sec` later (sec++) to skip the next section.
+                                        // Capture the current coupler section index now so click handlers don't
+                                        // end up selecting the mutated value (which breaks selection for 2-incomer mode).
+                                        const couplerSection = sec;
+                                        const sec1Width = sectionWidths[sec - 1];
+                                        const sec2Width = sectionWidths[sec];
+
+                                        // Centers
+                                        const sec1Center = currentX + sec1Width / 2;
+                                        const sec2Center = currentX + sec1Width + couplerWidth + sec2Width / 2;
+
+                                        // Block Width
+                                        const totalBlockWidth = sec1Width + couplerWidth + sec2Width;
+                                        const blockCenterX = currentX + totalBlockWidth / 2;
+
+                                        // 1. Incomer 1
+                                        pushIncomerOverlay(sec1Center, sec);
+
+                                        // 2. Incomer 2 (sec+1)
+                                        pushIncomerOverlay(sec2Center, sec + 1);
+
+                                        // 3. Central Switch Box
+                                        const switchBoxTopY = rendererBusbarY - 80;
+                                        elements.push(
+                                            <div
+                                                key={`coupler-${couplerSection}`}
+                                                className={`absolute cursor-pointer border-2 hover:border-purple-400 rounded ${selectedIds.includes(`Coupler:${couplerSection}`) ? "border-purple-600 bg-purple-500/20" : "border-transparent"}`}
+                                                style={{
+                                                    left: blockCenterX - 30, // 60px wide box
+                                                    top: switchBoxTopY,
+                                                    width: 60,
+                                                    height: 70
+                                                }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedIds([`Coupler:${couplerSection}`]);
+                                                }}
+                                                title={`Change Over Switch`}
+                                                onContextMenu={(e) => {
+                                                    e.preventDefault(); e.stopPropagation();
+                                                    setSelectedIds([`Coupler:${couplerSection}`]);
+                                                    setContextMenu({ x: e.clientX, y: e.clientY, section: couplerSection, index: null, type: 'Coupler' });
+                                                }}
+                                            />
+                                        );
+
+                                        // 4. Outgoings (shared bus for both sections)
+                                        const sec1Outgoings = outgoings.map((o, idx) => ({ ...o, globalIdx: idx } as any)).filter(o => o["Section"] === sec.toString());
+                                        const sec2Outgoings = outgoings.map((o, idx) => ({ ...o, globalIdx: idx } as any)).filter(o => o["Section"] === (sec + 1).toString());
+                                        const combinedOutgoings = [...sec1Outgoings, ...sec2Outgoings];
+                                        const outCount = Math.max(combinedOutgoings.length, 1);
+                                        const startOutX = blockCenterX - ((outCount - 1) * outgoingSpacing) / 2;
+                                        pushOutgoingOverlays(sec, startOutX, combinedOutgoings);
+                                        pushAddButton(sec, startOutX, combinedOutgoings.length);
+
+                                        currentX += totalBlockWidth + (sec + 1 < incomerCount ? couplerWidth : 0);
+                                        sec++; // Skip next iterations
+
+                                    } else {
+                                        // --- NORMAL LOGIC ---
+                                        const width = sectionWidths[sec - 1];
+                                        const sectionCenter = currentX + (width / 2);
+
+                                        // Incomer
+                                        pushIncomerOverlay(sectionCenter, sec);
+
+                                        // Outgoings
+                                        const sectionOutgoings = outgoings.map((o, idx) => ({ ...o, globalIdx: idx } as any)).filter(o => o["Section"] === sec.toString());
+                                        const outCount = Math.max(sectionOutgoings.length, 1);
+                                        const startOutX = sectionCenter - ((outCount - 1) * outgoingSpacing) / 2;
+
+                                        pushOutgoingOverlays(sec, startOutX, sectionOutgoings);
+                                        pushAddButton(sec, startOutX, sectionOutgoings.length);
+
+                                        // Coupler (Normal)
+                                        if (sec < incomerCount) {
+                                            elements.push(
                                                 <div
-                                                    className={`absolute cursor-pointer border-2 hover:border-purple-400 rounded ${selectedIds.includes(`Coupler:${section}`) ? "border-purple-600 bg-purple-500/20" : "border-transparent"}`}
+                                                    key={`coupler-${sec}`}
+                                                    className={`absolute cursor-pointer border-2 hover:border-purple-400 rounded ${selectedIds.includes(`Coupler:${sec}`) ? "border-purple-600 bg-purple-500/20" : "border-transparent"}`}
                                                     style={{
                                                         left: currentX + width + 10,
-                                                        top: busbarY - 10,
+                                                        top: rendererBusbarY - 10,
                                                         width: couplerWidth - 20,
                                                         height: 40
                                                     }}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        setSelectedIds([`Coupler:${section}`]);
+                                                        setSelectedIds([`Coupler:${sec}`]);
                                                     }}
-                                                    title={`Bus Coupler ${section}`}
+                                                    title={`Bus Coupler ${sec}`}
                                                     onContextMenu={(e) => {
                                                         e.preventDefault(); e.stopPropagation();
-                                                        setSelectedIds([`Coupler:${section}`]);
-                                                        setContextMenu({ x: e.clientX, y: e.clientY, section, index: null, type: 'Coupler' });
+                                                        setSelectedIds([`Coupler:${sec}`]);
+                                                        setContextMenu({ x: e.clientX, y: e.clientY, section: sec, index: null, type: 'Coupler' });
                                                     }}
                                                 />
-                                            )}
-                                        </React.Fragment>
-                                    );
+                                            );
+                                        }
 
-                                    currentX += width + (i < incomerCount - 1 ? couplerWidth : 0);
-                                    return result;
-                                });
+                                        currentX += width + (sec < incomerCount ? couplerWidth : 0);
+                                    }
+                                }
+                                return elements;
                             })()}
-
-                            {/* Add Incomer Button */}
-                            {incomerCount < 3 && (
-                                <div
-                                    className="absolute cursor-pointer hover:bg-blue-500/20 flex items-center justify-center group rounded-full border border-dashed border-blue-400"
-                                    style={{
-                                        left: margin + sectionWidths.reduce((a, b) => a + b, 0) + (incomerCount - 1) * couplerWidth + 15,
-                                        top: margin + 20,
-                                        width: 35,
-                                        height: 35
-                                    }}
-                                    onClick={(e) => { e.stopPropagation(); handleAddIncomer(); }}
-                                    title="Add Incomer Section"
-                                >
-                                    <Plus size={18} className="opacity-50 group-hover:opacity-100" style={{ color: colors.text }} />
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -827,10 +1014,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                 <Copy size={14} /> Copy {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
                             </button>
                             <button onClick={() => handlePaste(contextMenu.section, contextMenu.index)} disabled={clipboard.length === 0} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 border-t border-gray-100 dark:border-gray-800">
-                                Paste Properties
-                            </button>
-                            <button onClick={() => { handleDeleteSelected(); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800">
-                                <Trash size={14} /> Delete
+                                <Clipboard size={14} /> Paste Properties
                             </button>
                         </>
                     ) : (contextMenu.type === 'Incomer' || contextMenu.type === 'Coupler') ? (
