@@ -19,7 +19,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     const [localItem, setLocalItem] = useState<CanvasItem>(JSON.parse(JSON.stringify(item)));
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [clipboard, setClipboard] = useState<any[]>([]);
-    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, section: number, index: number | null } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, section: number, index: number | null, type: 'Incomer' | 'Coupler' | 'Outgoing' | 'Background' } | null>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -123,6 +123,38 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         setLocalItem({ ...localItem, properties: [newProps] });
     };
 
+    const handleUpdateCoupler = (section: string, field: string, value: string) => {
+        const prefix = `BusCoupler${section}_`;
+        let newProps = { ...properties, [prefix + field]: value };
+
+        // Clear downstream if upstream changes
+        if (field === 'Type') {
+            newProps[prefix + 'Pole'] = "";
+            newProps[prefix + 'Rating'] = "";
+            newProps[prefix + 'Company'] = "";
+        } else if (field === 'Pole') {
+            newProps[prefix + 'Rating'] = "";
+            newProps[prefix + 'Company'] = "";
+        } else if (field === 'Current Rating') { // Mapped from Rating
+            newProps[prefix + 'Rating'] = value; // Store as Rating
+            newProps[prefix + 'Company'] = "";
+        } else if (field === 'Company') {
+            // Full selection made
+            const type = newProps[prefix + 'Type'];
+            const pole = newProps[prefix + 'Pole'] || (type === "Main Switch Open" ? "TPN" : "");
+            const rating = newProps[prefix + 'Rating']; // Stored as Rating
+
+            const row = findDeviceRow(type, pole, rating, value);
+            if (row) {
+                newProps[prefix + 'Rate'] = row['Rate'];
+                newProps[prefix + 'Description'] = row['Description'];
+                newProps[prefix + 'GS'] = row['GS'];
+            }
+        }
+
+        setLocalItem({ ...localItem, properties: [newProps] });
+    };
+
     const handleUpdateOutgoing = (index: number, field: string, value: string) => {
         const newOut = [...outgoings];
         const item = { ...newOut[index] };
@@ -159,13 +191,14 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     const handleAddOutgoing = (section: number) => {
         const newOut = [...outgoings, {
             "Section": section.toString(),
-            "Type": "MCB", // Default
+            "Type": "", // Default
             "Pole": "",
             "Current Rating": "",
             "Company": "",
             "Rate": "",
             "Description": "",
-            "GS": ""
+            "GS": "",
+            "Phase": ""
         }];
         setLocalItem({ ...localItem, outgoing: newOut });
     };
@@ -202,32 +235,122 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         handleUpdateProperty("Incomer Count", (incomerCount + 1).toString());
     };
     const handleCopy = () => {
-        if (selectedIds[0]?.startsWith("Incomer")) return;
-        const selectedItems = outgoings.filter((_, idx) => selectedIds.includes(idx.toString()));
-        setClipboard(selectedItems);
+        if (selectedIds.length === 0) return;
+        const firstId = selectedIds[0];
+
+        if (firstId.startsWith("Incomer")) {
+            const section = firstId.split(":")[1];
+            const data = {
+                _metaType: "Incomer",
+                Type: properties[`Incomer${section}_Type`],
+                Pole: properties[`Incomer${section}_Pole`],
+                Rating: properties[`Incomer${section}_Rating`],
+                Company: properties[`Incomer${section}_Company`],
+                Rate: properties[`Incomer${section}_Rate`],
+                Description: properties[`Incomer${section}_Description`],
+                GS: properties[`Incomer${section}_GS`]
+            };
+            setClipboard([data]);
+        } else if (firstId.startsWith("Coupler")) {
+            const section = firstId.split(":")[1];
+            const data = {
+                _metaType: "Coupler",
+                Type: properties[`BusCoupler${section}_Type`],
+                Pole: properties[`BusCoupler${section}_Pole`],
+                Rating: properties[`BusCoupler${section}_Rating`],
+                Company: properties[`BusCoupler${section}_Company`],
+                Rate: properties[`BusCoupler${section}_Rate`],
+                Description: properties[`BusCoupler${section}_Description`],
+                GS: properties[`BusCoupler${section}_GS`]
+            };
+            setClipboard([data]);
+        } else {
+            const selectedItems = outgoings.filter((_, idx) => selectedIds.includes(idx.toString()));
+            setClipboard(selectedItems.map(i => ({ ...i, _metaType: "Outgoing" })));
+        }
         setContextMenu(null);
     };
 
-    const handlePaste = (section: number, targetIndex: number | null) => {
+    const handlePaste = (section: number, targetIndex: number | null, targetType: string = "Outgoing") => {
         if (clipboard.length === 0) return;
-        let newOutgoings = [...outgoings];
+        const firstClip = clipboard[0];
 
-        if (targetIndex !== null) {
-            clipboard.forEach((clipItem, i) => {
-                const destIdx = targetIndex + i;
-                const newItem = { ...clipItem, "Section": section.toString() };
-                if (destIdx < newOutgoings.length) {
-                    newOutgoings[destIdx] = newItem;
-                } else {
-                    newOutgoings.push(newItem);
-                }
-            });
-        } else {
-            const newItems = clipboard.map(item => ({ ...item, "Section": section.toString() }));
-            newOutgoings = [...newOutgoings, ...newItems];
+        // 1. Paste into Incomer Slot
+        if (targetType === "Incomer") {
+            const prefix = `Incomer${section}_`;
+            let newProps = { ...properties };
+
+            // Explicitly overwrite properties (use clipboard value OR empty string to clear previous value)
+            newProps[prefix + "Type"] = firstClip.Type || "";
+            newProps[prefix + "Pole"] = firstClip.Pole || "";
+            newProps[prefix + "Rating"] = firstClip.Rating || firstClip["Current Rating"] || "";
+            newProps[prefix + "Company"] = firstClip.Company || "";
+            newProps[prefix + "Rate"] = firstClip.Rate || "";
+            newProps[prefix + "Description"] = firstClip.Description || "";
+            newProps[prefix + "GS"] = firstClip.GS || "";
+
+            setLocalItem({ ...localItem, properties: [newProps] });
+        }
+        // 2. Paste into Coupler Slot
+        else if (targetType === "Coupler") {
+            const prefix = `BusCoupler${section}_`;
+            let newProps = { ...properties };
+
+            newProps[prefix + "Type"] = firstClip.Type || "";
+            newProps[prefix + "Pole"] = firstClip.Pole || "";
+            newProps[prefix + "Rating"] = firstClip.Rating || firstClip["Current Rating"] || "";
+            newProps[prefix + "Company"] = firstClip.Company || "";
+            newProps[prefix + "Rate"] = firstClip.Rate || "";
+            newProps[prefix + "Description"] = firstClip.Description || "";
+            newProps[prefix + "GS"] = firstClip.GS || "";
+
+            setLocalItem({ ...localItem, properties: [newProps] });
+        }
+        // 3. Paste into Outgoing List
+        else {
+            // If pasting non-outgoing item (Incomer props) into outgoing list -> convert to new outgoing item
+            let newItemsToAdd: any[] = [];
+
+            if (firstClip._metaType === "Incomer" || firstClip._metaType === "Coupler") {
+                // Convert Incomer/Coupler prop object to Outgoing item
+                newItemsToAdd = [{
+                    "Section": section.toString(),
+                    "Type": firstClip.Type || "MCB",
+                    "Pole": firstClip.Pole || "",
+                    "Current Rating": firstClip.Rating || "",
+                    "Company": firstClip.Company || "",
+                    "Description": firstClip.Description || "",
+                    "GS": firstClip.GS || "",
+                    "Phase": firstClip.Phase || ""
+                }];
+            } else {
+                // Standard outgoing paste
+                newItemsToAdd = clipboard.map(item => {
+                    const { _metaType, ...rest } = item;
+                    return { ...rest, "Section": section.toString() };
+                });
+            }
+
+            let newOutgoings = [...outgoings];
+            if (targetIndex !== null) {
+                // Insert at index
+                // Note: Logic for multi-paste at index
+                newItemsToAdd.forEach((newItem, i) => {
+                    const destIdx = targetIndex + i;
+                    if (destIdx < newOutgoings.length) {
+                        // User requested "Paste Properties" behavior (Overwrite)
+                        newOutgoings[destIdx] = { ...newOutgoings[destIdx], ...newItem };
+                    } else {
+                        // If overflowing or appending, push new item
+                        newOutgoings.push(newItem);
+                    }
+                });
+            } else {
+                newOutgoings = [...newOutgoings, ...newItemsToAdd];
+            }
+            setLocalItem({ ...localItem, outgoing: newOutgoings });
         }
 
-        setLocalItem({ ...localItem, outgoing: newOutgoings });
         setContextMenu(null);
     };
 
@@ -270,7 +393,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
     // --- Render Dropdowns Components ---
 
-    const RenderDeviceConfig = ({ type, pole, rating, company, rate, onChange, canDelete, onDelete, title }: any) => {
+    const RenderDeviceConfig = ({ type, pole, rating, company, rate, phase, onChange, canDelete, onDelete, title }: any) => {
         // Determine dataset
         const isSfu = type === "Main Switch Open";
         const isMccb = type === "MCCB";
@@ -281,14 +404,21 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         if (isMccb) datasetKey = 'mccb';
         if (isMcb) datasetKey = 'mcb';
 
-        const poles = datasetKey ? getUniqueValues(getOptions(datasetKey), "Pole") : [];
-        if (isSfu && poles.length === 0) poles.push("TPN"); // SFU usually implies TPN if no column
+        let poles = datasetKey ? getUniqueValues(getOptions(datasetKey), "Pole") : [];
+        if (isSfu && poles.length === 0) poles.push("TPN");
+
+        // Filter "SP" for MCB if requested
+        if (isMcb) {
+            poles = poles.filter(p => p !== "SP");
+        }
 
         const ratings = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: isSfu ? undefined : pole }), "Current Rating") : [];
 
         const companies = datasetKey ? getUniqueValues(getOptions(datasetKey, { pole: isSfu ? undefined : pole, rating }), "Company") : [];
 
-        // Check if rate is logically valid (requires full selection)
+        // Check if phase selection is needed (Single Phase devices: DP, SPN, 1P)
+        const showPhase = pole && (pole.startsWith("DP") || pole.startsWith("SP") || pole.startsWith("1P"));
+
         const showRate = rate && type && (isSfu || pole) && rating && company;
 
         return (
@@ -302,7 +432,13 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                     <option value="" disabled>Select Type...</option>
                     <option value="MCCB">MCCB</option>
                     <option value="Main Switch Open">Main Switch (SFU)</option>
-                    <option value="MCB">MCB</option>
+                    {(!title.includes("Incomer") && !title.includes("Coupler")) && <option value="MCB">MCB</option>}
+                    {/* Extra options for Coupler etc */}
+                    {(title.includes("Coupler") ? (
+                        <>
+                            <option value="Direct">Direct Link (Solid)</option>
+                        </>
+                    ) : null)}
                 </select>
 
                 <select
@@ -334,6 +470,19 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                     <option value="">Select Company...</option>
                     {companies.map((c: string) => <option key={c} value={c}>{c}</option>)}
                 </select>
+
+                {showPhase && (
+                    <select
+                        value={phase || ""}
+                        onChange={(e) => onChange("Phase", e.target.value)}
+                        className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    >
+                        <option value="">Select Phase...</option>
+                        <option value="R">R Phase</option>
+                        <option value="Y">Y Phase</option>
+                        <option value="B">B Phase</option>
+                    </select>
+                )}
 
                 {showRate && (
                     <div className="text-[10px] text-green-600 dark:text-green-400 font-medium px-1">
@@ -420,18 +569,19 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                 {(() => {
                                     const section = selectedIds[0].split(":")[1];
                                     return (
-                                        <div className="space-y-2">
-                                            <div className="text-xs opacity-70">Bus Coupler for Sec {section}</div>
-                                            <select
-                                                value={properties[`BusCoupler${section}_Type`] || "MCCB"}
-                                                onChange={(e) => handleUpdateProperty(`BusCoupler${section}_Type`, e.target.value)}
-                                                className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
-                                            >
-                                                <option value="MCCB">Standard Coupler (Switch)</option>
-                                                <option value="Direct">Direct Link (Solid)</option>
-                                                <option value="None">None (Gap)</option>
-                                            </select>
-                                        </div>
+                                        <RenderDeviceConfig
+                                            type={properties[`BusCoupler${section}_Type`] || ""}
+                                            pole={properties[`BusCoupler${section}_Pole`] || (properties[`BusCoupler${section}_Type`] === "Main Switch Open" ? "TPN" : "")}
+                                            rating={properties[`BusCoupler${section}_Rating`]}
+                                            company={properties[`BusCoupler${section}_Company`]}
+                                            rate={properties[`BusCoupler${section}_Rate`]}
+                                            onChange={(field: string, val: string) => {
+                                                if (field === "Current Rating") handleUpdateCoupler(section, "Current Rating", val);
+                                                else handleUpdateCoupler(section, field, val);
+                                            }}
+                                            canDelete={false}
+                                            title={`Bus Coupler for Sec ${section}`}
+                                        />
                                     );
                                 })()}
                             </div>
@@ -450,6 +600,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                 rating={item["Current Rating"]}
                                                 company={item["Company"]}
                                                 rate={item["Rate"]}
+                                                phase={item["Phase"]}
                                                 onChange={(field: string, val: string) => handleUpdateOutgoing(idx, field, val)}
                                                 canDelete={true}
                                                 onDelete={handleDeleteSelected}
@@ -511,6 +662,11 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                     setSelectedIds([`Incomer:${section}`]);
                                                 }}
                                                 title={`Incomer ${section}`}
+                                                onContextMenu={(e) => {
+                                                    e.preventDefault(); e.stopPropagation();
+                                                    setSelectedIds([`Incomer:${section}`]);
+                                                    setContextMenu({ x: e.clientX, y: e.clientY, section, index: null, type: 'Incomer' });
+                                                }}
                                             />
 
                                             {sectionOutgoings.map((out, idx) => {
@@ -560,7 +716,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                             if (!selectedIds.includes(out.globalIdx.toString())) {
                                                                 setSelectedIds([out.globalIdx.toString()]);
                                                             }
-                                                            setContextMenu({ x: e.clientX, y: e.clientY, section, index: out.globalIdx });
+                                                            setContextMenu({ x: e.clientX, y: e.clientY, section, index: out.globalIdx, type: 'Outgoing' });
                                                         }}
                                                     />
                                                 );
@@ -602,7 +758,7 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                 }}
                                                 onContextMenu={(e) => {
                                                     e.preventDefault(); e.stopPropagation();
-                                                    setContextMenu({ x: e.clientX, y: e.clientY, section, index: null });
+                                                    setContextMenu({ x: e.clientX, y: e.clientY, section, index: null, type: 'Outgoing' }); // Add logic if needed
                                                 }}
                                                 title="Add New Circuit"
                                             >
@@ -624,6 +780,11 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                                         setSelectedIds([`Coupler:${section}`]);
                                                     }}
                                                     title={`Bus Coupler ${section}`}
+                                                    onContextMenu={(e) => {
+                                                        e.preventDefault(); e.stopPropagation();
+                                                        setSelectedIds([`Coupler:${section}`]);
+                                                        setContextMenu({ x: e.clientX, y: e.clientY, section, index: null, type: 'Coupler' });
+                                                    }}
                                                 />
                                             )}
                                         </React.Fragment>
@@ -660,16 +821,25 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                     className="fixed z-[60] bg-white dark:bg-slate-800 shadow-xl rounded-lg py-1 border border-gray-200 dark:border-gray-700 min-w-[150px]"
                     style={{ left: contextMenu.x, top: contextMenu.y }}
                 >
-                    {contextMenu.index !== null ? (
+                    {contextMenu.type === 'Outgoing' && contextMenu.index !== null ? (
                         <>
                             <button onClick={handleCopy} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
                                 <Copy size={14} /> Copy {selectedIds.length > 1 ? `(${selectedIds.length})` : ''}
                             </button>
                             <button onClick={() => handlePaste(contextMenu.section, contextMenu.index)} disabled={clipboard.length === 0} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 border-t border-gray-100 dark:border-gray-800">
-                                Paste Here
+                                Paste Properties
                             </button>
                             <button onClick={() => { handleDeleteSelected(); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800">
                                 <Trash size={14} /> Delete
+                            </button>
+                        </>
+                    ) : (contextMenu.type === 'Incomer' || contextMenu.type === 'Coupler') ? (
+                        <>
+                            <button onClick={handleCopy} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                                <Copy size={14} /> Copy {contextMenu.type}
+                            </button>
+                            <button onClick={() => handlePaste(contextMenu.section, null, contextMenu.type)} disabled={clipboard.length === 0} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 border-t border-gray-100 dark:border-gray-800">
+                                Paste Properties
                             </button>
                         </>
                     ) : (

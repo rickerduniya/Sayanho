@@ -310,10 +310,10 @@ namespace Sayanho.Backend.Services
                     }
                     else if (item.Name == "LT Cubical Panel")
                     {
+                        int count = 0;
                         // 1. Process Incomers
                         if (propertiesDictionary.ContainsKey("Incomer Count"))
                         {
-                            int count = 0;
                             int.TryParse(propertiesDictionary["Incomer Count"], out count);
 
                             for (int i = 1; i <= count; i++)
@@ -340,6 +340,32 @@ namespace Sayanho.Backend.Services
                                     if (deviceProps.ContainsKey("Rate") && deviceProps.ContainsKey("Description"))
                                     {
                                         Calculation(type, deviceProps, 1, item.AlternativeCompany1, item.AlternativeCompany2);
+                                    }
+                                }
+                            }
+                        }
+
+
+
+
+
+                        // 1.5 Process Bus Couplers
+                        for (int i = 1; i < count; i++)
+                        {
+                            string prefix = $"BusCoupler{i}_";
+                            if (propertiesDictionary.ContainsKey($"{prefix}Type"))
+                            {
+                                string type = propertiesDictionary[$"{prefix}Type"];
+                                if (type != "None" && type != "Direct" && !string.IsNullOrEmpty(type))
+                                {
+                                    var deviceProps = new Dictionary<string, string>();
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Rate")) deviceProps["Rate"] = propertiesDictionary[$"{prefix}Rate"];
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Description")) deviceProps["Description"] = propertiesDictionary[$"{prefix}Description"];
+                                    if (propertiesDictionary.ContainsKey($"{prefix}GS")) deviceProps["GS"] = propertiesDictionary[$"{prefix}GS"];
+
+                                    if (deviceProps.ContainsKey("Rate") && deviceProps.ContainsKey("Description"))
+                                    {
+                                        Calculation("Bus Coupler (" + type + ")", deviceProps, 1, item.AlternativeCompany1, item.AlternativeCompany2);
                                     }
                                 }
                             }

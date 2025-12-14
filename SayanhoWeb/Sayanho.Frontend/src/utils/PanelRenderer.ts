@@ -89,8 +89,10 @@ export class PanelRenderer {
             if (incomerRating) {
                 svg += `<text x="${sectionCenter + 16}" y="${incomerYStart + 18}" font-family="Arial" font-size="9" fill="#000" font-weight="bold">${incomerRating}</text>`;
                 if (incomerType) {
-                    svg += `<text x="${sectionCenter + 16}" y="${incomerYStart + 27}" font-family="Arial" font-size="8" fill="#000">FP</text>`;
-                    svg += `<text x="${sectionCenter + 16}" y="${incomerYStart + 36}" font-family="Arial" font-size="8" fill="#000">${incomerType}</text>`;
+                    const pole = properties[`Incomer${sec}_Pole`] || (incomerType === "Main Switch Open" ? "TPN" : "");
+                    if (pole) svg += `<text x="${sectionCenter + 16}" y="${incomerYStart + 27}" font-family="Arial" font-size="8" fill="#000">${pole}</text>`;
+                    const displayType = incomerType === "Main Switch Open" ? "SFU" : incomerType;
+                    svg += `<text x="${sectionCenter + 16}" y="${incomerYStart + 36}" font-family="Arial" font-size="8" fill="#000">${displayType}</text>`;
                 }
             }
             // Incomer label above
@@ -144,23 +146,24 @@ export class PanelRenderer {
 
                 // Text Labels (to the left)
                 const rating = out["Current Rating"] || "";
-                const type = out["Type"] || "MCB";
-                const pole = out["Pole"] || "TP";
+                const type = out["Type"] || "";
+                const displayType = type === "Main Switch Open" ? "SFU" : type;
+                const pole = out["Pole"] || "";
 
                 const globalIdx = outgoings.findIndex((o: any) => o === out) + 1;
                 svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 20}" text-anchor="end" font-family="Arial" font-size="8" fill="#000" font-weight="bold">OG${globalIdx}</text>`;
                 if (rating) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 28}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${rating}</text>`;
                 if (pole) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 35}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${pole}</text>`;
-                if (type) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 42}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${type}</text>`;
+                if (displayType) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 42}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${displayType}</text>`;
             });
 
             // D. BUS COUPLER (with gap after switch)
             if (sec < incomerCount) {
                 const couplerCenterX = currentX + sectionWidth + couplerWidth / 2;
-                const couplerType = properties[`BusCoupler${sec}_Type`] || "MCCB"; // Default to MCCB/Switch
+                const couplerType = properties[`BusCoupler${sec}_Type`] || "";
 
-                // Text Label
-                svg += `<text x="${couplerCenterX}" y="${busbarY - 10}" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#000">Bus Couplar</text>`;
+                // Text Label with Numbering
+                svg += `<text x="${couplerCenterX}" y="${busbarY - 10}" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#000">Bus Coupler ${sec}</text>`;
 
                 const leftBusEnd = currentX + sectionWidth - 5;
                 const rightBusStart = currentX + sectionWidth + couplerWidth + 5;
@@ -168,10 +171,14 @@ export class PanelRenderer {
                 if (couplerType === "None" || couplerType === "Direct") {
                     // Solid Busbar (No Switch)
                     svg += `<rect x="${leftBusEnd}" y="${busbarY}" width="${rightBusStart - leftBusEnd}" height="10" fill="#fff" stroke="#000" stroke-width="2"/>`;
-                    svg += `<text x="${couplerCenterX}" y="${busbarY + 20}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">(Direct)</text>`;
+                    if (couplerType === "Direct") {
+                        svg += `<text x="${couplerCenterX}" y="${busbarY + 20}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">(Direct)</text>`;
+                    }
                 } else {
-                    // Switch / MCCB
+                    // Switch / MCCB / SFU
                     const switchGap = 12; // Gap after diagonal
+                    const rating = properties[`BusCoupler${sec}_Rating`] || "";
+                    const pole = properties[`BusCoupler${sec}_Pole`] || "";
 
                     // Left busbar segment (hollow rectangle continuing)
                     svg += `<rect x="${leftBusEnd}" y="${busbarY}" width="15" height="10" fill="#fff" stroke="#000" stroke-width="2"/>`;
@@ -181,6 +188,13 @@ export class PanelRenderer {
 
                     // Right busbar segment (after gap, hollow rectangle)
                     svg += `<rect x="${leftBusEnd + 25 + switchGap}" y="${busbarY}" width="${rightBusStart - (leftBusEnd + 25 + switchGap)}" height="10" fill="#fff" stroke="#000" stroke-width="2"/>`;
+
+                    // Text Details
+                    if (rating) svg += `<text x="${couplerCenterX}" y="${busbarY + 20}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">${rating}</text>`;
+                    if (pole) svg += `<text x="${couplerCenterX}" y="${busbarY + 28}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">${pole}</text>`;
+                    // Show Type (MCCB or Main Switch Open)
+                    const displayType = couplerType === "Main Switch Open" ? "SFU" : couplerType;
+                    svg += `<text x="${couplerCenterX}" y="${busbarY + 36}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">${displayType}</text>`;
                 }
             }
 

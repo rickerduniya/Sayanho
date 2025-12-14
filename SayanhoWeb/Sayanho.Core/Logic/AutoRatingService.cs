@@ -748,17 +748,92 @@ namespace Sayanho.Core.Logic
             var properties = vtpn.Properties.First();
             string company = properties.GetValueOrDefault("Company", "");
 
+            // --- Step 1: Auto-Rate the VTPN Board itself ---
+
+            // Calculate required ways (Outgoing circuits)
+            int maxOutIndex = 0;
+            var outConnectors = allConnectors.Where(c => c.SourceItem == vtpn).ToList();
+            foreach (var conn in outConnectors)
+            {
+                int idx = GetOutgoingIndexFromPointKey(conn.SourcePointKey, "VTPN"); // VTPN name contains "VTPN"
+                if (idx + 1 > maxOutIndex) maxOutIndex = idx + 1;
+            }
+            int requiredWays = maxOutIndex; // e.g., if out12 is used, we need at least 12 ways? 
+                                            // The DB says "4 way", "8 way". Usually this means TPN ways. 
+                                            // Assuming "outX" maps to one way.
+
+            // Load VTPN Board options
+            var vtpnOptions = DatabaseLoader.LoadDefaultPropertiesFromDatabase("VTPN", 2).Properties
+                .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            Dictionary<string, string> selectedBoard = null;
+
+            if (vtpnOptions.Any())
+            {
+                // Filter options that meet both Current and Way requirements
+                var validBoards = vtpnOptions.Where(row =>
+                {
+                    double rating = ParseRating(row["Current Rating"]?.ToString()); // Handles "Up to 100A" -> 100
+                    int ways = ParseWays(row["Way"]?.ToString());
+
+                    return rating >= minimumRating && ways >= requiredWays;
+                })
+                .OrderBy(row => ParseRating(row["Current Rating"]?.ToString())) // Prefer smallest sufficient rating
+                .ThenBy(row => ParseWays(row["Way"]?.ToString()))               // Then smallest sufficient ways
+                .ToList();
+
+                selectedBoard = validBoards.FirstOrDefault();
+
+                if (selectedBoard != null)
+                {
+                    // Update VTPN Properties
+                    properties["Current Rating"] = selectedBoard["Current Rating"]; // e.g., "Up to 100A"
+                    properties["Way"] = selectedBoard["Way"];
+                    if (selectedBoard.ContainsKey("Rate")) properties["Rate"] = selectedBoard["Rate"];
+                    if (selectedBoard.ContainsKey("Description")) properties["Description"] = selectedBoard["Description"];
+                    if (selectedBoard.ContainsKey("GS")) properties["GS"] = selectedBoard["GS"];
+                    
+                    Console.WriteLine($"VTPN Board: Selected {selectedBoard["Current Rating"]} ({selectedBoard["Way"]}) for {minimumRating:F2}A load and {requiredWays} ways.");
+                }
+                else
+                {
+                     // Fallback: Pick highest available if nothing fits (or just warn)
+                     Console.WriteLine($"Warning: No suitable VTPN board found for {minimumRating:F2}A and {requiredWays} ways.");
+                }
+            }
+
+            // --- Step 2: Rate Incomer (MCCB) ---
+            
+            // Determine VTPN Board Rating (Upper Limit) from the newly set property
+            double boardRating = ParseRating(properties.GetValueOrDefault("Current Rating", "0"));
+
             // Set incomer rating (MCCB)
             var mccbOptions = DatabaseLoader.LoadDefaultPropertiesFromDatabase("MCCB", 2).Properties
                 .Where(row => string.Equals(row["Company"]?.ToString(), company, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
                 .ToList();
 
-            var selectedMCCB = SelectOptimalRating(mccbOptions, minimumRating, "MCCB");
+            // Filter options based on user requirements:
+            // 1. Rating >= 63 A
+            // 2. Rating <= Board Rating (if known)
+            var validOptions = mccbOptions.Where(option => 
+            {
+                double r = ParseRating(option["Current Rating"]?.ToString());
+                bool lowerBound = r >= 63;
+                bool upperBound = boardRating <= 0 || r <= boardRating;
+                return lowerBound && upperBound;
+            }).ToList();
+
+            // Use the filtered list for selection
+            // If minimumRating is < 63, the filter handles it (we won't pick < 63).
+            // If minimumRating > boardRating, validOptions might be empty.
+            var selectedMCCB = SelectOptimalRating(validOptions, minimumRating, "MCCB");
 
             if (selectedMCCB != null)
             {
-                properties["Current Rating"] = selectedMCCB["Current Rating"];
+                properties["IncomerCurrentRating"] = selectedMCCB["Current Rating"]; // Storing separately if needed or just updating Incomer dict
+                // Ideally Incomer dictionary is what matters for the BOM/report
                 // Update rate from Excel database
                 if (selectedMCCB.ContainsKey("Rate"))
                 {
@@ -794,7 +869,14 @@ namespace Sayanho.Core.Logic
                 .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
                 .ToList();
 
-            var selectedMCB = SelectOptimalRating(mcbOptions, minimumRating, "MCB (FP)");
+            // Filter options for HTPN: 32A <= Rating <= 63A
+            var validOptions = mcbOptions.Where(option => 
+            {
+                double r = ParseRating(option["Current Rating"]?.ToString());
+                return r >= 32 && r <= 63;
+            }).ToList();
+
+            var selectedMCB = SelectOptimalRating(validOptions, minimumRating, "MCB (FP)");
 
             if (selectedMCB != null)
             {
@@ -824,7 +906,14 @@ namespace Sayanho.Core.Logic
                 .OrderBy(row => int.TryParse(row["Current Rating"]?.ToString(), out var rating) ? rating : int.MaxValue)
                 .ToList();
 
-            var selectedIsolator = SelectOptimalRating(isolatorOptions, minimumRating, "MCB Isolator (DP)");
+            // Filter options for SPN DB: 25A <= Rating <= 40A
+            var validOptions = isolatorOptions.Where(option => 
+            {
+                double r = ParseRating(option["Current Rating"]?.ToString());
+                return r >= 25 && r <= 40;
+            }).ToList();
+
+            var selectedIsolator = SelectOptimalRating(validOptions, minimumRating, "MCB Isolator (DP)");
 
             if (selectedIsolator != null)
             {
@@ -1041,6 +1130,22 @@ namespace Sayanho.Core.Logic
         }
 
         /// <summary>
+        /// Parse ways from string (e.g., "4 way" -> 4)
+        /// </summary>
+        private int ParseWays(string waysStr)
+        {
+            if (string.IsNullOrEmpty(waysStr))
+                return 0;
+
+            var match = Regex.Match(waysStr, @"(\d+)");
+            if (match.Success && int.TryParse(match.Value, out int ways))
+            {
+                return ways;
+            }
+            return 0;
+        }
+
+        /// <summary>
         /// Select optimal rating from available options ensuring it's greater than minimum required
         /// </summary>
         private Dictionary<string, string> SelectOptimalRating(List<Dictionary<string, string>> options, double minimumRating, string deviceType)
@@ -1208,19 +1313,31 @@ namespace Sayanho.Core.Logic
                                        connector.Properties.ContainsKey("Core") && 
                                        connector.Properties.ContainsKey("Size");
 
+                // Calculate required current based on downstream rating or load + safety margin
+                double safetyMarginPercentage = ApplicationSettings.Instance.SafetyMarginPercentage;
+                double safetyMargin = 1 + (safetyMarginPercentage / 100);
+                double requiredRating = maxCurrent * safetyMargin;
+
+                double? downstreamRating = GetDownstreamRatedCurrent(connector);
+                if (downstreamRating.HasValue && downstreamRating.Value > 0)
+                {
+                    requiredRating = Math.Max(requiredRating, downstreamRating.Value);
+                    // LogProcess($"Connector {GetConnectorName(connector)}: Using Max(Load, Downstream) = {requiredRating:F2} A");
+                }
+
                 bool rated = false;
                 string type = "Unknown";
 
                 if (isWireConnection && !isCableConnection)
                 {
                     type = "Wire";
-                    rated = SetSingleWireRating(connector, maxCurrent);
+                    rated = SetSingleWireRating(connector, maxCurrent, requiredRating);
                     if (rated) wiresRated++;
                 }
                 else if (isCableConnection && !isWireConnection)
                 {
                     type = "Cable";
-                    rated = SetSingleCableRating(connector, maxCurrent);
+                    rated = SetSingleCableRating(connector, maxCurrent, requiredRating);
                     if (rated) cablesRated++;
                 }
                 else if (isWireConnection && isCableConnection)
@@ -1231,13 +1348,13 @@ namespace Sayanho.Core.Logic
                     if (connector.MaterialType == "Wiring")
                     {
                         type = "Wire";
-                        rated = SetSingleWireRating(connector, maxCurrent);
+                        rated = SetSingleWireRating(connector, maxCurrent, requiredRating);
                         if (rated) wiresRated++;
                     }
                     else // Default to cable
                     {
                         type = "Cable";
-                        rated = SetSingleCableRating(connector, maxCurrent);
+                        rated = SetSingleCableRating(connector, maxCurrent, requiredRating);
                         if (rated) cablesRated++;
                     }
                 }
@@ -1251,11 +1368,12 @@ namespace Sayanho.Core.Logic
                 if (rated)
                 {
                     string size = type == "Wire" ? connector.Properties["Conductor Size"] : connector.Properties["Size"];
-                    LogProcess($"{type} {GetConnectorName(connector)}: Rated for {maxCurrent:F2} A -> Selected {size}");
+                    string downstreamInfo = downstreamRating.HasValue ? $" (Device Rated: {downstreamRating.Value:F1} A)" : "";
+                    LogProcess($"{type} {GetConnectorName(connector)}: Rated for {requiredRating:F2} A{downstreamInfo} -> Selected {size}");
                 }
                 else
                 {
-                    LogProcess($"{type} {GetConnectorName(connector)}: Failed to rate for {maxCurrent:F2} A");
+                    LogProcess($"{type} {GetConnectorName(connector)}: Failed to rate for {requiredRating:F2} A");
                     connectionsSkipped++;
                 }
             }
@@ -1264,9 +1382,62 @@ namespace Sayanho.Core.Logic
         }
 
         /// <summary>
+        /// Get the rated current of the downstream device or its incomer
+        /// </summary>
+        private double? GetDownstreamRatedCurrent(Connector connector)
+        {
+            var target = connector.TargetItem;
+            if (target == null) return null;
+
+            // 1. VTPN, HTPN, SPN DB -> Incomer["Current Rating"]
+            if (target.Name.Contains("VTPN") || target.Name.Contains("HTPN") || target.Name.Contains("SPN DB"))
+            {
+                if (target.Incomer != null && target.Incomer.TryGetValue("Current Rating", out string ratingStr))
+                {
+                    return ParseRating(ratingStr);
+                }
+            }
+
+            // 2. Main Switch, Change Over Switch, Bus Coupler -> Properties["Current Rating"]
+            if (target.Name.Contains("Main Switch") || target.Name.Contains("Change Over Switch") || target.Name.Contains("Bus Coupler"))
+            {
+                if (target.Properties != null && target.Properties.Any())
+                {
+                    var props = target.Properties.First();
+                    if (props.TryGetValue("Current Rating", out string ratingStr))
+                    {
+                        return ParseRating(ratingStr);
+                    }
+                }
+            }
+
+            // 3. Cubical Panel -> Specific Incomer Rating based on connection point
+            if (target.Name.Contains("Cubical Panel"))
+            {
+                var props = target.Properties?.FirstOrDefault();
+                if (props != null && !string.IsNullOrEmpty(connector.TargetPointKey))
+                {
+                    // Extract number from "inX" (e.g. in1, in2)
+                    var match = Regex.Match(connector.TargetPointKey, @"in(\d+)");
+                    if (match.Success)
+                    {
+                        string index = match.Groups[1].Value;
+                        string key = $"Incomer{index}_Rating";
+                        if (props.TryGetValue(key, out string ratingStr))
+                        {
+                            return ParseRating(ratingStr);
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Set rating for a single cable connection
         /// </summary>
-        private bool SetSingleCableRating(Connector connector, double maxCurrent)
+        private bool SetSingleCableRating(Connector connector, double maxCurrent, double requiredCurrent)
         {
             if (cableCapacityTables == null || cableCapacityTables.Count == 0)
             {
@@ -1290,11 +1461,6 @@ namespace Sayanho.Core.Logic
             }
             string coreRaw = connector.Properties["Core"];
             string coreCategory = MapCoreType(coreRaw);
-
-            // Calculate required current with safety margin
-            double safetyMarginPercentage = ApplicationSettings.Instance.SafetyMarginPercentage;
-            double safetyMargin = 1 + (safetyMarginPercentage / 100);
-            double requiredCurrent = maxCurrent * safetyMargin;
 
             // Find minimum cable size considering both current capacity and voltage drop
             var result = FindMinimumCableSizeWithVoltageDrop(conductor, coreCategory, requiredCurrent, connector, maxCurrent);
@@ -1381,18 +1547,13 @@ namespace Sayanho.Core.Logic
         /// <summary>
         /// Set rating for a single wire connection
         /// </summary>
-        private bool SetSingleWireRating(Connector connector, double maxCurrent)
+        private bool SetSingleWireRating(Connector connector, double maxCurrent, double requiredCurrent)
         {
             if (wireCapacityTable == null || wireCapacityTable.Count == 0)
             {
                 Console.WriteLine($"Wire {GetConnectorName(connector)}: Wire capacity table not available");
                 return false;
             }
-
-            // Calculate required current with safety margin
-            double safetyMarginPercentage = ApplicationSettings.Instance.SafetyMarginPercentage;
-            double safetyMargin = 1 + (safetyMarginPercentage / 100);
-            double requiredCurrent = maxCurrent * safetyMargin;
 
             // Get current conductor size to determine wire system type
             string currentConductorSize = connector.Properties["Conductor Size"];

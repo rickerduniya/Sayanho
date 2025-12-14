@@ -263,11 +263,26 @@ export class NetworkAnalyzer {
 
                             // Only trace if sections match
                             if (section === targetSectionId) {
-                                this.traceAndCalculateCurrent(outConnector, 415, phaseType, phase, visited, visitedNets);
+                                // Determine Phase/Voltage based on Pole/Phase config
+                                let linkVoltage = 415;
+                                let linkPhase = "ALL"; // Default 3-phase
+
+                                const pole = outItem["Pole"];
+                                const selectedPhase = outItem["Phase"]; // R, Y, or B
+
+                                // Check for Single Phase types logic
+                                if (pole && (pole.startsWith("DP") || pole.startsWith("SP") || pole.startsWith("1P"))) {
+                                    linkVoltage = 230;
+                                    // If a specific phase is selected, use it. Otherwise default to R or inherited?
+                                    // For panel outgoings, they must tap from a phase. Defaulting to R if missing.
+                                    linkPhase = selectedPhase || "R";
+                                }
+
+                                this.traceAndCalculateCurrent(outConnector, linkVoltage, phaseType, linkPhase, visited, visitedNets);
                                 totalCurrent += this.parseCurrent(outConnector.currentValues?.["Current"]);
-                                rPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["R_Current"]);
-                                yPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["Y_Current"]);
-                                bPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["B_Current"]);
+                                if (linkPhase === "R" || linkPhase === "ALL") rPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["R_Current"]);
+                                if (linkPhase === "Y" || linkPhase === "ALL") yPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["Y_Current"]);
+                                if (linkPhase === "B" || linkPhase === "ALL") bPhaseCurrent += this.parseCurrent(outConnector.currentValues?.["B_Current"]);
                             }
                         }
                     });

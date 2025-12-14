@@ -481,7 +481,45 @@ namespace Sayanho.Core.Logic
 
                             if (belongsToSection)
                             {
-                                TraceAndCalculateCurrent(outConnector, 415f, phaseType, phase, visited);
+                                // Determine correct voltage/phase for this outgoing based on its configuration.
+                                // This keeps backend analysis aligned with the frontend NetworkAnalyzer.
+                                float linkVoltage = 415f;
+                                string linkPhase = "ALL";
+
+                                if (outIndex >= 0 && targetItem.Outgoing != null && outIndex < targetItem.Outgoing.Count)
+                                {
+                                    var outProp = targetItem.Outgoing[outIndex];
+                                    string pole = outProp.GetValueOrDefault("Pole", "");
+                                    string selectedPhase = outProp.GetValueOrDefault("Phase", "");
+
+                                    // Single-phase outgoings (DP/SP/1P) should be analyzed at 230V on the selected phase.
+                                    if (!string.IsNullOrEmpty(pole) &&
+                                        (pole.StartsWith("DP", StringComparison.OrdinalIgnoreCase) ||
+                                         pole.StartsWith("SP", StringComparison.OrdinalIgnoreCase) ||
+                                         pole.StartsWith("1P", StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        linkVoltage = 230f;
+
+                                        if (!string.IsNullOrEmpty(selectedPhase))
+                                        {
+                                            linkPhase = selectedPhase;
+                                        }
+                                        else
+                                        {
+                                            // If phase isn't explicitly set, fall back to inherited phase if it's a single phase.
+                                            // If inherited is "ALL", default to R.
+                                            linkPhase = string.Equals(phase, "ALL", StringComparison.OrdinalIgnoreCase) ? "R" : phase;
+                                            if (string.IsNullOrEmpty(linkPhase)) linkPhase = "R";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        linkVoltage = 415f;
+                                        linkPhase = "ALL";
+                                    }
+                                }
+
+                                TraceAndCalculateCurrent(outConnector, linkVoltage, phaseType, linkPhase, visited);
 
                                 if (outConnector.CurrentValues.ContainsKey("Current"))
                                 {
