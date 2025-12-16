@@ -20,6 +20,7 @@ import { LOAD_ITEM_DEFAULTS } from '../utils/DefaultRulesEngine';
 import { MaterialSelectionDialog } from './MaterialSelectionDialog';
 import { ApplicationSettings } from '../utils/ApplicationSettings';
 import { TouchHandler, TouchGesture } from '../utils/TouchHandler';
+import { calculateSnapPosition } from '../utils/SnapUtils';
 
 const getPhaseColor = (connector: Connector, theme: string): string => {
     const useColor = ApplicationSettings.getSaveImageInColor();
@@ -1124,6 +1125,24 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
         }
     };
 
+    // Use a ref to hold the latest handleGlobalMouseUp to avoid re-attaching the listener
+    const handleGlobalMouseUpRef = useRef(handleGlobalMouseUp);
+
+    // Update the ref on every render (since handleGlobalMouseUp is recreated on every render)
+    useEffect(() => {
+        handleGlobalMouseUpRef.current = handleGlobalMouseUp;
+    }); // No dependency array means it updates on every render
+
+    // Attach global listener once
+    useEffect(() => {
+        const onApplyGlobalMouseUp = () => {
+            // Invoke the latest handler
+            handleGlobalMouseUpRef.current();
+        };
+        window.addEventListener('mouseup', onApplyGlobalMouseUp);
+        return () => window.removeEventListener('mouseup', onApplyGlobalMouseUp);
+    }, []);
+
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Delete') {
@@ -1204,7 +1223,6 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                 y={position.y}
                 onWheel={handleWheel}
                 onMouseMove={handleGlobalMouseMove}
-                onMouseUp={handleGlobalMouseUp}
                 onDragMove={(e) => {
                     if (e.target === e.target.getStage()) {
                         setPosition({ x: e.target.x(), y: e.target.y() });
@@ -1578,9 +1596,23 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                 }
                                 lastDragEndTimeRef.current = Date.now();
 
-                                setIsDraggingItem(false);
-                                // Add a small delay before clearing the ref to ensure onClick (which fires after dragEnd)
-                                // sees the drag state and checks the distance
+                                // --- Snap to Fit Logic ---
+                                // Only snap if a single item is being dragged
+                                let finalX = x;
+                                let finalY = y;
+
+                                if (currentSheet && selectedItemIds.length <= 1) {
+                                    const otherItems = currentSheet.canvasItems.filter(i => i.uniqueID !== item.uniqueID);
+                                    const snapResult = calculateSnapPosition(item, x, y, otherItems, 15); // 15px tolerance
+                                    finalX = snapResult.x;
+                                    finalY = snapResult.y;
+                                }
+                                // -------------------------
+
+                                updateItemPosition(item.uniqueID, finalX, finalY);
+
+                                // Reset drag state
+                                setIsDraggingItem(false); // Keep this from original
                                 setTimeout(() => {
                                     isDraggingRef.current = false;
                                 }, 50);

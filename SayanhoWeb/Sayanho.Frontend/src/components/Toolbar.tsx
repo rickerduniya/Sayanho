@@ -158,7 +158,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 active={showCurrentValues}
             />
             <ToolbarButton icon={<Type size={16} />} onClick={onAddText} tooltip="Add Text Box" active={isAddTextMode} />
-            <ToolbarButton icon={<Copy size={16} />} onClick={onCopyTrace} tooltip="Copy API Trace (for debugging)" />
+
 
             <ToolbarSeparator />
 

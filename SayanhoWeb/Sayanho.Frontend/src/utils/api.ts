@@ -1,4 +1,5 @@
 import { apiTracer } from './apiTracer';
+import { CacheService } from '../services/CacheService';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sayanho-g22t.onrender.com/api';
 
@@ -11,6 +12,11 @@ export interface PropertyResponse {
 let __fetchReqId = 10000; // Start from 10000 to distinguish from axios requests
 
 export const fetchProperties = async (itemName: string): Promise<PropertyResponse> => {
+    // Check Cache
+    const cacheKey = CacheService.generateKey('fetchProperties', { itemName });
+    const cached = CacheService.get<PropertyResponse>(cacheKey);
+    if (cached) return cached;
+
     const reqId = ++__fetchReqId;
     const url = `${API_BASE_URL}/properties/${encodeURIComponent(itemName)}`;
     const startTime = performance.now();
@@ -54,6 +60,9 @@ export const fetchProperties = async (itemName: string): Promise<PropertyRespons
             traceEntry.responseStatusText = response.statusText;
             traceEntry.responseBody = data;
         }
+
+        // Save to Cache
+        CacheService.set(cacheKey, data);
 
         return data;
     } catch (error) {

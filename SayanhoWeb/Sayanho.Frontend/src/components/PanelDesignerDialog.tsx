@@ -15,7 +15,7 @@ interface PanelDesignerProps {
 export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
     isOpen, onClose, item, onSave, availableDevices
 }) => {
-    const { colors } = useTheme();
+    const { colors, theme } = useTheme();
     const [localItem, setLocalItem] = useState<CanvasItem>(JSON.parse(JSON.stringify(item)));
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [clipboard, setClipboard] = useState<any[]>([]);
@@ -514,25 +514,36 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
         const showRate = rate && effectiveType && ((isSfu || isChangeOver) ? true : !!effectivePole) && rating && company;
 
+        const inputStyle = {
+            backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
+            borderColor: colors.border,
+            color: colors.text
+        };
+
+        const optionStyle = {
+            backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
+            color: colors.text
+        };
+
         return (
             <div className="space-y-2">
                 <div className="text-xs opacity-70">{title}</div>
                 <select
                     value={effectiveType || ""}
                     onChange={(e) => onChange("Type", e.target.value)}
-                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    className="w-full text-xs p-1 rounded border"
+                    style={inputStyle}
                     disabled={disableType}
                 >
-                    <option value="" disabled>Select Type...</option>
-                    <option value="MCCB">MCCB</option>
-                    <option value="Main Switch Open">Main Switch (SFU)</option>
-                    {(!title.includes("Incomer") && !title.includes("Coupler")) && <option value="MCB">MCB</option>}
+                    <option value="" disabled style={optionStyle}>Select Type...</option>
+                    <option value="MCCB" style={optionStyle}>MCCB</option>
+                    <option value="Main Switch Open" style={optionStyle}>Main Switch (SFU)</option>
+                    {(!title.includes("Incomer") && !title.includes("Coupler")) && <option value="MCB" style={optionStyle}>MCB</option>}
                     {/* Extra options for Coupler etc */}
                     {(title.includes("Coupler") ? (
                         <>
-                            <option value="Direct">Direct Link (Solid)</option>
-                            {/* REMOVED MANUAL OPTION: <option value="Change Over Switch Open">Change Over Switch (Open Execution)</option> */}
-                            {isChangeOverMode && <option value="Change Over Switch Open">Change Over Switch (Open Execution)</option>}
+                            <option value="Direct" style={optionStyle}>Direct Link (Solid)</option>
+                            {isChangeOverMode && <option value="Change Over Switch Open" style={optionStyle}>Change Over Switch (Open Execution)</option>}
                         </>
                     ) : null)}
                 </select>
@@ -540,43 +551,47 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                 <select
                     value={effectivePole || ""}
                     onChange={(e) => onChange("Pole", e.target.value)}
-                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    className="w-full text-xs p-1 rounded border"
+                    style={inputStyle}
                     disabled={!effectiveType || isChangeOver || (isSfu && poles.length <= 1)}
                 >
-                    <option value="">Select Pole...</option>
-                    {poles.map((p: string) => <option key={p} value={p}>{p}</option>)}
+                    <option value="" style={optionStyle}>Select Pole...</option>
+                    {poles.map((p: string) => <option key={p} value={p} style={optionStyle}>{p}</option>)}
                 </select>
 
                 <select
                     value={rating || ""}
                     onChange={(e) => onChange("Current Rating", e.target.value)}
-                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    className="w-full text-xs p-1 rounded border"
+                    style={inputStyle}
                     disabled={!effectiveType || (!isSfu && !isChangeOver && !effectivePole)}
                 >
-                    <option value="">Select Rating...</option>
-                    {ratings.map((r: string) => <option key={r} value={r}>{r}</option>)}
+                    <option value="" style={optionStyle}>Select Rating...</option>
+                    {ratings.map((r: string) => <option key={r} value={r} style={optionStyle}>{r}</option>)}
                 </select>
 
                 <select
                     value={company || ""}
                     onChange={(e) => onChange("Company", e.target.value)}
-                    className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                    className="w-full text-xs p-1 rounded border"
+                    style={inputStyle}
                     disabled={!rating}
                 >
-                    <option value="">Select Company...</option>
-                    {companies.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                    <option value="" style={optionStyle}>Select Company...</option>
+                    {companies.map((c: string) => <option key={c} value={c} style={optionStyle}>{c}</option>)}
                 </select>
 
                 {showPhase && (
                     <select
                         value={phase || ""}
                         onChange={(e) => onChange("Phase", e.target.value)}
-                        className="w-full text-xs p-1 rounded border border-gray-300 dark:border-gray-700 bg-transparent"
+                        className="w-full text-xs p-1 rounded border"
+                        style={inputStyle}
                     >
-                        <option value="">Select Phase...</option>
-                        <option value="R">R Phase</option>
-                        <option value="Y">Y Phase</option>
-                        <option value="B">B Phase</option>
+                        <option value="" style={optionStyle}>Select Phase...</option>
+                        <option value="R" style={optionStyle}>R Phase</option>
+                        <option value="Y" style={optionStyle}>Y Phase</option>
+                        <option value="B" style={optionStyle}>B Phase</option>
                     </select>
                 )}
 
@@ -595,13 +610,21 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         );
     };
 
+    const containerStyle = {
+        backgroundColor: colors.panelBackground,
+        color: colors.text,
+        borderColor: colors.border
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-white dark:bg-slate-900 w-[95vw] h-[90vh] rounded-xl shadow-2xl flex flex-col border border-white/10 overflow-hidden">
-                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-slate-900/50">
+            <div className="w-[95vw] h-[90vh] rounded-xl shadow-2xl flex flex-col border border-white/10 overflow-hidden"
+                style={containerStyle}>
+                <div className="flex justify-between items-center p-4 border-b bg-gray-50/50"
+                    style={{ borderColor: colors.border, backgroundColor: 'rgba(0,0,0,0.02)' }}>
                     <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: colors.text }}>
                         <span>Visual Panel Designer</span>
-                        <span className="text-sm font-normal opacity-50 px-2 py-0.5 border rounded-full">LT Cubical Panel</span>
+                        <span className="text-sm font-normal opacity-50 px-2 py-0.5 border rounded-full" style={{ borderColor: colors.border }}>LT Cubical Panel</span>
                     </h2>
                     <div className="flex gap-2">
                         <button
@@ -620,7 +643,8 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                 </div>
 
                 <div className="flex-1 flex overflow-hidden">
-                    <div className="w-64 border-r border-gray-200 dark:border-gray-800 p-4 space-y-6 overflow-y-auto bg-gray-50/50 dark:bg-black/20">
+                    <div className="w-64 border-r p-4 space-y-6 overflow-y-auto"
+                        style={{ borderColor: colors.border, backgroundColor: 'rgba(0,0,0,0.02)' }}>
                         {/* Global Settings */}
                         <div className="space-y-4">
                             <div>
@@ -629,10 +653,11 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                     value={properties["Incomer Count"]}
                                     onChange={(e) => handleUpdateProperty("Incomer Count", e.target.value)}
                                     className="w-full p-2 text-sm rounded border bg-transparent"
+                                    style={{ borderColor: colors.border, color: colors.text }}
                                 >
-                                    <option value="1">1 Incomer</option>
-                                    <option value="2">2 Incomers</option>
-                                    <option value="3">3 Incomers</option>
+                                    <option value="1" className="bg-white dark:bg-slate-800">1 Incomer</option>
+                                    <option value="2" className="bg-white dark:bg-slate-800">2 Incomers</option>
+                                    <option value="3" className="bg-white dark:bg-slate-800">3 Incomers</option>
                                 </select>
                             </div>
 
@@ -641,7 +666,13 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                 <div>
                                     <label className="text-xs font-bold uppercase opacity-60 mb-1 block">System Configuration</label>
                                     <div className="flex flex-col gap-2">
-                                        <label className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${!isChangeOverMode ? "bg-blue-100 border-blue-500 dark:bg-blue-900/30" : "border-transparent hover:bg-gray-100 dark:hover:bg-slate-800"}`}>
+                                        <label
+                                            className={`flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800`}
+                                            style={{
+                                                borderColor: !isChangeOverMode ? (theme === 'dark' ? '#3b82f6' : '#3b82f6') : 'transparent',
+                                                backgroundColor: !isChangeOverMode ? (theme === 'dark' ? 'rgba(30, 58, 138, 0.5)' : '#dbeafe') : 'transparent'
+                                            }}
+                                        >
                                             <input
                                                 type="radio"
                                                 name="systemLink"
@@ -651,7 +682,13 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                             />
                                             <span className="text-sm">Bus Coupler System</span>
                                         </label>
-                                        <label className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${isChangeOverMode ? "bg-blue-100 border-blue-500 dark:bg-blue-900/30" : "border-transparent hover:bg-gray-100 dark:hover:bg-slate-800"}`}>
+                                        <label
+                                            className={`flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800`}
+                                            style={{
+                                                borderColor: isChangeOverMode ? (theme === 'dark' ? '#3b82f6' : '#3b82f6') : 'transparent',
+                                                backgroundColor: isChangeOverMode ? (theme === 'dark' ? 'rgba(30, 58, 138, 0.5)' : '#dbeafe') : 'transparent'
+                                            }}
+                                        >
                                             <input
                                                 type="radio"
                                                 name="systemLink"
@@ -670,12 +707,32 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                     </div>
                                 </div>
                             )}
+
+                            {/* Busbar Details */}
+                            <div>
+                                <label className="text-xs font-bold uppercase opacity-60 mb-1 block">Busbar Details</label>
+                                <div className="space-y-2">
+                                    <label className="text-xs opacity-70 block">Busbar Material</label>
+                                    <select
+                                        value={properties["Busbar Material"] || "Aluminium"}
+                                        onChange={(e) => handleUpdateProperty("Busbar Material", e.target.value)}
+                                        className="w-full p-2 text-sm rounded border bg-transparent"
+                                        style={{ borderColor: colors.border, color: colors.text }}
+                                    >
+                                        <option value="Aluminium" className="bg-white dark:bg-slate-800">Aluminium</option>
+                                        <option value="Copper" className="bg-white dark:bg-slate-800">Copper</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Selection Logic */}
                         {selectedIds.length > 0 && selectedIds[0].startsWith("Incomer") ? (
-                            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-800">
-                                <h3 className="text-sm font-bold text-green-700 dark:text-green-300 mb-2">Incomer Config</h3>
+                            <div className="p-3 rounded border" style={{
+                                backgroundColor: theme === 'dark' ? 'rgba(20, 83, 45, 0.4)' : '#f0fdf4',
+                                borderColor: theme === 'dark' ? '#166534' : '#dcfce7'
+                            }}>
+                                <h3 className="text-sm font-bold mb-2" style={{ color: theme === 'dark' ? '#86efac' : '#15803d' }}>Incomer Config</h3>
                                 {(() => {
                                     const section = selectedIds[0].split(":")[1];
                                     return (
@@ -697,8 +754,11 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                 })()}
                             </div>
                         ) : selectedIds.length > 0 && selectedIds[0].startsWith("Coupler") ? (
-                            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-100 dark:border-purple-800">
-                                <h3 className="text-sm font-bold text-purple-700 dark:text-purple-300 mb-2">Coupler Config</h3>
+                            <div className="p-3 rounded border" style={{
+                                backgroundColor: theme === 'dark' ? 'rgba(88, 28, 135, 0.4)' : '#faf5ff',
+                                borderColor: theme === 'dark' ? '#6b21a8' : '#f3e8ff'
+                            }}>
+                                <h3 className="text-sm font-bold mb-2" style={{ color: theme === 'dark' ? '#d8b4fe' : '#7e22ce' }}>Coupler Config</h3>
                                 {(() => {
                                     const section = selectedIds[0].split(":")[1];
                                     return (
@@ -719,8 +779,11 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                                 })()}
                             </div>
                         ) : selectedIds.length > 0 && (
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-800">
-                                <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300 mb-2">{selectedIds.length} Items Selected</h3>
+                            <div className="p-3 rounded border" style={{
+                                backgroundColor: theme === 'dark' ? 'rgba(30, 58, 138, 0.4)' : '#eff6ff',
+                                borderColor: theme === 'dark' ? '#1e40af' : '#dbeafe'
+                            }}>
+                                <h3 className="text-sm font-bold mb-2" style={{ color: theme === 'dark' ? '#93c5fd' : '#1d4ed8' }}>{selectedIds.length} Items Selected</h3>
                                 {selectedIds.length === 1 ? (
                                     (() => {
                                         const idx = parseInt(selectedIds[0]);
@@ -759,11 +822,12 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
                     </div>
 
                     {/* Visualizer Area */}
-                    <div className="flex-1 overflow-auto p-8 bg-slate-100 dark:bg-slate-900 flex justify-center items-start relative"
+                    <div className="flex-1 overflow-auto p-8 flex justify-center items-start relative"
+                        style={{ backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9' }}
                         onClick={() => { setSelectedIds([]); setContextMenu(null); }}
                         onContextMenu={(e) => { e.preventDefault(); }}
                     >
-                        <div dangerouslySetInnerHTML={{ __html: PanelRenderer.generateSvg(localItem) }} className="pointer-events-none" />
+                        <div dangerouslySetInnerHTML={{ __html: PanelRenderer.generateSvg(localItem) }} className="pointer-events-none" style={{ filter: theme === 'dark' ? 'invert(1) hue-rotate(180deg)' : 'none' }} />
 
                         <div
                             className="absolute"

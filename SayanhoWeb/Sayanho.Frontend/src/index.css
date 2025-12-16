@@ -222,6 +222,13 @@ button {
     animation: slideInBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+
 .animate-fade-in {
     animation: fadeIn 0.8s ease-out forwards;
+}
+
+/* Global Dark Mode Dropdown Fix */
+.dark option {
+    background-color: #1e293b; /* slate-800 */
+    color: #f1f5f9; /* slate-100 */
 }

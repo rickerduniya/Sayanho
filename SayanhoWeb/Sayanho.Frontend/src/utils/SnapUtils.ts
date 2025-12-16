@@ -3,125 +3,142 @@ import { CanvasItem } from '../types';
 interface SnapResult {
     x: number;
     y: number;
+    snappedX: boolean;
+    snappedY: boolean;
+}
+
+interface AlignmentResult {
+    x: number;
+    y: number;
     horizontalGuides: number[];
     verticalGuides: number[];
 }
 
-export const calculateAlignmentGuides = (
-    movingItem: CanvasItem,
-    otherItems: CanvasItem[],
+export const calculateSnapPosition = (
+    movedItem: CanvasItem,
     newX: number,
     newY: number,
-    snapThreshold: number = 5,
-    nearbyThreshold: number = 100,
-    scale: number = 1
+    otherItems: CanvasItem[],
+    tolerance: number = 10
 ): SnapResult => {
-    const result: SnapResult = {
-        x: newX,
-        y: newY,
-        horizontalGuides: [],
-        verticalGuides: []
-    };
+    let finalX = newX;
+    let finalY = newY;
+    let snappedX = false;
+    let snappedY = false;
 
-    const snapDist = snapThreshold / scale;
-    const guideDist = nearbyThreshold / scale;
+    let minDeltaX = tolerance;
+    let minDeltaY = tolerance;
 
-    // Moving Item Edges
-    const mWidth = movingItem.size.width;
-    const mHeight = movingItem.size.height;
-
-    const mLeft = newX;
-    const mRight = newX + mWidth;
-    const mCenterX = newX + mWidth / 2;
-
-    const mTop = newY;
-    const mBottom = newY + mHeight;
-    const mCenterY = newY + mHeight / 2;
-
-    let bestDeltaX = Infinity;
-    let bestDeltaY = Infinity;
-
-    // Helper to add guide if unique
-    const addHGuide = (y: number) => {
-        if (!result.horizontalGuides.includes(y)) result.horizontalGuides.push(y);
-    };
-    const addVGuide = (x: number) => {
-        if (!result.verticalGuides.includes(x)) result.verticalGuides.push(x);
-    };
-
-    for (const item of otherItems) {
-        if (item.uniqueID === movingItem.uniqueID) continue;
-
-        // Target Item Edges
-        const tLeft = item.position.x;
-        const tRight = item.position.x + item.size.width;
-        const tCenterX = item.position.x + item.size.width / 2;
-
-        const tTop = item.position.y;
-        const tBottom = item.position.y + item.size.height;
-        const tCenterY = item.position.y + item.size.height / 2;
-
-        // --- Vertical Alignment (X) ---
-
-        // Check for Guides (Nearby)
-        if (Math.abs(mLeft - tLeft) < guideDist || Math.abs(mRight - tLeft) < guideDist) addVGuide(tLeft);
-        if (Math.abs(mLeft - tRight) < guideDist || Math.abs(mRight - tRight) < guideDist) addVGuide(tRight);
-        if (Math.abs(mCenterX - tCenterX) < guideDist) addVGuide(tCenterX);
-
-        // Check for Snapping (Closest)
-        // Left to Left
-        let delta = tLeft - mLeft;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaX)) bestDeltaX = delta;
-
-        // Left to Right
-        delta = tRight - mLeft;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaX)) bestDeltaX = delta;
-
-        // Right to Left
-        delta = tLeft - mRight;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaX)) bestDeltaX = delta;
-
-        // Right to Right
-        delta = tRight - mRight;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaX)) bestDeltaX = delta;
-
-        // Center to Center
-        delta = tCenterX - mCenterX;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaX)) bestDeltaX = delta;
-
-
-        // --- Horizontal Alignment (Y) ---
-
-        // Check for Guides (Nearby)
-        if (Math.abs(mTop - tTop) < guideDist || Math.abs(mBottom - tTop) < guideDist) addHGuide(tTop);
-        if (Math.abs(mTop - tBottom) < guideDist || Math.abs(mBottom - tBottom) < guideDist) addHGuide(tBottom);
-        if (Math.abs(mCenterY - tCenterY) < guideDist) addHGuide(tCenterY);
-
-        // Check for Snapping (Closest)
-        // Top to Top
-        delta = tTop - mTop;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaY)) bestDeltaY = delta;
-
-        // Top to Bottom
-        delta = tBottom - mTop;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaY)) bestDeltaY = delta;
-
-        // Bottom to Top
-        delta = tTop - mBottom;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaY)) bestDeltaY = delta;
-
-        // Bottom to Bottom
-        delta = tBottom - mBottom;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaY)) bestDeltaY = delta;
-
-        // Center to Center
-        delta = tCenterY - mCenterY;
-        if (Math.abs(delta) < snapDist && Math.abs(delta) < Math.abs(bestDeltaY)) bestDeltaY = delta;
+    // Get connectors of the moved item relative to its new position
+    const movedConnectors: { x: number; y: number; key: string }[] = [];
+    if (movedItem.connectionPoints) {
+        Object.entries(movedItem.connectionPoints).forEach(([key, point]) => {
+            movedConnectors.push({
+                x: newX + point.x,
+                y: newY + point.y,
+                key
+            });
+        });
     }
 
-    // Apply Snap
-    if (bestDeltaX !== Infinity) result.x += bestDeltaX;
-    if (bestDeltaY !== Infinity) result.y += bestDeltaY;
+    // Iterate through all other items
+    otherItems.forEach(otherItem => {
+        if (!otherItem.connectionPoints) return;
 
-    return result;
+        Object.entries(otherItem.connectionPoints).forEach(([otherKey, otherPoint]) => {
+            const otherAbsX = otherItem.position.x + otherPoint.x;
+            const otherAbsY = otherItem.position.y + otherPoint.y;
+
+            // Check against all connectors of the moved item
+            movedConnectors.forEach(movedConn => {
+                const diffX = otherAbsX - movedConn.x;
+                const diffY = otherAbsY - movedConn.y;
+
+                // Check Horizontal Alignment (same Y)
+                if (Math.abs(diffY) < minDeltaY) {
+                    minDeltaY = Math.abs(diffY);
+                    finalY = newY + diffY; // Adjust item position by the difference
+                    snappedY = true;
+                }
+
+                // Check Vertical Alignment (same X)
+                if (Math.abs(diffX) < minDeltaX) {
+                    minDeltaX = Math.abs(diffX);
+                    finalX = newX + diffX; // Adjust item position by the difference
+                    snappedX = true;
+                }
+            });
+        });
+    });
+
+    return { x: finalX, y: finalY, snappedX, snappedY };
+};
+
+export const calculateAlignmentGuides = (
+    item: CanvasItem,
+    otherItems: CanvasItem[],
+    x: number,
+    y: number,
+    snapThreshold: number,
+    nearbyThreshold: number,
+    scale: number
+): AlignmentResult => {
+    let newX = x;
+    let newY = y;
+    const horizontalGuides: number[] = [];
+    const verticalGuides: number[] = [];
+
+    // Simple bounds based alignment (edges and center)
+    const itemW = item.size.width;
+    const itemH = item.size.height;
+    const centerX = x + itemW / 2;
+    const centerY = y + itemH / 2;
+    const rightX = x + itemW;
+    const bottomY = y + itemH;
+
+    let snappedX = false;
+    let snappedY = false;
+
+    for (const other of otherItems) {
+        if (other.uniqueID === item.uniqueID) continue;
+
+        const otherX = other.position.x;
+        const otherY = other.position.y;
+        const otherW = other.size.width;
+        const otherH = other.size.height;
+        const otherCX = otherX + otherW / 2;
+        const otherCY = otherY + otherH / 2;
+        const otherR = otherX + otherW;
+        const otherB = otherY + otherH;
+
+        // Vertical Alignments (X-axis modification)
+        if (!snappedX) {
+            // Left to Left
+            if (Math.abs(x - otherX) < snapThreshold) { newX = otherX; verticalGuides.push(otherX); snappedX = true; }
+            // Left to Right
+            else if (Math.abs(x - otherR) < snapThreshold) { newX = otherR; verticalGuides.push(otherR); snappedX = true; }
+            // Right to Left
+            else if (Math.abs(rightX - otherX) < snapThreshold) { newX = otherX - itemW; verticalGuides.push(otherX); snappedX = true; }
+            // Right to Right
+            else if (Math.abs(rightX - otherR) < snapThreshold) { newX = otherR - itemW; verticalGuides.push(otherR); snappedX = true; }
+            // Center to Center
+            else if (Math.abs(centerX - otherCX) < snapThreshold) { newX = otherCX - itemW / 2; verticalGuides.push(otherCX); snappedX = true; }
+        }
+
+        // Horizontal Alignments (Y-axis modification)
+        if (!snappedY) {
+            // Top to Top
+            if (Math.abs(y - otherY) < snapThreshold) { newY = otherY; horizontalGuides.push(otherY); snappedY = true; }
+            // Top to Bottom
+            else if (Math.abs(y - otherB) < snapThreshold) { newY = otherB; horizontalGuides.push(otherB); snappedY = true; }
+            // Bottom to Top
+            else if (Math.abs(bottomY - otherY) < snapThreshold) { newY = otherY - itemH; horizontalGuides.push(otherY); snappedY = true; }
+            // Bottom to Bottom
+            else if (Math.abs(bottomY - otherB) < snapThreshold) { newY = otherB - itemH; horizontalGuides.push(otherB); snappedY = true; }
+            // Center to Center
+            else if (Math.abs(centerY - otherCY) < snapThreshold) { newY = otherCY - itemH / 2; horizontalGuides.push(otherCY); snappedY = true; }
+        }
+    }
+
+    return { x: newX, y: newY, horizontalGuides, verticalGuides };
 };

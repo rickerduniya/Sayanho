@@ -4,6 +4,8 @@ import { apiTracer } from '../utils/apiTracer';
 import { useStore } from '../store/useStore';
 import { stripSheetsForApi, compressPayload, logPayloadStats, filterTextBoxesFromSheets } from '../utils/payloadUtils';
 
+import { CacheService } from './CacheService';
+
 const API_URL = import.meta.env.VITE_API_URL;
 // Debug logging for API
 const DEBUG = true;
@@ -94,7 +96,12 @@ if (DEBUG) {
 
 export const api = {
     getItems: async (): Promise<ItemData[]> => {
+        const cacheKey = CacheService.generateKey('items');
+        const cached = CacheService.get<ItemData[]>(cacheKey);
+        if (cached) return cached;
+
         const response = await axios.get(`${API_URL}/items`);
+        CacheService.set(cacheKey, response.data);
         return response.data;
     },
 
@@ -103,9 +110,18 @@ export const api = {
         alternativeCompany1: string;
         alternativeCompany2: string;
     }> => {
+        const cacheKey = CacheService.generateKey('properties', { name, condition });
+        const cached = CacheService.get<{
+            properties: Record<string, string>[];
+            alternativeCompany1: string;
+            alternativeCompany2: string;
+        }>(cacheKey);
+        if (cached) return cached;
+
         const response = await axios.get(`${API_URL}/items/properties`, {
             params: { name, condition }
         });
+        CacheService.set(cacheKey, response.data);
         return response.data;
     },
 
