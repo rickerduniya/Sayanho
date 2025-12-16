@@ -1691,43 +1691,49 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                         onContextMenu={(e) => { e.preventDefault(); setMenu({ ...menu, visible: false }); }}
                     />
                     <div
-                        className="fixed bg-white border border-gray-200 rounded shadow-lg text-xs py-0.5 z-[9999] min-w-[140px]"
-                        style={{ top: menu.y, left: menu.x }}
+                        className="fixed border rounded shadow-lg text-xs py-0.5 z-[9999] min-w-[140px]"
+                        style={{
+                            top: menu.y,
+                            left: menu.x,
+                            backgroundColor: colors.menuBackground,
+                            borderColor: colors.border,
+                            color: colors.menuText
+                        }}
                     >
                         {/* Item Menu */}
                         {menu.itemId && (
                             <>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => { deleteSelected(); setMenu({ ...menu, visible: false }); }}
                                 >
                                     {selectedItemIds.length > 1 ? `Delete ${selectedItemIds.length} Items` : "Delete Item"}
                                 </button>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => { copySelection(); setMenu({ ...menu, visible: false }); }}
                                 >
                                     {selectedItemIds.length > 1 ? `Copy ${selectedItemIds.length} Items` : "Copy Item"}
                                 </button>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 disabled:opacity-50 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => { pasteSelection(); setMenu({ ...menu, visible: false }); }}
                                     disabled={!copiedItems || copiedItems.length === 0}
                                 >
                                     {copiedItems && copiedItems.length > 1 ? `Paste ${copiedItems.length} Items` : "Paste Item"}
                                 </button>
-                                <div className="border-t border-gray-200 my-1"></div>
+                                <div className="border-t my-1" style={{ borderColor: colors.border }}></div>
                                 {selectedItemIds.length <= 1 && (
                                     <>
                                         <button
-                                            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                            className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                             onClick={() => { rotateItem(menu.itemId!, 'clockwise'); setMenu({ ...menu, visible: false }); }}
                                         >Rotate Clockwise</button>
                                         <button
-                                            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                            className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                             onClick={() => { rotateItem(menu.itemId!, 'counter-clockwise'); setMenu({ ...menu, visible: false }); }}
                                         >Rotate Anti-Clockwise</button>
-                                        <div className="border-t border-gray-200 my-1"></div>
+                                        <div className="border-t my-1" style={{ borderColor: colors.border }}></div>
                                     </>
                                 )}
                                 {/* Portal-specific actions */}
@@ -1745,19 +1751,19 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                             {canCreatePair && (
                                                 <>
                                                     <button
-                                                        className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                                        className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                                         onClick={() => {
                                                             setPendingPair({ netId, direction });
                                                             setShowSelectSheet(true);
                                                             setMenu({ ...menu, visible: false });
                                                         }}
                                                     >Create paired portal…</button>
-                                                    <div className="border-t border-gray-200 my-1"></div>
+                                                    <div className="border-t my-1" style={{ borderColor: colors.border }}></div>
                                                 </>
                                             )}
                                             {counterpart && (
                                                 <button
-                                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                                     onClick={() => {
                                                         const dest = sheets.find(sh => sh.canvasItems.some(ci => ci.uniqueID === counterpart.uniqueID));
                                                         if (dest) {
@@ -1772,7 +1778,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                     );
                                 })()}
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => {
                                         const item = currentSheet?.canvasItems.find(i => i.uniqueID === menu.itemId);
                                         if (item) updateItemLock(menu.itemId!, !item.locked);
@@ -1788,7 +1794,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                         {menu.connectorIndex !== null && (
                             <>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => {
                                         if (currentSheet && updateSheet) {
                                             const next = currentSheet.storedConnectors.filter((_, i) => i !== menu.connectorIndex);
@@ -1798,19 +1804,19 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                     }}
                                 >Delete Connection</button>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => {
                                         setEditMode(true);
                                         setMenu({ ...menu, visible: false });
                                     }}
                                 >Properties</button>
-                                <div className="border-t border-gray-200 my-1"></div>
+                                <div className="border-t my-1" style={{ borderColor: colors.border }}></div>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => { copyConnectorProperties(menu.connectorIndex!); setMenu({ ...menu, visible: false }); }}
                                 >Copy Properties</button>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 disabled:opacity-50 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => { pasteConnectorProperties(menu.connectorIndex!); setMenu({ ...menu, visible: false }); }}
                                     disabled={!copiedConnectorProperties}
                                 >Paste Properties</button>
@@ -1821,7 +1827,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                         {menu.itemId === null && menu.connectorIndex === null && (
                             <>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => {
                                         const stageX = (menu.x - position.x) / scale;
                                         const stageY = (menu.y - position.y) / scale;
@@ -1829,9 +1835,9 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                                         setMenu({ ...menu, visible: false });
                                     }}
                                 >Create Portal…</button>
-                                <div className="border-t border-gray-200 my-1"></div>
+                                <div className="border-t my-1" style={{ borderColor: colors.border }}></div>
                                 <button
-                                    className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                                    className={`block w-full text-left px-3 py-1 disabled:opacity-50 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
                                     onClick={() => {
                                         const stageX = (menu.x - position.x) / scale;
                                         const stageY = (menu.y - position.y) / scale;

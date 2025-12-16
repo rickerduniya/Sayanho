@@ -17,6 +17,7 @@ export interface ApiTraceEntry {
 class ApiTracer {
     private traces: ApiTraceEntry[] = [];
     private maxTraces = 100; // Keep last 100 traces
+    private listeners: (() => void)[] = [];
 
     addTrace(trace: ApiTraceEntry) {
         this.traces.push(trace);
@@ -24,6 +25,7 @@ class ApiTracer {
         if (this.traces.length > this.maxTraces) {
             this.traces = this.traces.slice(-this.maxTraces);
         }
+        this.notifyListeners();
     }
 
     getTraces(): ApiTraceEntry[] {
@@ -32,6 +34,19 @@ class ApiTracer {
 
     clearTraces() {
         this.traces = [];
+        this.notifyListeners();
+    }
+
+    addListener(callback: () => void) {
+        this.listeners.push(callback);
+    }
+
+    removeListener(callback: () => void) {
+        this.listeners = this.listeners.filter(cb => cb !== callback);
+    }
+
+    private notifyListeners() {
+        this.listeners.forEach(cb => cb());
     }
 
     getFormattedTraces(): string {

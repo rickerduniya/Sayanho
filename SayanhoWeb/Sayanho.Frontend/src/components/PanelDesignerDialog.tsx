@@ -116,6 +116,23 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
     const handleUpdateProperty = (key: string, value: string) => {
         const newProps = { ...properties, [key]: value };
+        if (key === "Incomer Count") {
+            const prevCountRaw = parseInt(properties["Incomer Count"] || "1", 10);
+            const prevCount = Number.isFinite(prevCountRaw) ? Math.max(prevCountRaw, 1) : 1;
+            const nextCountRaw = parseInt(value || "1", 10);
+            const nextCount = Number.isFinite(nextCountRaw) ? Math.max(nextCountRaw, 1) : 1;
+
+            if (nextCount < prevCount) {
+                const nextOutgoings = (localItem.outgoing || []).filter((o: any) => {
+                    const secRaw = parseInt((o?.["Section"] || "").toString(), 10);
+                    if (!Number.isFinite(secRaw)) return true;
+                    return secRaw >= 1 && secRaw <= nextCount;
+                });
+                setLocalItem({ ...localItem, properties: [newProps], outgoing: nextOutgoings });
+                return;
+            }
+        }
+
         setLocalItem({ ...localItem, properties: [newProps] });
     };
 

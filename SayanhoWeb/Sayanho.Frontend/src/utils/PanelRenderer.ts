@@ -16,8 +16,8 @@ export class PanelRenderer {
         const topSpace = 180; // Increased height for complex routing
         const busbarY = margin + topSpace;
         const busbarHeight = 10;
-        const outgoingLength = 60;
-        const bottomLabelSpace = 35;
+        const outgoingLength = 90; // Increased from 60
+        const bottomLabelSpace = 45; // Increased from 35
         const outgoingSpacing = 65;
         const minSectionWidth = 140;
         const couplerWidth = 80;
@@ -124,22 +124,24 @@ export class PanelRenderer {
                     // 6. Vertical Drop into Box
                     svg += `<line x1="${entryX}" y1="${horizontalLegY}" x2="${entryX}" y2="${switchBoxTopY}" stroke="#000" stroke-width="2.5"/>`;
 
-                    // Labels - Moved slightly more right/left to avoid overlap
+                    // Labels - Standardized to match Normal Mode
+                    // Always on the right side
+                    const labelX = centerX + 16;
                     const rate = properties[`Incomer${secIndex}_Rating`];
                     const type = properties[`Incomer${secIndex}_Type`];
-                    const labelX = isRight ? centerX + 20 : centerX - 20; // Use offsets for clear space
-                    const anchor = isRight ? "start" : "end";
 
                     if (rate) {
-                        svg += `<text x="${labelX}" y="${incomerYStart + 12}" text-anchor="${anchor}" font-family="Arial" font-size="9" fill="#000" font-weight="bold">${rate}</text>`;
+                        svg += `<text x="${labelX}" y="${incomerYStart + 18}" font-family="Arial" font-size="12" fill="#000" font-weight="bold">${rate}</text>`;
                         if (type) {
+                            // Fix: Add default for SFU
+                            const pole = properties[`Incomer${secIndex}_Pole`] || (type === "Main Switch Open" ? "TPN" : "");
+                            if (pole) svg += `<text x="${labelX}" y="${incomerYStart + 30}" font-family="Arial" font-size="11" fill="#000">${pole}</text>`;
+
                             const displayType = type === "Main Switch Open" ? "SFU" : (type === "MCCB" ? "MCCB" : type);
-                            svg += `<text x="${labelX}" y="${incomerYStart + 22}" text-anchor="${anchor}" font-family="Arial" font-size="8" fill="#000">${displayType}</text>`;
-                            const pole = properties[`Incomer${secIndex}_Pole`] || "";
-                            if (pole) svg += `<text x="${labelX}" y="${incomerYStart + 32}" text-anchor="${anchor}" font-family="Arial" font-size="8" fill="#000">${pole}</text>`;
+                            svg += `<text x="${labelX}" y="${incomerYStart + 42}" font-family="Arial" font-size="11" fill="#000">${displayType}</text>`;
                         }
                     }
-                    svg += `<text x="${centerX}" y="${incomerYStart - 8}" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="#000">I/C ${secIndex}</text>`;
+                    svg += `<text x="${centerX + 25}" y="${incomerYStart + 10}" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#000">I/C ${secIndex}</text>`;
                 };
 
                 // Draw Legs
@@ -165,13 +167,13 @@ export class PanelRenderer {
                 // Vertical Text Labels (Rotated -90deg)
                 // Adjust positions inside box to be clearer. Width is 50. Center is blockCenterX. Left edge is blockCenterX - 25.
                 // Move text to blockCenterX - 15 and blockCenterX + 15
-                svg += `<text x="${blockCenterX - 12}" y="${switchBoxY + 50}" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX - 12},${switchBoxY + 50})">C/O 415V</text>`;
+                svg += `<text x="${blockCenterX - 12}" y="${switchBoxY + 50}" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX - 12},${switchBoxY + 50})">C/O 415V</text>`;
                 // "Switch" or Rating on right side
-                svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 35}" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 35})">Switch</text>`;
+                svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 35}" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 35})">Switch</text>`;
 
                 const coRating = properties[`BusCoupler${sec}_Rating`] || "";
                 if (coRating)
-                    svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 60}" text-anchor="middle" font-family="Arial" font-size="8" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 60})">${coRating}</text>`;
+                    svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 60}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 60})">${coRating}</text>`;
 
 
                 // Connection to Busbar
@@ -183,9 +185,9 @@ export class PanelRenderer {
                 svg += `<rect x="${busbarStartX}" y="${busbarY}" width="${busbarEndX - busbarStartX}" height="${busbarHeight}" fill="#fff" stroke="#000" stroke-width="2"/>`;
 
                 const busbarMaterial = properties["Busbar Material"] || "Aluminium";
-                svg += `<text x="${margin + 6}" y="${incomerYStart}" text-anchor="left" font-family="Arial" font-size="11" fill="#000" font-weight="bold">Cubicle Panel</text>`;
-                svg += `<text x="${margin + 6}" y="${busbarY - 18}" text-anchor="left" font-family="Arial" font-size="11" fill="#000" font-weight="bold">${busbarMaterial}</text>`;
-                svg += `<text x="${margin + 6}" y="${busbarY - 7}" text-anchor="left" font-family="Arial" font-size="11" fill="#000" font-weight="bold">Busbar</text>`;
+                svg += `<text x="${margin + 6}" y="${incomerYStart}" text-anchor="left" font-family="Arial" font-size="14" fill="#000" font-weight="bold">Cubicle Panel</text>`;
+                svg += `<text x="${margin + 6}" y="${busbarY - 22}" text-anchor="left" font-family="Arial" font-size="14" fill="#000" font-weight="bold">${busbarMaterial}</text>`;
+                svg += `<text x="${margin + 6}" y="${busbarY - 7}" text-anchor="left" font-family="Arial" font-size="14" fill="#000" font-weight="bold">Busbar</text>`;
 
 
                 // --- OUTGOINGS (shared bus for both sections) ---
@@ -203,13 +205,14 @@ export class PanelRenderer {
                         const rating = out["Current Rating"] || "";
                         const type = out["Type"] || "";
                         const displayType = type === "Main Switch Open" ? "SFU" : type;
-                        const pole = out["Pole"] || "";
+                        // Fix SFU Pole
+                        const pole = out["Pole"] || (displayType === "SFU" ? "TPN" : "");
                         const globalIdx = outgoings.findIndex((o: any) => o === out) + 1;
 
-                        svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 20}" text-anchor="end" font-family="Arial" font-size="8" fill="#000" font-weight="bold">OG${globalIdx}</text>`;
-                        if (rating) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 28}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${rating}</text>`;
-                        if (pole) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 35}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${pole}</text>`;
-                        if (displayType) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 42}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${displayType}</text>`;
+                        svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 20}" text-anchor="end" font-family="Arial" font-size="11" fill="#000" font-weight="bold">OG${globalIdx}</text>`;
+                        if (rating) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 32}" text-anchor="end" font-family="Arial" font-size="10" fill="#000">${rating}</text>`;
+                        if (pole) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 44}" text-anchor="end" font-family="Arial" font-size="10" fill="#000">${pole}</text>`;
+                        if (displayType) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 56}" text-anchor="end" font-family="Arial" font-size="10" fill="#000">${displayType}</text>`;
 
                         svg += greenDot.replace('cx="0" cy="0"', `cx="${ox}" cy="${totalHeight - margin}"`).replace('r="4"', 'r="3"').replace('cx=""', `cx="${ox}" cy="${totalHeight - margin}"`);
                     });
@@ -234,23 +237,33 @@ export class PanelRenderer {
                 const incomerType = properties[`Incomer${sec}_Type`];
                 const incomerRating = properties[`Incomer${sec}_Rating`];
 
-                svg += `<line x1="${sectionCenter}" y1="${busbarY + busbarHeight}" x2="${sectionCenter}" y2="${busbarY + busbarHeight - 20}" stroke="#000" stroke-width="2.5"/>`;
-                svg += `<line x1="${sectionCenter}" y1="${busbarY + busbarHeight - 20}" x2="${sectionCenter + 10}" y2="${busbarY + busbarHeight - 40}" stroke="#000" stroke-width="2.5"/>`;
-                svg += `<line x1="${sectionCenter}" y1="${busbarY + busbarHeight - 40}" x2="${sectionCenter}" y2="${margin}" stroke="#000" stroke-width="2.5"/>`;
+                const switchTop = incomerYStart + 25;
+                const switchBottom = switchTop + 20;
+
+                // 1. Top Line from Margin to Switch
+                svg += `<line x1="${sectionCenter}" y1="${margin}" x2="${sectionCenter}" y2="${switchTop}" stroke="#000" stroke-width="2.5"/>`;
+
+                // 2. Switch Symbol (At Top)
+                svg += `<line x1="${sectionCenter}" y1="${switchTop}" x2="${sectionCenter}" y2="${switchTop + 5}" stroke="#000" stroke-width="2.5"/>`;
+                svg += `<line x1="${sectionCenter}" y1="${switchTop + 5}" x2="${sectionCenter + 8}" y2="${switchBottom - 5}" stroke="#000" stroke-width="2"/>`;
+                svg += `<line x1="${sectionCenter}" y1="${switchBottom - 5}" x2="${sectionCenter}" y2="${switchBottom}" stroke="#000" stroke-width="2.5"/>`;
+
+                // 3. Line from Switch to Busbar
+                svg += `<line x1="${sectionCenter}" y1="${switchBottom}" x2="${sectionCenter}" y2="${busbarY}" stroke="#000" stroke-width="2.5"/>`;
 
                 if (incomerRating) {
                     // Position Normal Incomer Text
                     // Move slightly right
                     const labelX = sectionCenter + 16;
-                    svg += `<text x="${labelX}" y="${incomerYStart + 18}" font-family="Arial" font-size="9" fill="#000" font-weight="bold">${incomerRating}</text>`;
+                    svg += `<text x="${labelX}" y="${incomerYStart + 18}" font-family="Arial" font-size="12" fill="#000" font-weight="bold">${incomerRating}</text>`;
                     if (incomerType) {
                         const pole = properties[`Incomer${sec}_Pole`] || (incomerType === "Main Switch Open" ? "TPN" : "");
-                        if (pole) svg += `<text x="${labelX}" y="${incomerYStart + 27}" font-family="Arial" font-size="8" fill="#000">${pole}</text>`;
+                        if (pole) svg += `<text x="${labelX}" y="${incomerYStart + 30}" font-family="Arial" font-size="11" fill="#000">${pole}</text>`;
                         const displayType = incomerType === "Main Switch Open" ? "SFU" : incomerType;
-                        svg += `<text x="${labelX}" y="${incomerYStart + 36}" font-family="Arial" font-size="8" fill="#000">${displayType}</text>`;
+                        svg += `<text x="${labelX}" y="${incomerYStart + 42}" font-family="Arial" font-size="11" fill="#000">${displayType}</text>`;
                     }
                 }
-                svg += `<text x="${sectionCenter + 25}" y="${incomerYStart + 10}" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="#000">I/C ${sec}</text>`;
+                svg += `<text x="${sectionCenter + 25}" y="${incomerYStart + 10}" text-anchor="middle" font-family="Arial" font-size="12" font-weight="bold" fill="#000">I/C ${sec}</text>`;
                 svg += redDot.replace('cx="0" cy="0"', `cx="${sectionCenter}" cy="${incomerYStart}"`).replace('r="4"', 'r="3"').replace('cx=""', `cx="${sectionCenter}" cy="${incomerYStart}"`);
 
 
@@ -260,9 +273,9 @@ export class PanelRenderer {
                 svg += `<rect x="${busbarStartX}" y="${busbarY}" width="${busbarEndX - busbarStartX}" height="${busbarHeight}" fill="#fff" stroke="#000" stroke-width="2"/>`;
 
                 const busbarMaterial = properties["Busbar Material"] || "Aluminium";
-                svg += `<text x="${margin + 6}" y="${incomerYStart + 15}" text-anchor="left" font-family="Arial" font-size="11" fill="#000" font-weight="bold">Cubicle Panel</text>`;
-                svg += `<text x="${margin + 6}" y="${busbarY - 18}" text-anchor="left" font-family="Arial" font-size="11" fill="#000" font-weight="bold">${busbarMaterial}</text>`;
-                svg += `<text x="${margin + 6}" y="${busbarY - 7}" text-anchor="left" font-family="Arial" font-size="11" fill="#000" font-weight="bold">Busbar</text>`;
+                svg += `<text x="${margin + 6}" y="${incomerYStart + 15}" text-anchor="left" font-family="Arial" font-size="14" fill="#000" font-weight="bold">Cubicle Panel</text>`;
+                svg += `<text x="${margin + 6}" y="${busbarY - 22}" text-anchor="left" font-family="Arial" font-size="14" fill="#000" font-weight="bold">${busbarMaterial}</text>`;
+                svg += `<text x="${margin + 6}" y="${busbarY - 7}" text-anchor="left" font-family="Arial" font-size="14" fill="#000" font-weight="bold">Busbar</text>`;
 
                 // C. OUTGOINGS
                 const outCount = Math.max(sectionOutgoings.length, 1);
@@ -285,13 +298,14 @@ export class PanelRenderer {
                     const rating = out["Current Rating"] || "";
                     const type = out["Type"] || "";
                     const displayType = type === "Main Switch Open" ? "SFU" : type;
-                    const pole = out["Pole"] || "";
+                    // Fix: Add default for SFU
+                    const pole = out["Pole"] || (displayType === "SFU" ? "TPN" : "");
 
                     const globalIdx = outgoings.findIndex((o: any) => o === out) + 1;
-                    svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 20}" text-anchor="end" font-family="Arial" font-size="8" fill="#000" font-weight="bold">OG${globalIdx}</text>`;
-                    if (rating) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 28}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${rating}</text>`;
-                    if (pole) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 35}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${pole}</text>`;
-                    if (displayType) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 42}" text-anchor="end" font-family="Arial" font-size="7" fill="#000">${displayType}</text>`;
+                    svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 20}" text-anchor="end" font-family="Arial" font-size="11" fill="#000" font-weight="bold">OG${globalIdx}</text>`;
+                    if (rating) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 32}" text-anchor="end" font-family="Arial" font-size="10" fill="#000">${rating}</text>`;
+                    if (pole) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 44}" text-anchor="end" font-family="Arial" font-size="10" fill="#000">${pole}</text>`;
+                    if (displayType) svg += `<text x="${ox - 6}" y="${busbarY + busbarHeight + 56}" text-anchor="end" font-family="Arial" font-size="10" fill="#000">${displayType}</text>`;
 
                     // Green Dot for outgoing
                     svg += greenDot.replace('cx="0" cy="0"', `cx="${ox}" cy="${totalHeight - margin}"`).replace('r="4"', 'r="3"').replace('cx=""', `cx="${ox}" cy="${totalHeight - margin}"`);
@@ -302,7 +316,7 @@ export class PanelRenderer {
                     const couplerCenterX = currentX + sectionWidth + couplerWidth / 2;
                     const couplerType = properties[`BusCoupler${sec}_Type`] || "";
 
-                    svg += `<text x="${couplerCenterX}" y="${busbarY - 10}" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#000">Bus Coupler ${sec}</text>`;
+                    svg += `<text x="${couplerCenterX}" y="${busbarY - 10}" text-anchor="middle" font-family="Arial" font-size="11" font-weight="bold" fill="#000">Bus Coupler ${sec}</text>`;
 
                     const leftBusEnd = currentX + sectionWidth - 5;
                     const rightBusStart = currentX + sectionWidth + couplerWidth + 5;
@@ -310,7 +324,7 @@ export class PanelRenderer {
                     if (couplerType === "None" || couplerType === "Direct") {
                         svg += `<rect x="${leftBusEnd}" y="${busbarY}" width="${rightBusStart - leftBusEnd}" height="10" fill="#fff" stroke="#000" stroke-width="2"/>`;
                         if (couplerType === "Direct") {
-                            svg += `<text x="${couplerCenterX}" y="${busbarY + 20}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">(Direct)</text>`;
+                            svg += `<text x="${couplerCenterX}" y="${busbarY + 20}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000">(Direct)</text>`;
                         }
                     } else {
                         const switchGap = 12;
@@ -321,10 +335,10 @@ export class PanelRenderer {
                         svg += `<line x1="${leftBusEnd + 15}" y1="${busbarY + 5}" x2="${leftBusEnd + 25}" y2="${busbarY - 5}" stroke="#000" stroke-width="2.5"/>`;
                         svg += `<rect x="${leftBusEnd + 25 + switchGap}" y="${busbarY}" width="${rightBusStart - (leftBusEnd + 25 + switchGap)}" height="10" fill="#fff" stroke="#000" stroke-width="2"/>`;
 
-                        if (rating) svg += `<text x="${couplerCenterX}" y="${busbarY + 20}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">${rating}</text>`;
-                        if (pole) svg += `<text x="${couplerCenterX}" y="${busbarY + 28}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">${pole}</text>`;
+                        if (rating) svg += `<text x="${couplerCenterX}" y="${busbarY + 22}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000">${rating}</text>`;
+                        if (pole) svg += `<text x="${couplerCenterX}" y="${busbarY + 34}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000">${pole}</text>`;
                         const displayType = couplerType === "Main Switch Open" ? "SFU" : couplerType;
-                        svg += `<text x="${couplerCenterX}" y="${busbarY + 36}" text-anchor="middle" font-family="Arial" font-size="7" fill="#000">${displayType}</text>`;
+                        svg += `<text x="${couplerCenterX}" y="${busbarY + 46}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000">${displayType}</text>`;
                     }
                 }
 

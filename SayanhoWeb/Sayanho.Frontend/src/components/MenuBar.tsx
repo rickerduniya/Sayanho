@@ -9,11 +9,12 @@ interface MenuBarProps {
     onSettings: () => void;
     onGenerateEstimate: () => void;
     onOpenVoltageDrop: () => void;
+    onOpenNetworkMonitor: () => void;
 }
 
 export const MenuBar: React.FC<MenuBarProps> = ({
     onLoad, onSave, onSaveAs, onSaveImage,
-    onSettings, onGenerateEstimate, onOpenVoltageDrop
+    onSettings, onGenerateEstimate, onOpenVoltageDrop, onOpenNetworkMonitor
 }) => {
     const { colors } = useTheme();
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -103,6 +104,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                         <MenuItem
                             label="Calculate Voltage Drop"
                             onClick={onOpenVoltageDrop}
+                        />
+                        <MenuItem
+                            label="Network Monitor"
+                            onClick={onOpenNetworkMonitor}
                         />
                     </div>
                 )}

@@ -14,20 +14,10 @@
             "X": 1151,
             "Y": 4
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "out": {
@@ -36,7 +26,6 @@
               "Y": 60
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Type": "3-phase",
@@ -63,20 +52,10 @@
             "X": 756,
             "Y": 354
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 100,
             "Height": 100
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -90,7 +69,6 @@
               "Y": 100
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Type": "TPN SFU",
@@ -129,20 +107,10 @@
             "X": 841,
             "Y": 543
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 280,
             "Height": 170
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -171,7 +139,6 @@
               "Y": 170
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Current Rating": "100 A",
@@ -241,20 +208,10 @@
             "X": 914,
             "Y": 128
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 100,
             "Height": 100
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in1": {
@@ -273,7 +230,6 @@
               "Y": 100
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Type": "Sheet Steel enclosure",
@@ -306,20 +262,10 @@
             "X": 1181,
             "Y": 897
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 672,
             "Height": 170
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -388,7 +334,6 @@
               "Y": 170
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Way": "4 way",
@@ -521,20 +466,10 @@
             "X": 2065,
             "Y": 1156
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 40
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -543,7 +478,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Label": "Sheet 2 - SPN DB - in",
@@ -570,20 +504,10 @@
             "X": 1306,
             "Y": 1283
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 480,
             "Height": 170
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -632,7 +556,6 @@
               "Y": 170
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Way": "2\u002B8 way",
@@ -733,20 +656,10 @@
             "X": 679,
             "Y": 1649
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 80,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -755,7 +668,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "2200 W",
@@ -783,20 +695,10 @@
             "X": 1415,
             "Y": 2025
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 80,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -805,7 +707,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "2200 W",
@@ -833,20 +734,10 @@
             "X": 1734,
             "Y": 1856
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 80,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -855,7 +746,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "2200 W",
@@ -883,20 +773,10 @@
             "X": 1495,
             "Y": 1887
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -905,7 +785,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "1200 W",
@@ -933,20 +812,10 @@
             "X": 1306,
             "Y": 1887
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -955,7 +824,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "1200 W",
@@ -1396,14 +1264,10 @@
         }
       ],
       "ExistingLinePoints": [],
-      "ExistingOriginalLinePoints": [],
       "ExistingConnections": [],
-      "VirtualCanvasSize": {
-        "IsEmpty": false,
-        "Width": 2000,
-        "Height": 2000
-      },
-      "Scale": 0.5644739
+      "Scale": 0.15560484,
+      "ViewportX": 401.60230448438017,
+      "ViewportY": 124.56308217190465
     },
     {
       "SheetId": "86d627ac-ccf5-4a51-a2c6-ddb4f9b2d3af",
@@ -1417,20 +1281,10 @@
             "X": 938,
             "Y": 160
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 40
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "out": {
@@ -1439,7 +1293,6 @@
               "Y": 40
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Label": "Sheet 1 - HTPN - out4_Blue Phase",
@@ -1466,20 +1319,10 @@
             "X": 1097,
             "Y": 345
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 480,
             "Height": 170
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -1528,7 +1371,6 @@
               "Y": 170
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Way": "2\u002B8 way",
@@ -1629,20 +1471,10 @@
             "X": 469,
             "Y": 711
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 80,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -1651,7 +1483,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "2200 W",
@@ -1679,20 +1510,10 @@
             "X": 1205,
             "Y": 1087
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 80,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -1701,7 +1522,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "2200 W",
@@ -1729,20 +1549,10 @@
             "X": 1524,
             "Y": 919
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 80,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -1751,7 +1561,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "2200 W",
@@ -1779,20 +1588,10 @@
             "X": 1285,
             "Y": 949
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -1801,7 +1600,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "1200 W",
@@ -1829,20 +1627,10 @@
             "X": 1097,
             "Y": 949
           },
-          "OriginalPosition": {
-            "IsEmpty": true,
-            "X": 0,
-            "Y": 0
-          },
           "Size": {
             "IsEmpty": false,
             "Width": 60,
             "Height": 60
-          },
-          "OriginalSize": {
-            "IsEmpty": true,
-            "Width": 0,
-            "Height": 0
           },
           "ConnectionPoints": {
             "in": {
@@ -1851,7 +1639,6 @@
               "Y": 0
             }
           },
-          "OriginalConnectionPoints": {},
           "Properties": [
             {
               "Power": "1200 W",
@@ -2098,14 +1885,10 @@
         }
       ],
       "ExistingLinePoints": [],
-      "ExistingOriginalLinePoints": [],
       "ExistingConnections": [],
-      "VirtualCanvasSize": {
-        "IsEmpty": false,
-        "Width": 2000,
-        "Height": 2000
-      },
-      "Scale": 0.3186308
+      "Scale": 0.3186308,
+      "ViewportX": 0,
+      "ViewportY": 0
     }
   ]
 }

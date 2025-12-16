@@ -15,6 +15,7 @@ if (DEBUG) {
         (config as any).metadata = { start: startTime, rid };
         const method = (config.method || 'GET').toUpperCase();
         const url = config.url || '';
+        const tracePayload = (config as any).tracePayload; // Check for uncompressed payload for tracing
         const body = config.data;
         const size = body instanceof Blob
             ? `blob(${body.size})`
@@ -28,7 +29,7 @@ if (DEBUG) {
             method,
             url,
             requestHeaders: config.headers as Record<string, string>,
-            requestBody: body instanceof Blob ? `[Blob: ${body.size} bytes]` : body,
+            requestBody: tracePayload || (body instanceof Blob ? `[Blob: ${body.size} bytes]` : body),
             requestParams: config.params
         });
 
@@ -152,8 +153,9 @@ export const api = {
             headers: {
                 'Content-Type': 'application/octet-stream',
                 'Content-Encoding': 'gzip'
-            }
-        });
+            },
+            tracePayload: projectData // Pass uncompressed data for tracing
+        } as any);
         return response.data;
     },
 
@@ -183,8 +185,9 @@ export const api = {
             headers: {
                 'Content-Type': 'application/octet-stream',
                 'Content-Encoding': 'gzip'
-            }
-        });
+            },
+            tracePayload: payload // Pass uncompressed data for tracing
+        } as any);
         return response.data;
     },
 
@@ -224,8 +227,9 @@ export const api = {
                 'Content-Type': 'application/octet-stream',
                 'Content-Encoding': 'gzip'
             },
-            responseType: 'blob'
-        });
+            responseType: 'blob',
+            tracePayload: optimizedSheets // Pass uncompressed data for tracing
+        } as any);
         return response.data;
     },
 
@@ -246,8 +250,9 @@ export const api = {
                 'Content-Type': 'application/octet-stream',
                 'Content-Encoding': 'gzip'
             },
-            responseType: 'blob'
-        });
+            responseType: 'blob',
+            tracePayload: payload // Pass uncompressed data for tracing
+        } as any);
         return response.data;
     },
 

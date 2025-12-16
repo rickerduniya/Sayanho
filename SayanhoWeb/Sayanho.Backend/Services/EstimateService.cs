@@ -325,16 +325,27 @@ namespace Sayanho.Backend.Services
                                     string type = propertiesDictionary[$"{prefix}Type"];
                                     // Construct a temporary dictionary for this device
                                     var deviceProps = new Dictionary<string, string>();
-                                    
+
                                     // Map specific fields (stripping prefix)
                                     if (propertiesDictionary.ContainsKey($"{prefix}Rate")) deviceProps["Rate"] = propertiesDictionary[$"{prefix}Rate"];
                                     if (propertiesDictionary.ContainsKey($"{prefix}Description")) deviceProps["Description"] = propertiesDictionary[$"{prefix}Description"];
-                                    if (propertiesDictionary.ContainsKey($"{prefix}GS")) deviceProps["GS"] = propertiesDictionary[$"{prefix}GS"];
-                                    
-                                    // Map other attributes just in case
-                                    if (propertiesDictionary.ContainsKey($"{prefix}Rating")) deviceProps["Current Rating"] = propertiesDictionary[$"{prefix}Rating"];
-                                    if (propertiesDictionary.ContainsKey($"{prefix}Pole")) deviceProps["Pole"] = propertiesDictionary[$"{prefix}Pole"];
-                                    if (propertiesDictionary.ContainsKey($"{prefix}Company")) deviceProps["Company"] = propertiesDictionary[$"{prefix}Company"];
+
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Rating"))
+                                        deviceProps["Current Rating"] = propertiesDictionary[$"{prefix}Rating"];
+
+                                    string pole = propertiesDictionary.ContainsKey($"{prefix}Pole") ? propertiesDictionary[$"{prefix}Pole"] : string.Empty;
+                                    if (string.IsNullOrWhiteSpace(pole))
+                                    {
+                                        if (type == "Main Switch Open") pole = "TPN";
+                                        else if (type.Contains("Change Over Switch")) pole = "FP";
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(pole)) deviceProps["Pole"] = pole;
+
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Company"))
+                                        deviceProps["Company"] = propertiesDictionary[$"{prefix}Company"];
+
+                                    if (propertiesDictionary.ContainsKey($"{prefix}GS"))
+                                        deviceProps["GS"] = propertiesDictionary[$"{prefix}GS"];
 
                                     // Only calculate if we valid data
                                     if (deviceProps.ContainsKey("Rate") && deviceProps.ContainsKey("Description"))
@@ -361,7 +372,19 @@ namespace Sayanho.Backend.Services
                                     var deviceProps = new Dictionary<string, string>();
                                     if (propertiesDictionary.ContainsKey($"{prefix}Rate")) deviceProps["Rate"] = propertiesDictionary[$"{prefix}Rate"];
                                     if (propertiesDictionary.ContainsKey($"{prefix}Description")) deviceProps["Description"] = propertiesDictionary[$"{prefix}Description"];
-                                    if (propertiesDictionary.ContainsKey($"{prefix}GS")) deviceProps["GS"] = propertiesDictionary[$"{prefix}GS"];
+
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Rating"))
+                                        deviceProps["Current Rating"] = propertiesDictionary[$"{prefix}Rating"];
+
+                                    string pole = propertiesDictionary.ContainsKey($"{prefix}Pole") ? propertiesDictionary[$"{prefix}Pole"] : string.Empty;
+                                    if (string.IsNullOrWhiteSpace(pole) && type.Contains("Change Over Switch")) pole = "FP";
+                                    if (!string.IsNullOrWhiteSpace(pole)) deviceProps["Pole"] = pole;
+
+                                    if (propertiesDictionary.ContainsKey($"{prefix}Company"))
+                                        deviceProps["Company"] = propertiesDictionary[$"{prefix}Company"];
+
+                                    if (propertiesDictionary.ContainsKey($"{prefix}GS"))
+                                        deviceProps["GS"] = propertiesDictionary[$"{prefix}GS"];
 
                                     if (deviceProps.ContainsKey("Rate") && deviceProps.ContainsKey("Description"))
                                     {
@@ -378,9 +401,37 @@ namespace Sayanho.Backend.Services
                             {
                                 if (outItem.ContainsKey("Type") && outItem.ContainsKey("Rate") && outItem.ContainsKey("Description"))
                                 {
+                                    if (outItem.ContainsKey("Section"))
+                                    {
+                                        var secStr = outItem["Section"];
+                                        if (int.TryParse(secStr, out int sec))
+                                        {
+                                            if (sec < 1 || sec > count) continue;
+                                        }
+                                    }
+
                                     string type = outItem["Type"];
-                                    // outItem already has Rate, Description, GS, etc. directly
-                                    Calculation(type, outItem, 1, item.AlternativeCompany1, item.AlternativeCompany2);
+                                    var deviceProps = new Dictionary<string, string>();
+                                    deviceProps["Rate"] = outItem["Rate"];
+                                    deviceProps["Description"] = outItem["Description"];
+
+                                    if (outItem.ContainsKey("Rating") && !string.IsNullOrWhiteSpace(outItem["Rating"]))
+                                        deviceProps["Current Rating"] = outItem["Rating"];
+                                    else if (outItem.ContainsKey("Current Rating") && !string.IsNullOrWhiteSpace(outItem["Current Rating"]))
+                                        deviceProps["Current Rating"] = outItem["Current Rating"];
+
+                                    string pole = outItem.ContainsKey("Pole") ? outItem["Pole"] : string.Empty;
+                                    if (string.IsNullOrWhiteSpace(pole) && type == "Main Switch Open") pole = "TPN";
+                                    if (string.IsNullOrWhiteSpace(pole) && type.Contains("Change Over Switch")) pole = "FP";
+                                    if (!string.IsNullOrWhiteSpace(pole)) deviceProps["Pole"] = pole;
+
+                                    if (outItem.ContainsKey("Company") && !string.IsNullOrWhiteSpace(outItem["Company"]))
+                                        deviceProps["Company"] = outItem["Company"];
+
+                                    if (outItem.ContainsKey("GS") && !string.IsNullOrWhiteSpace(outItem["GS"]))
+                                        deviceProps["GS"] = outItem["GS"];
+
+                                    Calculation(type, deviceProps, 1, item.AlternativeCompany1, item.AlternativeCompany2);
                                 }
                             }
                         }

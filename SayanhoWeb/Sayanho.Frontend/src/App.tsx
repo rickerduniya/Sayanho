@@ -10,7 +10,9 @@ import { VoltageDropCalculatorDialog } from './components/VoltageDropCalculatorD
 import { MobileDetector } from './components/MobileDetector';
 import { ChatPanel } from './components/ChatPanel';
 import { AutoRatingResultDialog } from './components/AutoRatingResultDialog';
+
 import { SaveProjectDialog } from './components/SaveProjectDialog';
+import { NetworkMonitor } from './components/NetworkMonitor';
 
 import { api } from './services/api';
 import { useStore } from './store/useStore';
@@ -32,7 +34,9 @@ function App() {
     const [panMode, setPanMode] = useState(false);
     const [isAddTextMode, setIsAddTextMode] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+
     const [showVoltageDropDialog, setShowVoltageDropDialog] = useState(false);
+    const [showNetworkMonitor, setShowNetworkMonitor] = useState(false);
     const [showAutoRatingResult, setShowAutoRatingResult] = useState(false);
     const [autoRatingSuccess, setAutoRatingSuccess] = useState(false);
     const [autoRatingMessage, setAutoRatingMessage] = useState('');
@@ -449,7 +453,9 @@ function App() {
                                 onSaveImage={handleSaveImage}
                                 onSettings={() => setShowSettings(true)}
                                 onGenerateEstimate={handleGenerateEstimate}
+
                                 onOpenVoltageDrop={() => setShowVoltageDropDialog(true)}
+                                onOpenNetworkMonitor={() => setShowNetworkMonitor(true)}
                             />
                         </div>
                     )}
@@ -543,6 +549,11 @@ function App() {
                 existingNames={diagrams.map(d => d.name)}
                 currentName={sheets[0]?.name || 'Untitled Project'}
             />
+
+            {/* Network Monitor */}
+            {showNetworkMonitor && (
+                <NetworkMonitor onClose={() => setShowNetworkMonitor(false)} />
+            )}
 
             {/* Open Diagram Dialog */}
             {showOpen && (
