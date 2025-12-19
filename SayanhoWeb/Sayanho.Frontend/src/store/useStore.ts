@@ -466,9 +466,11 @@ export const useStore = create<StoreState>((set, get) => ({
                 return { ...s, canvasItems: filteredItems, storedConnectors: filteredConnectors };
             });
 
+            const remainingSelection = state.selectedItemIds.filter(sid => !deletionIds.has(sid));
             return {
                 sheets: newSheets,
-                selectedItemIds: state.selectedItemIds.filter(sid => !deletionIds.has(sid))
+                selectedItemIds: remainingSelection,
+                isPropertiesPanelOpen: remainingSelection.length > 0 && state.isPropertiesPanelOpen
             };
         });
         get().calculateNetwork();
@@ -507,7 +509,8 @@ export const useStore = create<StoreState>((set, get) => ({
 
             return {
                 sheets: newSheets,
-                selectedItemIds: []
+                selectedItemIds: [],
+                isPropertiesPanelOpen: false
             };
         });
         get().calculateNetwork();

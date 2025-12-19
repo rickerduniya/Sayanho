@@ -1603,7 +1603,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
 
                                 if (currentSheet && selectedItemIds.length <= 1) {
                                     const otherItems = currentSheet.canvasItems.filter(i => i.uniqueID !== item.uniqueID);
-                                    const snapResult = calculateSnapPosition(item, x, y, otherItems, 15); // 15px tolerance
+                                    const snapResult = calculateSnapPosition(item, x, y, otherItems, currentSheet.storedConnectors, 20); // 20px tolerance
                                     finalX = snapResult.x;
                                     finalY = snapResult.y;
                                 }
@@ -1709,7 +1709,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
 
             {/* Connection Mode Indicator (Click-Click) */}
             {clickStart && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                <div className="absolute top-24 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">
                     Click target connection point to complete connection
                 </div>
             )}

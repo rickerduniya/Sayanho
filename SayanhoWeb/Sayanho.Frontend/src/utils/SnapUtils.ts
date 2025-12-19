@@ -1,4 +1,4 @@
-import { CanvasItem } from '../types';
+import { CanvasItem, Connector } from '../types';
 
 interface SnapResult {
     x: number;
@@ -19,7 +19,8 @@ export const calculateSnapPosition = (
     newX: number,
     newY: number,
     otherItems: CanvasItem[],
-    tolerance: number = 10
+    connections: Connector[],
+    tolerance: number = 5
 ): SnapResult => {
     let finalX = newX;
     let finalY = newY;
@@ -29,46 +30,53 @@ export const calculateSnapPosition = (
     let minDeltaX = tolerance;
     let minDeltaY = tolerance;
 
-    // Get connectors of the moved item relative to its new position
-    const movedConnectors: { x: number; y: number; key: string }[] = [];
-    if (movedItem.connectionPoints) {
-        Object.entries(movedItem.connectionPoints).forEach(([key, point]) => {
-            movedConnectors.push({
-                x: newX + point.x,
-                y: newY + point.y,
-                key
-            });
-        });
-    }
+    // Filter connections that are attached to the moved item
+    const relevantConnections = connections.filter(c =>
+        c.sourceItem.uniqueID === movedItem.uniqueID || c.targetItem.uniqueID === movedItem.uniqueID
+    );
 
-    // Iterate through all other items
-    otherItems.forEach(otherItem => {
-        if (!otherItem.connectionPoints) return;
+    relevantConnections.forEach(conn => {
+        // Determine if moved item is source or target
+        const isSource = conn.sourceItem.uniqueID === movedItem.uniqueID;
 
-        Object.entries(otherItem.connectionPoints).forEach(([otherKey, otherPoint]) => {
-            const otherAbsX = otherItem.position.x + otherPoint.x;
-            const otherAbsY = otherItem.position.y + otherPoint.y;
+        const myKey = isSource ? conn.sourcePointKey : conn.targetPointKey;
+        const otherKey = isSource ? conn.targetPointKey : conn.sourcePointKey;
+        const otherId = isSource ? conn.targetItem.uniqueID : conn.sourceItem.uniqueID;
 
-            // Check against all connectors of the moved item
-            movedConnectors.forEach(movedConn => {
-                const diffX = otherAbsX - movedConn.x;
-                const diffY = otherAbsY - movedConn.y;
+        // Find the partner item's current position from the fresh list
+        const otherItem = otherItems.find(i => i.uniqueID === otherId);
+        if (!otherItem || !otherItem.connectionPoints || !movedItem.connectionPoints) return;
 
-                // Check Horizontal Alignment (same Y)
-                if (Math.abs(diffY) < minDeltaY) {
-                    minDeltaY = Math.abs(diffY);
-                    finalY = newY + diffY; // Adjust item position by the difference
-                    snappedY = true;
-                }
+        const myPoint = movedItem.connectionPoints[myKey];
+        const otherPoint = otherItem.connectionPoints[otherKey];
 
-                // Check Vertical Alignment (same X)
-                if (Math.abs(diffX) < minDeltaX) {
-                    minDeltaX = Math.abs(diffX);
-                    finalX = newX + diffX; // Adjust item position by the difference
-                    snappedX = true;
-                }
-            });
-        });
+        if (!myPoint || !otherPoint) return;
+
+        // Calculate absolute positions
+        const myAbsX = newX + myPoint.x;
+        const myAbsY = newY + myPoint.y;
+
+        const otherAbsX = otherItem.position.x + otherPoint.x;
+        const otherAbsY = otherItem.position.y + otherPoint.y;
+
+        const diffX = otherAbsX - myAbsX;
+        const diffY = otherAbsY - myAbsY; // If diffY is 0, they are horizontally aligned
+
+        // Check Horizontal Alignment (Make Y the same) -> Straight horizontal wire
+        // We want to snap if they are 'almost' horizontal
+        if (Math.abs(diffY) < minDeltaY) {
+            minDeltaY = Math.abs(diffY);
+            finalY = newY + diffY;
+            snappedY = true;
+        }
+
+        // Check Vertical Alignment (Make X the same) -> Straight vertical wire
+        // We want to snap if they are 'almost' vertical
+        if (Math.abs(diffX) < minDeltaX) {
+            minDeltaX = Math.abs(diffX);
+            finalX = newX + diffX;
+            snappedX = true;
+        }
     });
 
     return { x: finalX, y: finalY, snappedX, snappedY };

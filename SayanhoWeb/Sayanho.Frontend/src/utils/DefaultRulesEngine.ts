@@ -774,6 +774,23 @@ export class DefaultRulesEngine {
     }
 
     /**
+     * Gets the default outgoing current rating threshold for distribution boards
+     * The system should select the lowest available rating >= this threshold.
+     */
+    static getDefaultOutgoingThreshold(itemName: string): number {
+        switch (itemName) {
+            case "SPN DB":
+                return 6;
+            case "HTPN":
+                return 10;
+            case "VTPN":
+                return 25;
+            default:
+                return 0;
+        }
+    }
+
+    /**
      * Gets complete connector defaults with dynamic core/wire configuration
      * based on the target (downstream) item
      * @param materialType - 'Cable' or 'Wiring'

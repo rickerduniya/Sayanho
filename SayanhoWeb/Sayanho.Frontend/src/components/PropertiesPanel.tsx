@@ -58,6 +58,27 @@ export const PropertiesPanel: React.FC = React.memo(() => {
     const [dbIncomerOptions, setDbIncomerOptions] = useState<string[]>([]);
     const [dbOutgoingOptions, setDbOutgoingOptions] = useState<string[]>([]);
     const [layingOptions, setLayingOptions] = useState<Record<string, string>[]>([]);
+
+    // Helper to select default rating >= threshold
+    const selectDefaultRating = (options: string[], threshold: number): string => {
+        if (!options || options.length === 0 || threshold <= 0) return "";
+
+        // Options are like "6 A", "10 A", etc.
+        // We want the first option where value >= threshold
+        // Assuming options are already sorted ascendingly by value
+
+        for (const opt of options) {
+            const val = parseFloat(opt.replace(" A", ""));
+            if (val >= threshold) {
+                return opt;
+            }
+        }
+
+        // If no option meets the threshold (e.g. all are smaller), return the largest (last)
+        // OR return the first available?
+        // Logic: ">= threshold". If none exist >= threshold, fallback to first/default behavior
+        return options[0];
+    };
     const [isLoadingProperties, setIsLoadingProperties] = useState(false);
     const [panelDevices, setPanelDevices] = useState<{ mccb: Record<string, string>[], acb: Record<string, string>[], sfu: Record<string, string>[], mcb: Record<string, string>[], changeOver?: Record<string, string>[] }>({ mccb: [], acb: [], sfu: [], mcb: [] });
 
@@ -244,12 +265,46 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                 setEditedIncomer({});
             }
 
-            if (selectedItem.outgoing) {
+            if (selectedItem.outgoing && selectedItem.outgoing.length > 0) {
                 setEditedOutgoing([...selectedItem.outgoing]);
-            } else {
-                setEditedOutgoing([]);
+            } else if (selectedItem.name === "SPN DB" || selectedItem.name === "VTPN" || selectedItem.name === "HTPN") {
+                // Initialize with logical defaults if empty
+                // We depend on dbOutgoingOptions being populated. 
+                // Since data fetching is async in Effect 1, and this is Effect 2, we might not have options yet.
+                // However, Effect 2 runs when selectedItem changes. Effect 1 also runs then.
+                // We need to wait for dbOutgoingOptions to be populated.
+                // Actually, let's just use the threshold logic if options are available. 
+                // If not available yet, we might need another effect or dependency.
+                // Simpler approach: Re-run this logic when dbOutgoingOptions changes IF outgoing is empty.
+
+                const threshold = DefaultRulesEngine.getDefaultOutgoingThreshold(selectedItem.name);
+                const defaultRating = selectDefaultRating(dbOutgoingOptions, threshold);
+
+                if (defaultRating) {
+                    // Calculate expected slots based on Way property
+                    const wayStr = selectedItem.properties?.[0]?.["Way"] || DefaultRulesEngine.getDefaultWay(selectedItem.name) || "0";
+
+                    let waysCount = 0;
+                    if (wayStr.includes("+")) {
+                        waysCount = wayStr.split("+").reduce((acc, p) => acc + parseInt(p.trim() || "0"), 0);
+                    } else {
+                        waysCount = parseInt(wayStr) || 0;
+                    }
+
+                    let totalSlots = waysCount;
+                    if (selectedItem.name === "VTPN" || selectedItem.name === "HTPN") {
+                        totalSlots = waysCount * 3; // 3 phases
+                    }
+
+                    const newOutgoing = [];
+                    for (let i = 0; i < totalSlots; i++) {
+                        newOutgoing.push({ "Current Rating": defaultRating });
+                    }
+                    setEditedOutgoing(newOutgoing);
+                } else {
+                    setEditedOutgoing([]);
+                }
             }
-            setEditedLaying({}); // Clear laying for items
 
             setEditedAltComp1(selectedItem.alternativeCompany1 || "");
             setEditedAltComp2(selectedItem.alternativeCompany2 || "");
@@ -287,7 +342,8 @@ export const PropertiesPanel: React.FC = React.memo(() => {
         selectedConnector?.accessories,
         selectedConnector?.laying,
         selectedConnector?.alternativeCompany1,
-        selectedConnector?.alternativeCompany2
+        selectedConnector?.alternativeCompany2,
+        dbOutgoingOptions // Important dependency for default rating logic
     ]); // React to selection changes and property updates, but NOT position changes
 
 
@@ -341,6 +397,40 @@ export const PropertiesPanel: React.FC = React.memo(() => {
         // Auto-uncheck End Box for Main Switch if Type changes to non-TPN SFU
         if (selectedItem?.name === "Main Switch" && key === "Type" && value !== "TPN SFU") {
             setEditedAccessories(prev => ({ ...prev, endbox_required: "false" }));
+        }
+
+        // Handle "Way" changes for DBs to auto-populate outgoing slots
+        if (key === "Way" && selectedItem && (selectedItem.name === "SPN DB" || selectedItem.name === "VTPN" || selectedItem.name === "HTPN")) {
+            // Parse new ways
+            let newWaysCount = 0;
+            if (value.includes("+")) {
+                const parts = value.split("+");
+                newWaysCount = parts.reduce((acc, part) => acc + parseInt(part.trim() || "0"), 0);
+            } else {
+                newWaysCount = parseInt(value) || 0;
+            }
+
+            let totalSlots = newWaysCount;
+            if (selectedItem.name === "VTPN" || selectedItem.name === "HTPN") {
+                totalSlots = newWaysCount * 3;
+            }
+
+            setEditedOutgoing(prev => {
+                const current = [...prev];
+                if (totalSlots > current.length) {
+                    // Add new slots with default rating based on threshold logic
+                    const threshold = DefaultRulesEngine.getDefaultOutgoingThreshold(selectedItem.name);
+                    const defaultRating = selectDefaultRating(dbOutgoingOptions, threshold);
+
+                    for (let i = current.length; i < totalSlots; i++) {
+                        current.push({ "Current Rating": defaultRating });
+                    }
+                } else if (totalSlots < current.length) {
+                    // Truncate
+                    return current.slice(0, totalSlots);
+                }
+                return current;
+            });
         }
 
         setEditedProperties(newProperties);
