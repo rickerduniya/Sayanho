@@ -19,10 +19,12 @@ import { useStore } from './store/useStore';
 import { useTheme } from './context/ThemeContext';
 import { apiTracer } from './utils/apiTracer';
 import { updateItemVisuals } from './utils/SvgUpdater';
-import type { CanvasSheet, CanvasItem } from './types';
 import { Toast } from './components/Toast';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import LandingPage from './components/LandingPage';
 
-function App() {
+function DesignerApp() {
+    const navigate = useNavigate();
     const { getCurrentSheet, setSheet, updateSheet, sheets, setSheets, applyAutoRatingResults, undo, redo, calculateNetwork, addItem, selectItem, showCurrentValues, toggleShowCurrentValues, isPropertiesPanelOpen, isChatOpen, toggleChat } = useStore();
     const currentSheet = getCurrentSheet();
     const { colors, theme } = useTheme();
@@ -665,5 +667,17 @@ function App() {
         </div>
     );
 }
+
+function App() {
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/design" element={<DesignerApp />} />
+            </Routes>
+        </BrowserRouter>
+    );
+}
+
 
 export default App;

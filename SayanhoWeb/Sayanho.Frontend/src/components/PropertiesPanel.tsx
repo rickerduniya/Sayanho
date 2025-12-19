@@ -8,6 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import { updateItemVisuals } from '../utils/SvgUpdater';
 import { fetchProperties } from '../utils/api';
 import { calculateGeometry } from '../utils/GeometryCalculator';
+import { sortOptionStringsAsc } from '../utils/sortUtils';
 
 import { LOAD_ITEM_DEFAULTS, DefaultRulesEngine } from '../utils/DefaultRulesEngine';
 import { PanelDesignerDialog } from './PanelDesignerDialog.tsx';
@@ -79,6 +80,60 @@ export const PropertiesPanel: React.FC = React.memo(() => {
         // Logic: ">= threshold". If none exist >= threshold, fallback to first/default behavior
         return options[0];
     };
+
+    const parseWayCount = (itemName: string, wayText: string): number => {
+        const txt = (wayText || '').toString();
+        if (!txt) return 0;
+
+        if (itemName === "SPN DB") {
+            const match = txt.match(/2\s*\+\s*(\d+)/);
+            return match ? (parseInt(match[1], 10) || 0) : 0;
+        }
+
+        const match = txt.match(/(\d+)/);
+        return match ? (parseInt(match[1], 10) || 0) : 0;
+    };
+
+    const resizeDbOutgoing = (
+        itemName: string,
+        prev: Record<string, string>[],
+        oldWayCount: number,
+        newWayCount: number,
+        defaultRating: string
+    ): Record<string, string>[] => {
+        if (newWayCount <= 0) return [];
+
+        if (itemName === "HTPN") {
+            let effectiveOldWayCount = oldWayCount;
+            if (effectiveOldWayCount <= 0 && prev.length > 0) {
+                effectiveOldWayCount = Math.floor(prev.length / 3);
+            }
+
+            const next: Record<string, string>[] = [];
+            for (let phaseIndex = 0; phaseIndex < 3; phaseIndex++) {
+                for (let i = 0; i < newWayCount; i++) {
+                    if (effectiveOldWayCount > 0 && i < effectiveOldWayCount) {
+                        const oldIndex = (phaseIndex * effectiveOldWayCount) + i;
+                        const existing = prev[oldIndex];
+                        next.push(existing ? { ...existing } : { "Current Rating": defaultRating });
+                    } else {
+                        next.push({ "Current Rating": defaultRating });
+                    }
+                }
+            }
+            return next;
+        }
+
+        const totalSlots = newWayCount;
+        const base = prev.slice(0, totalSlots).map(v => ({ ...v }));
+        if (base.length < totalSlots) {
+            const missing = totalSlots - base.length;
+            for (let i = 0; i < missing; i++) {
+                base.push({ "Current Rating": defaultRating });
+            }
+        }
+        return base;
+    };
     const [isLoadingProperties, setIsLoadingProperties] = useState(false);
     const [panelDevices, setPanelDevices] = useState<{ mccb: Record<string, string>[], acb: Record<string, string>[], sfu: Record<string, string>[], mcb: Record<string, string>[], changeOver?: Record<string, string>[] }>({ mccb: [], acb: [], sfu: [], mcb: [] });
 
@@ -117,16 +172,18 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     const outgoingData = await fetchProperties("MCB");
 
                     // Filter outgoing for TP (Triple Pole)
-                    const tpOutgoing = outgoingData.properties
-                        .filter(p => p["Pole"] === "TP")
-                        .map(p => p["Current Rating"])
-                        .filter((v, i, a) => a.indexOf(v) === i) // Unique
-                        .sort((a, b) => parseInt(a) - parseInt(b));
+                    const tpOutgoing = sortOptionStringsAsc(
+                        outgoingData.properties
+                            .filter(p => p["Pole"] === "TP")
+                            .map(p => p["Current Rating"])
+                            .filter((v, i, a) => a.indexOf(v) === i) // Unique
+                    );
 
-                    const mccbIncomer = incomerData.properties
-                        .map(p => p["Current Rating"])
-                        .filter((v, i, a) => a.indexOf(v) === i)
-                        .sort((a, b) => parseInt(a) - parseInt(b));
+                    const mccbIncomer = sortOptionStringsAsc(
+                        incomerData.properties
+                            .map(p => p["Current Rating"])
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                    );
 
                     setDbIncomerOptions(mccbIncomer);
                     setDbOutgoingOptions(tpOutgoing);
@@ -135,18 +192,20 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     const outgoingData = await fetchProperties("MCB");
 
                     // Incomer DP
-                    const dpIncomer = incomerData.properties
-                        .filter(p => p["Pole"] === "DP")
-                        .map(p => p["Current Rating"])
-                        .filter((v, i, a) => a.indexOf(v) === i)
-                        .sort((a, b) => parseInt(a) - parseInt(b));
+                    const dpIncomer = sortOptionStringsAsc(
+                        incomerData.properties
+                            .filter(p => p["Pole"] === "DP")
+                            .map(p => p["Current Rating"])
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                    );
 
                     // Outgoing SP
-                    const spOutgoing = outgoingData.properties
-                        .filter(p => p["Pole"] === "SP")
-                        .map(p => p["Current Rating"])
-                        .filter((v, i, a) => a.indexOf(v) === i)
-                        .sort((a, b) => parseInt(a) - parseInt(b));
+                    const spOutgoing = sortOptionStringsAsc(
+                        outgoingData.properties
+                            .filter(p => p["Pole"] === "SP")
+                            .map(p => p["Current Rating"])
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                    );
 
                     setDbIncomerOptions(dpIncomer);
                     setDbOutgoingOptions(spOutgoing);
@@ -154,17 +213,19 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     const incomerData = await fetchProperties("MCB"); // FP
                     const outgoingData = await fetchProperties("MCB"); // SP
 
-                    const fpIncomer = incomerData.properties
-                        .filter(p => p["Pole"] === "FP")
-                        .map(p => p["Current Rating"])
-                        .filter((v, i, a) => a.indexOf(v) === i)
-                        .sort((a, b) => parseInt(a) - parseInt(b));
+                    const fpIncomer = sortOptionStringsAsc(
+                        incomerData.properties
+                            .filter(p => p["Pole"] === "FP")
+                            .map(p => p["Current Rating"])
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                    );
 
-                    const spOutgoing = outgoingData.properties
-                        .filter(p => p["Pole"] === "SP")
-                        .map(p => p["Current Rating"])
-                        .filter((v, i, a) => a.indexOf(v) === i)
-                        .sort((a, b) => parseInt(a) - parseInt(b));
+                    const spOutgoing = sortOptionStringsAsc(
+                        outgoingData.properties
+                            .filter(p => p["Pole"] === "SP")
+                            .map(p => p["Current Rating"])
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                    );
 
                     setDbIncomerOptions(fpIncomer);
                     setDbOutgoingOptions(spOutgoing);
@@ -283,24 +344,8 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                 if (defaultRating) {
                     // Calculate expected slots based on Way property
                     const wayStr = selectedItem.properties?.[0]?.["Way"] || DefaultRulesEngine.getDefaultWay(selectedItem.name) || "0";
-
-                    let waysCount = 0;
-                    if (wayStr.includes("+")) {
-                        waysCount = wayStr.split("+").reduce((acc, p) => acc + parseInt(p.trim() || "0"), 0);
-                    } else {
-                        waysCount = parseInt(wayStr) || 0;
-                    }
-
-                    let totalSlots = waysCount;
-                    if (selectedItem.name === "VTPN" || selectedItem.name === "HTPN") {
-                        totalSlots = waysCount * 3; // 3 phases
-                    }
-
-                    const newOutgoing = [];
-                    for (let i = 0; i < totalSlots; i++) {
-                        newOutgoing.push({ "Current Rating": defaultRating });
-                    }
-                    setEditedOutgoing(newOutgoing);
+                    const waysCount = parseWayCount(selectedItem.name, wayStr);
+                    setEditedOutgoing(resizeDbOutgoing(selectedItem.name, [], 0, waysCount, defaultRating));
                 } else {
                     setEditedOutgoing([]);
                 }
@@ -366,7 +411,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
         });
 
         const options = Array.from(new Set(filteredRows.map(r => r[key]).filter(Boolean)));
-        return options.sort();
+        return sortOptionStringsAsc(options);
     };
 
     const handlePropertyChange = (key: string, value: string) => {
@@ -401,36 +446,12 @@ export const PropertiesPanel: React.FC = React.memo(() => {
 
         // Handle "Way" changes for DBs to auto-populate outgoing slots
         if (key === "Way" && selectedItem && (selectedItem.name === "SPN DB" || selectedItem.name === "VTPN" || selectedItem.name === "HTPN")) {
-            // Parse new ways
-            let newWaysCount = 0;
-            if (value.includes("+")) {
-                const parts = value.split("+");
-                newWaysCount = parts.reduce((acc, part) => acc + parseInt(part.trim() || "0"), 0);
-            } else {
-                newWaysCount = parseInt(value) || 0;
-            }
+            const oldWaysCount = parseWayCount(selectedItem.name, editedProperties["Way"] || "");
+            const newWaysCount = parseWayCount(selectedItem.name, value);
+            const threshold = DefaultRulesEngine.getDefaultOutgoingThreshold(selectedItem.name);
+            const defaultRating = selectDefaultRating(dbOutgoingOptions, threshold);
 
-            let totalSlots = newWaysCount;
-            if (selectedItem.name === "VTPN" || selectedItem.name === "HTPN") {
-                totalSlots = newWaysCount * 3;
-            }
-
-            setEditedOutgoing(prev => {
-                const current = [...prev];
-                if (totalSlots > current.length) {
-                    // Add new slots with default rating based on threshold logic
-                    const threshold = DefaultRulesEngine.getDefaultOutgoingThreshold(selectedItem.name);
-                    const defaultRating = selectDefaultRating(dbOutgoingOptions, threshold);
-
-                    for (let i = current.length; i < totalSlots; i++) {
-                        current.push({ "Current Rating": defaultRating });
-                    }
-                } else if (totalSlots < current.length) {
-                    // Truncate
-                    return current.slice(0, totalSlots);
-                }
-                return current;
-            });
+            setEditedOutgoing(prev => resizeDbOutgoing(selectedItem.name, prev, oldWaysCount, newWaysCount, defaultRating));
         }
 
         setEditedProperties(newProperties);
@@ -1046,7 +1067,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     // Inject Alternative Companies after "Company"
                     if (key === "Company") {
                         // Get all unique companies for alternatives
-                        const allCompanies = Array.from(new Set(availableProperties.map(r => r["Company"]).filter(Boolean))).sort();
+                        const allCompanies = sortOptionStringsAsc(Array.from(new Set(availableProperties.map(r => r["Company"]).filter(Boolean))));
 
                         return (
                             <React.Fragment key={key}>
@@ -1202,19 +1223,19 @@ export const PropertiesPanel: React.FC = React.memo(() => {
         const keys = Object.keys(layingOptions[0]).filter(k => k !== "Item" && k !== "Rate" && k !== "Description" && k !== "GS");
 
         // Helper to filter laying options
-        const getFilteredLayingOptions = (key: string) => {
+        const getFilteredLayingOptions = (key: string, currentValues: Record<string, string>) => {
             const keyIndex = keys.indexOf(key);
             if (keyIndex === -1) return [];
 
             const precedingKeys = keys.slice(0, keyIndex);
             const filteredRows = layingOptions.filter(row => {
                 return precedingKeys.every(prevKey => {
-                    const selectedValue = editedLaying[prevKey];
+                    const selectedValue = currentValues[prevKey];
                     return !selectedValue || row[prevKey] === selectedValue;
                 });
             });
 
-            return Array.from(new Set(filteredRows.map(r => r[key]).filter(Boolean))).sort();
+            return sortOptionStringsAsc(Array.from(new Set(filteredRows.map(r => r[key]).filter(Boolean))));
         };
 
         const handleLayingChange = (key: string, value: string) => {
@@ -1226,9 +1247,10 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                 subsequentKeys.forEach(subKey => {
                     const currentVal = newLaying[subKey];
                     if (currentVal) {
-                        const validOptions = getFilteredLayingOptions(subKey); // Need to pass newLaying context if refactoring
-                        // For simplicity, just clear downstream on change
-                        newLaying[subKey] = "";
+                        const validOptions = getFilteredLayingOptions(subKey, newLaying);
+                        if (!validOptions.includes(currentVal)) {
+                            newLaying[subKey] = "";
+                        }
                     }
                 });
             }
@@ -1242,7 +1264,7 @@ export const PropertiesPanel: React.FC = React.memo(() => {
                     renderDropdown(
                         key,
                         key,
-                        getFilteredLayingOptions(key).length > 0 ? getFilteredLayingOptions(key) : ["Select..."],
+                        getFilteredLayingOptions(key, editedLaying).length > 0 ? getFilteredLayingOptions(key, editedLaying) : ["Select..."],
                         editedLaying,
                         handleLayingChange
                     )

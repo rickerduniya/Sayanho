@@ -63,17 +63,13 @@ body,
 #root {
     margin: 0;
     padding: 0;
-    overflow: hidden;
-    /* Prevent touch actions that interfere with canvas interactions */
+    /* Removed overflow: hidden to allow scrollable landing page. */
+    /* Designer App handles its own overflow-hidden at the component level. */
     touch-action: none;
-    /* Prevent text selection on touch devices */
     -webkit-user-select: none;
     user-select: none;
-    /* Prevent callout menu on iOS/Android */
     -webkit-touch-callout: none;
-    /* Prevent tap highlight */
     -webkit-tap-highlight-color: transparent;
-    /* Optimize for touch */
     -webkit-overflow-scrolling: touch;
 }
 
@@ -83,7 +79,7 @@ body,
     html,
     body,
     #root {
-        height: 100dvh;
+        height: 100%;
     }
 }
 
@@ -229,6 +225,8 @@ button {
 
 /* Global Dark Mode Dropdown Fix */
 .dark option {
-    background-color: #1e293b; /* slate-800 */
-    color: #f1f5f9; /* slate-100 */
+    background-color: #1e293b;
+    /* slate-800 */
+    color: #f1f5f9;
+    /* slate-100 */
 }

@@ -3,6 +3,7 @@ import { X, Save, Copy, Clipboard, Plus } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { PanelRenderer } from '../utils/PanelRenderer';
 import { CanvasItem } from '../types';
+import { sortOptionStringsAsc } from '../utils/sortUtils';
 
 interface PanelDesignerProps {
     isOpen: boolean;
@@ -105,13 +106,60 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
 
     // Get unique values for dropdowns
     const getUniqueValues = (data: any[], key: string) => {
-        return [...new Set(data.map(d => d[key]).filter(Boolean))].sort((a, b) => {
-            // Try numeric sort for ratings
-            const numA = parseInt(a);
-            const numB = parseInt(b);
-            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-            return a.localeCompare(b);
-        });
+        const values = data
+            .map(d => d?.[key])
+            .filter(v => v !== undefined && v !== null && `${v}` !== '')
+            .map(v => `${v}`);
+        return sortOptionStringsAsc(Array.from(new Set(values)));
+    };
+
+    const getDatasetKeyFromType = (type: string): 'mccb' | 'mcb' | 'sfu' | 'changeOver' | null => {
+        const normType = (type || '').toLowerCase().replace(/\s+/g, "");
+        if (normType.includes("mccb")) return 'mccb';
+        if (normType.includes("mcb")) return 'mcb';
+        if (normType.includes("mainswitch") || normType.includes("sfu")) return 'sfu';
+        if (normType.includes("changeover")) return 'changeOver';
+        return null;
+    };
+
+    const getEffectiveType = (type: string, isCoupler: boolean) => {
+        if (isCoupler && isChangeOverMode) return "Change Over Switch Open";
+        return type || "";
+    };
+
+    const getEffectivePole = (type: string, pole: string) => {
+        if (type === "Change Over Switch Open") return pole || "FP";
+        if (type === "Main Switch Open") return pole || "TPN";
+        return pole || "";
+    };
+
+    const getValidPoles = (type: string, opts: { isOutgoing: boolean } = { isOutgoing: false }) => {
+        const datasetKey = getDatasetKeyFromType(type);
+        if (!datasetKey) return [] as string[];
+
+        let poles = getUniqueValues(getOptions(datasetKey), "Pole");
+        if (type === "Main Switch Open" && poles.length === 0) poles.push("TPN");
+        if (type === "Change Over Switch Open") poles = ["FP"];
+        if (opts.isOutgoing && type === "MCB") {
+            poles = poles.filter(p => p !== "SP");
+        }
+        return poles;
+    };
+
+    const getValidRatings = (type: string, pole: string) => {
+        const datasetKey = getDatasetKeyFromType(type);
+        if (!datasetKey) return [] as string[];
+        const effectivePole = getEffectivePole(type, pole);
+        const filterPole = (type === "Main Switch Open" || type === "Change Over Switch Open") ? undefined : effectivePole || undefined;
+        return getUniqueValues(getOptions(datasetKey, { pole: filterPole }), "Current Rating");
+    };
+
+    const getValidCompanies = (type: string, pole: string, rating: string) => {
+        const datasetKey = getDatasetKeyFromType(type);
+        if (!datasetKey) return [] as string[];
+        const effectivePole = getEffectivePole(type, pole);
+        const filterPole = (type === "Main Switch Open" || type === "Change Over Switch Open") ? undefined : effectivePole || undefined;
+        return getUniqueValues(getOptions(datasetKey, { pole: filterPole, rating: rating || undefined }), "Company");
     };
 
     const handleUpdateProperty = (key: string, value: string) => {
@@ -161,28 +209,58 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         const prefix = `Incomer${section}_`;
         let newProps = { ...properties, [prefix + field]: value };
 
-        // Clear downstream if upstream changes
-        if (field === 'Type') {
+        const type = getEffectiveType(newProps[prefix + 'Type'], false);
+        const datasetKey = getDatasetKeyFromType(type);
+
+        if (!datasetKey || !type) {
             newProps[prefix + 'Pole'] = "";
             newProps[prefix + 'Rating'] = "";
             newProps[prefix + 'Company'] = "";
-        } else if (field === 'Pole') {
-            newProps[prefix + 'Rating'] = "";
-            newProps[prefix + 'Company'] = "";
-        } else if (field === 'Rating') {
-            newProps[prefix + 'Company'] = "";
-        } else if (field === 'Company') {
-            // Full selection made, find and populate Rate/Desc/GS
-            const type = newProps[prefix + 'Type'];
-            const pole = newProps[prefix + 'Pole'] || (type === "Main Switch Open" ? "TPN" : "");
-            const rating = newProps[prefix + 'Rating'];
+            newProps[prefix + 'Rate'] = "";
+            newProps[prefix + 'Description'] = "";
+            newProps[prefix + 'GS'] = "";
+            setLocalItem({ ...localItem, properties: [newProps] });
+            return;
+        }
 
-            const row = findDeviceRow(type, pole, rating, value);
+        const poles = getValidPoles(type);
+        const currentPole = newProps[prefix + 'Pole'] || "";
+        let nextPole = currentPole;
+        if (type === "Main Switch Open") nextPole = currentPole || "TPN";
+        if (type === "Change Over Switch Open") nextPole = currentPole || "FP";
+        if (poles.length > 0 && nextPole && !poles.includes(nextPole)) nextPole = "";
+        if (type === "Main Switch Open" && poles.length > 0 && !nextPole && poles.includes("TPN")) nextPole = "TPN";
+        if (type === "Change Over Switch Open") nextPole = "FP";
+        newProps[prefix + 'Pole'] = nextPole;
+
+        const currentRating = newProps[prefix + 'Rating'] || "";
+        const validRatings = getValidRatings(type, nextPole);
+        let nextRating = currentRating;
+        if (nextRating && validRatings.length > 0 && !validRatings.includes(nextRating)) nextRating = "";
+        newProps[prefix + 'Rating'] = nextRating;
+
+        const currentCompany = newProps[prefix + 'Company'] || "";
+        const validCompanies = getValidCompanies(type, nextPole, nextRating);
+        let nextCompany = currentCompany;
+        if (nextCompany && validCompanies.length > 0 && !validCompanies.includes(nextCompany)) nextCompany = "";
+        newProps[prefix + 'Company'] = nextCompany;
+
+        const hasFullSelection = !!type && !!nextRating && !!nextCompany && ((type === "Main Switch Open" || type === "Change Over Switch Open") ? true : !!getEffectivePole(type, nextPole));
+        if (hasFullSelection) {
+            const row = findDeviceRow(type, getEffectivePole(type, nextPole), nextRating, nextCompany);
             if (row) {
                 newProps[prefix + 'Rate'] = row['Rate'];
                 newProps[prefix + 'Description'] = row['Description'];
                 newProps[prefix + 'GS'] = row['GS'];
+            } else {
+                newProps[prefix + 'Rate'] = "";
+                newProps[prefix + 'Description'] = "";
+                newProps[prefix + 'GS'] = "";
             }
+        } else {
+            newProps[prefix + 'Rate'] = "";
+            newProps[prefix + 'Description'] = "";
+            newProps[prefix + 'GS'] = "";
         }
 
         setLocalItem({ ...localItem, properties: [newProps] });
@@ -195,30 +273,65 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         const prefix = `BusCoupler${section}_`;
         let newProps = { ...properties, [prefix + field]: value };
 
-        // Clear downstream if upstream changes
-        if (field === 'Type') {
+        if (field === 'Current Rating') {
+            newProps[prefix + 'Rating'] = value;
+        }
+
+        const type = getEffectiveType(newProps[prefix + 'Type'], true);
+        const datasetKey = getDatasetKeyFromType(type);
+
+        if (!datasetKey || !type) {
             newProps[prefix + 'Pole'] = "";
             newProps[prefix + 'Rating'] = "";
             newProps[prefix + 'Company'] = "";
-            if (value === "Change Over Switch Open") newProps[prefix + 'Pole'] = "FP";
-        } else if (field === 'Pole') {
-            newProps[prefix + 'Rating'] = "";
-            newProps[prefix + 'Company'] = "";
-        } else if (field === 'Current Rating') { // Mapped from Rating
-            newProps[prefix + 'Rating'] = value; // Store as Rating
-            newProps[prefix + 'Company'] = "";
-        } else if (field === 'Company') {
-            // Full selection made
-            const type = newProps[prefix + 'Type'] || (isChangeOverMode ? "Change Over Switch Open" : "");
-            const pole = newProps[prefix + 'Pole'] || (type === "Main Switch Open" ? "TPN" : (type === "Change Over Switch Open" ? "FP" : ""));
-            const rating = newProps[prefix + 'Rating']; // Stored as Rating
+            newProps[prefix + 'Rate'] = "";
+            newProps[prefix + 'Description'] = "";
+            newProps[prefix + 'GS'] = "";
+            newProps[prefix + 'Type'] = type;
+            setLocalItem({ ...localItem, properties: [newProps] });
+            return;
+        }
 
-            const row = findDeviceRow(type, pole, rating, value);
+        newProps[prefix + 'Type'] = type;
+
+        const poles = getValidPoles(type);
+        const currentPole = newProps[prefix + 'Pole'] || "";
+        let nextPole = currentPole;
+        if (type === "Main Switch Open") nextPole = currentPole || "TPN";
+        if (type === "Change Over Switch Open") nextPole = currentPole || "FP";
+        if (poles.length > 0 && nextPole && !poles.includes(nextPole)) nextPole = "";
+        if (type === "Main Switch Open" && poles.length > 0 && !nextPole && poles.includes("TPN")) nextPole = "TPN";
+        if (type === "Change Over Switch Open") nextPole = "FP";
+        newProps[prefix + 'Pole'] = nextPole;
+
+        const currentRating = newProps[prefix + 'Rating'] || "";
+        const validRatings = getValidRatings(type, nextPole);
+        let nextRating = currentRating;
+        if (nextRating && validRatings.length > 0 && !validRatings.includes(nextRating)) nextRating = "";
+        newProps[prefix + 'Rating'] = nextRating;
+
+        const currentCompany = newProps[prefix + 'Company'] || "";
+        const validCompanies = getValidCompanies(type, nextPole, nextRating);
+        let nextCompany = currentCompany;
+        if (nextCompany && validCompanies.length > 0 && !validCompanies.includes(nextCompany)) nextCompany = "";
+        newProps[prefix + 'Company'] = nextCompany;
+
+        const hasFullSelection = !!type && !!nextRating && !!nextCompany && ((type === "Main Switch Open" || type === "Change Over Switch Open") ? true : !!getEffectivePole(type, nextPole));
+        if (hasFullSelection) {
+            const row = findDeviceRow(type, getEffectivePole(type, nextPole), nextRating, nextCompany);
             if (row) {
                 newProps[prefix + 'Rate'] = row['Rate'];
                 newProps[prefix + 'Description'] = row['Description'];
                 newProps[prefix + 'GS'] = row['GS'];
+            } else {
+                newProps[prefix + 'Rate'] = "";
+                newProps[prefix + 'Description'] = "";
+                newProps[prefix + 'GS'] = "";
             }
+        } else {
+            newProps[prefix + 'Rate'] = "";
+            newProps[prefix + 'Description'] = "";
+            newProps[prefix + 'GS'] = "";
         }
 
         setLocalItem({ ...localItem, properties: [newProps] });
@@ -229,26 +342,55 @@ export const PanelDesignerDialog: React.FC<PanelDesignerProps> = ({
         const item = { ...newOut[index] };
         item[field] = value;
 
-        // Clear downstream
-        if (field === 'Type') {
+        const type = getEffectiveType(item['Type'], false);
+        const datasetKey = getDatasetKeyFromType(type);
+
+        if (!datasetKey || !type) {
             item['Pole'] = "";
             item['Current Rating'] = "";
             item['Company'] = "";
-        } else if (field === 'Pole') {
-            item['Current Rating'] = "";
-            item['Company'] = "";
-        } else if (field === 'Current Rating') {
-            item['Company'] = "";
-        } else if (field === 'Company') {
-            // Full selection
-            const type = item['Type'];
-            const pole = item['Pole'] || (type === "Main Switch Open" ? "TPN" : "");
-            const rating = item['Current Rating'];
-            const row = findDeviceRow(type, pole, rating, value);
-            if (row) {
-                item['Rate'] = row['Rate'];
-                item['Description'] = row['Description'];
-                item['GS'] = row['GS'];
+            item['Rate'] = "";
+            item['Description'] = "";
+            item['GS'] = "";
+        } else {
+            const poles = getValidPoles(type, { isOutgoing: true });
+            const currentPole = item['Pole'] || "";
+            let nextPole = currentPole;
+            if (type === "Main Switch Open") nextPole = currentPole || "TPN";
+            if (type === "Change Over Switch Open") nextPole = currentPole || "FP";
+            if (poles.length > 0 && nextPole && !poles.includes(nextPole)) nextPole = "";
+            if (type === "Main Switch Open" && poles.length > 0 && !nextPole && poles.includes("TPN")) nextPole = "TPN";
+            if (type === "Change Over Switch Open") nextPole = "FP";
+            item['Pole'] = nextPole;
+
+            const currentRating = item['Current Rating'] || "";
+            const validRatings = getValidRatings(type, nextPole);
+            let nextRating = currentRating;
+            if (nextRating && validRatings.length > 0 && !validRatings.includes(nextRating)) nextRating = "";
+            item['Current Rating'] = nextRating;
+
+            const currentCompany = item['Company'] || "";
+            const validCompanies = getValidCompanies(type, nextPole, nextRating);
+            let nextCompany = currentCompany;
+            if (nextCompany && validCompanies.length > 0 && !validCompanies.includes(nextCompany)) nextCompany = "";
+            item['Company'] = nextCompany;
+
+            const hasFullSelection = !!type && !!nextRating && !!nextCompany && ((type === "Main Switch Open" || type === "Change Over Switch Open") ? true : !!getEffectivePole(type, nextPole));
+            if (hasFullSelection) {
+                const row = findDeviceRow(type, getEffectivePole(type, nextPole), nextRating, nextCompany);
+                if (row) {
+                    item['Rate'] = row['Rate'];
+                    item['Description'] = row['Description'];
+                    item['GS'] = row['GS'];
+                } else {
+                    item['Rate'] = "";
+                    item['Description'] = "";
+                    item['GS'] = "";
+                }
+            } else {
+                item['Rate'] = "";
+                item['Description'] = "";
+                item['GS'] = "";
             }
         }
 

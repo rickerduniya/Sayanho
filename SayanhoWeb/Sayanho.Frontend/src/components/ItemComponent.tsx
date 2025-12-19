@@ -3,6 +3,8 @@ import Konva from 'konva';
 import { Group, Rect, Image as KonvaImage, Circle, Transformer, Text } from 'react-konva';
 import { CanvasItem as CanvasItemType } from '../types';
 import { api } from '../services/api';
+import { CacheService } from '../services/CacheService';
+
 
 interface ItemComponentProps {
     item: CanvasItemType;
@@ -73,15 +75,27 @@ export const ItemComponent: React.FC<ItemComponentProps> = ({
                 } else if (item.iconPath) {
                     const iconName = item.iconPath.split('/').pop();
                     const url = iconName ? encodeURI(api.getIconUrl(iconName)) : '';
-                    try {
-                        const resp = await fetch(url);
-                        if (resp.ok) {
-                            svgString = await resp.text();
+
+                    if (url) {
+                        const cacheKey = CacheService.generateKey('icon_svg', { url });
+                        const cachedSvg = CacheService.get<string>(cacheKey);
+
+                        if (cachedSvg) {
+                            svgString = cachedSvg;
+                        } else {
+                            try {
+                                const resp = await fetch(url);
+                                if (resp.ok) {
+                                    svgString = await resp.text();
+                                    CacheService.set(cacheKey, svgString);
+                                }
+                            } catch (e) {
+                                console.error('[ItemComponent] Failed to fetch icon:', url, e);
+                            }
                         }
-                    } catch (e) {
-                        console.error('[ItemComponent] Failed to fetch icon:', url, e);
                     }
                 }
+
 
                 // 2. Modify SVG for Dark Mode if needed
                 if (svgString) {

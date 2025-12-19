@@ -167,13 +167,12 @@ export class PanelRenderer {
                 // Vertical Text Labels (Rotated -90deg)
                 // Adjust positions inside box to be clearer. Width is 50. Center is blockCenterX. Left edge is blockCenterX - 25.
                 // Move text to blockCenterX - 15 and blockCenterX + 15
-                svg += `<text x="${blockCenterX - 12}" y="${switchBoxY + 50}" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX - 12},${switchBoxY + 50})">C/O 415V</text>`;
-                // "Switch" or Rating on right side
-                svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 35}" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 35})">Switch</text>`;
+                svg += `<text x="${blockCenterX - 12}" y="${switchBoxY + 45}" text-anchor="middle" font-family="Arial" font-size="10" font-weight="bold" fill="#000" transform="rotate(-90 ${blockCenterX - 12},${switchBoxY + 50})">C/O 415V</text>`;
+                
 
                 const coRating = properties[`BusCoupler${sec}_Rating`] || "";
                 if (coRating)
-                    svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 60}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 60})">${coRating}</text>`;
+                    svg += `<text x="${blockCenterX + 12}" y="${switchBoxY + 45}" text-anchor="middle" font-family="Arial" font-size="10" fill="#000" transform="rotate(-90 ${blockCenterX + 12},${switchBoxY + 60})">${coRating}</text>`;
 
 
                 // Connection to Busbar

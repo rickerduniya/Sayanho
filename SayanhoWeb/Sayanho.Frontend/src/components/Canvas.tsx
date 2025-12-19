@@ -21,6 +21,8 @@ import { MaterialSelectionDialog } from './MaterialSelectionDialog';
 import { ApplicationSettings } from '../utils/ApplicationSettings';
 import { TouchHandler, TouchGesture } from '../utils/TouchHandler';
 import { calculateSnapPosition } from '../utils/SnapUtils';
+import { sortOptionStringsAsc } from '../utils/sortUtils';
+import { fetchProperties } from '../utils/api';
 
 const getPhaseColor = (connector: Connector, theme: string): string => {
     const useColor = ApplicationSettings.getSaveImageInColor();
@@ -648,6 +650,53 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>((props, ref) => {
                 }
             } catch (err) {
                 console.error(`[Canvas] Failed to initialize item accessories:`, err);
+            }
+
+            // Ensure DB outgoing defaults are applied immediately on creation
+            if (["HTPN", "VTPN", "SPN DB"].includes(newItem.name)) {
+                const threshold = DefaultRulesEngine.getDefaultOutgoingThreshold(newItem.name);
+                if (threshold > 0 && newItem.outgoing && newItem.outgoing.length > 0) {
+                    const parseRating = (s: string) => {
+                        const m = (s || '').toString().match(/(\d+(?:\.\d+)?)/);
+                        return m ? parseFloat(m[1]) : NaN;
+                    };
+
+                    let defaultRating = "";
+                    try {
+                        const pole = newItem.name === "VTPN" ? "TP" : "SP";
+                        const mcb = await fetchProperties("MCB");
+
+                        const allRatings = sortOptionStringsAsc(
+                            Array.from(new Set(
+                                (mcb.properties || [])
+                                    .map(p => p["Current Rating"])
+                                    .filter(Boolean)
+                            ))
+                        );
+
+                        const poleRatingsRaw = (mcb.properties || [])
+                            .filter(p => {
+                                const pPole = (p["Pole"] || "").toString();
+                                if (!pPole) return false;
+                                return pPole === pole || pPole.includes(pole);
+                            })
+                            .map(p => p["Current Rating"])
+                            .filter(Boolean);
+                        const poleRatings = sortOptionStringsAsc(Array.from(new Set(poleRatingsRaw)));
+                        const ratings = poleRatings.length > 0 ? poleRatings : allRatings;
+
+                        defaultRating = ratings.find(r => {
+                            const v = parseRating(r);
+                            return Number.isFinite(v) && v >= threshold;
+                        }) || ratings[0] || "";
+                    } catch (e) {
+                        console.error('[Canvas] Failed to fetch outgoing rating options for defaults', e);
+                    }
+
+                    if (defaultRating) {
+                        newItem.outgoing = newItem.outgoing.map(o => ({ ...(o || {}), "Current Rating": defaultRating }));
+                    }
+                }
             }
 
             const geometry = calculateGeometry(newItem);

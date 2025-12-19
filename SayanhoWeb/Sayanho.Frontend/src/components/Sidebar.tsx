@@ -3,10 +3,12 @@ import { useStore } from '../store/useStore';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { ItemData, CanvasItem } from '../types';
-import { getItemDefinition, LOAD_ITEM_DEFAULTS } from '../utils/DefaultRulesEngine';
+import { getItemDefinition, LOAD_ITEM_DEFAULTS, DefaultRulesEngine } from '../utils/DefaultRulesEngine';
 import { calculateGeometry } from '../utils/GeometryCalculator';
 import { updateItemVisuals } from '../utils/SvgUpdater';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { sortOptionStringsAsc } from '../utils/sortUtils';
+import { fetchProperties } from '../utils/api';
 
 const CATEGORIES: Record<string, string[]> = {
     "Distribution Boards": ["VTPN", "HTPN", "SPN DB", "LT Cubical Panel"],
@@ -181,10 +183,67 @@ export const Sidebar = () => {
             if (!newItem.properties[0]) newItem.properties[0] = {};
             let wayVal = newItem.properties[0]["Way"];
             if (!wayVal || wayVal.includes(',')) {
-                wayVal = "2";
+                if (newItem.name === "SPN DB") wayVal = "2+4";
+                else wayVal = "4";
             }
-            const way = parseInt(wayVal, 10);
             newItem.properties[0]["Way"] = wayVal;
+
+            // Backend initialization populates outgoing/incomer/accessories
+            try {
+                const initData = await api.initializeItem(newItem.name, newItem.properties);
+                if (initData) {
+                    if (initData.incomer) newItem.incomer = initData.incomer;
+                    if (initData.outgoing) newItem.outgoing = initData.outgoing;
+                    if (initData.accessories) newItem.accessories = initData.accessories;
+                }
+            } catch (err) {
+                console.error(`[Sidebar] Failed to initialize item accessories:`, err);
+            }
+
+            // Ensure outgoing defaults (minimum >= threshold) for newly generated outgoings
+            const threshold = DefaultRulesEngine.getDefaultOutgoingThreshold(newItem.name);
+            if (threshold > 0 && newItem.outgoing && newItem.outgoing.length > 0) {
+                const parseRating = (s: string) => {
+                    const m = (s || '').toString().match(/(\d+(?:\.\d+)?)/);
+                    return m ? parseFloat(m[1]) : NaN;
+                };
+
+                let defaultRating = "";
+                try {
+                    const pole = newItem.name === "VTPN" ? "TP" : "SP";
+                    const mcb = await fetchProperties("MCB");
+
+                    const allRatings = sortOptionStringsAsc(
+                        Array.from(new Set(
+                            (mcb.properties || [])
+                                .map(p => p["Current Rating"])
+                                .filter(Boolean)
+                        ))
+                    );
+
+                    const poleRatingsRaw = (mcb.properties || [])
+                        .filter(p => {
+                            const pPole = (p["Pole"] || "").toString();
+                            if (!pPole) return false;
+                            return pPole === pole || pPole.includes(pole);
+                        })
+                        .map(p => p["Current Rating"])
+                        .filter(Boolean);
+                    const poleRatings = sortOptionStringsAsc(Array.from(new Set(poleRatingsRaw)));
+                    const ratings = poleRatings.length > 0 ? poleRatings : allRatings;
+
+                    defaultRating = ratings.find(r => {
+                        const v = parseRating(r);
+                        return Number.isFinite(v) && v >= threshold;
+                    }) || ratings[0] || "";
+                } catch (e) {
+                    console.error('[Sidebar] Failed to fetch outgoing rating options for defaults', e);
+                }
+
+                if (defaultRating) {
+                    newItem.outgoing = newItem.outgoing.map(o => ({ ...(o || {}), "Current Rating": defaultRating }));
+                }
+            }
 
             const result = calculateGeometry(newItem);
             if (result) {

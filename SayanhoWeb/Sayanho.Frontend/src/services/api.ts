@@ -94,6 +94,23 @@ if (DEBUG) {
     );
 }
 
+const stableStringify = (value: any): string => {
+    if (value === null || value === undefined) return String(value);
+    if (typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+    const keys = Object.keys(value).sort();
+    return `{${keys.map(k => `${JSON.stringify(k)}:${stableStringify((value as any)[k])}`).join(',')}}`;
+};
+
+const hashString = (str: string): string => {
+    let hash = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        hash ^= str.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16);
+};
+
 export const api = {
     getItems: async (): Promise<ItemData[]> => {
         const cacheKey = CacheService.generateKey('items');
@@ -212,10 +229,20 @@ export const api = {
         outgoing: Record<string, string>[];
         accessories: Record<string, string>[];
     }> => {
+        const propsStr = stableStringify(properties);
+        const cacheKey = CacheService.generateKey('initializeItem', { name, h: hashString(propsStr) });
+        const cached = CacheService.get<{
+            incomer: Record<string, string>;
+            outgoing: Record<string, string>[];
+            accessories: Record<string, string>[];
+        }>(cacheKey);
+        if (cached) return cached;
+
         const response = await axios.post(`${API_URL}/item-initialization/initialize`, {
             name,
             properties
         });
+        CacheService.set(cacheKey, response.data);
         return response.data;
     },
 
