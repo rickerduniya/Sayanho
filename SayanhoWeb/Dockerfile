@@ -25,5 +25,6 @@ COPY --from=build /app/out .
 # Expose port (Render will set PORT environment variable)
 EXPOSE 10000
 ENV ASPNETCORE_URLS=http://+:$PORT
+ENV DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false
 
 ENTRYPOINT ["dotnet", "Sayanho.Backend.dll"]
