@@ -11,7 +11,7 @@ export interface AppSettings {
     connectorSpecTextFontSize: number;
     sldDownstreamGapFactor: number;
     aiSettings: {
-        provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'bai' | 'orcarouter';
+        provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'bai' | 'orcarouter' | 'zai';
         geminiApiKey: string;
         geminiModelName: string;
         groqApiKey: string;
@@ -36,6 +36,12 @@ export interface AppSettings {
         orcarouterBaseUrl: string;
         orcarouterReasoningEnabled: boolean;
         orcarouterReasoningEffort: 'minimal' | 'low' | 'medium' | 'high' | 'max';
+        zaiApiKey: string;
+        zaiModelName: string;
+        zaiBaseUrl: string;
+        zaiThinkingEnabled: boolean;
+        zaiReasoningEffortEnabled: boolean;
+        zaiReasoningEffort: 'low' | 'high' | 'max';
         requestsPerMinute: number;
         maxRetryAttempts: number;
         retryOnError: boolean;
@@ -92,6 +98,12 @@ const DEFAULT_SETTINGS: AppSettings = {
         orcarouterBaseUrl: 'https://api.orcarouter.ai/v1',
         orcarouterReasoningEnabled: false,
         orcarouterReasoningEffort: 'medium',
+        zaiApiKey: '',
+        zaiModelName: 'glm-5.3',
+        zaiBaseUrl: 'https://api.z.ai/api/paas/v4',
+        zaiThinkingEnabled: true,
+        zaiReasoningEffortEnabled: false,
+        zaiReasoningEffort: 'max',
         requestsPerMinute: 30,
         maxRetryAttempts: 2,
         retryOnError: true,
@@ -283,6 +295,22 @@ export class ApplicationSettings {
                 reasoningEffort: {
                     enabled: typeof ai.orcarouterReasoningEnabled === 'boolean' ? ai.orcarouterReasoningEnabled : DEFAULT_SETTINGS.aiSettings.orcarouterReasoningEnabled,
                     effort: (ai.orcarouterReasoningEffort || DEFAULT_SETTINGS.aiSettings.orcarouterReasoningEffort) as any
+                },
+                ...common
+            };
+        }
+        if (provider === 'zai') {
+            return {
+                provider,
+                apiKey: ai.zaiApiKey || '',
+                modelName: ai.zaiModelName || 'glm-5.3',
+                baseUrl: ai.zaiBaseUrl || 'https://api.z.ai/api/paas/v4',
+                thinking: {
+                    enabled: typeof ai.zaiThinkingEnabled === 'boolean' ? ai.zaiThinkingEnabled : DEFAULT_SETTINGS.aiSettings.zaiThinkingEnabled
+                },
+                reasoningEffort: {
+                    enabled: typeof ai.zaiReasoningEffortEnabled === 'boolean' ? ai.zaiReasoningEffortEnabled : DEFAULT_SETTINGS.aiSettings.zaiReasoningEffortEnabled,
+                    effort: (ai.zaiReasoningEffort || DEFAULT_SETTINGS.aiSettings.zaiReasoningEffort) as any
                 },
                 ...common
             };

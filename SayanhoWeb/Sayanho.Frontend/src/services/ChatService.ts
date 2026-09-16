@@ -452,14 +452,16 @@ short; the user watches a live action log, so do not narrate every call.`;
                     : provider === 'mistral' ? 'mistral-small-latest'
                         : provider === 'bai' ? 'gpt-5.6-luna'
                             : provider === 'orcarouter' ? 'openai/gpt-4o-mini'
-                                : 'gemini-2.5-flash'
+                                : provider === 'zai' ? 'glm-5.3'
+                                    : 'gemini-2.5-flash'
         );
         const baseUrl = settings.baseUrl || (
             provider === 'openrouter' ? 'https://openrouter.ai/api/v1'
                 : provider === 'mistral' ? 'https://api.mistral.ai/v1'
                     : provider === 'bai' ? 'https://api.b.ai/v1'
                         : provider === 'orcarouter' ? 'https://api.orcarouter.ai/v1'
-                            : 'https://api.groq.com/openai/v1'
+                            : provider === 'zai' ? 'https://api.z.ai/api/paas/v4'
+                                : 'https://api.groq.com/openai/v1'
         );
         const extraHeaders = ((settings as any).extraHeaders && typeof (settings as any).extraHeaders === 'object') ? (settings as any).extraHeaders : undefined;
         const requestsPerMinute = typeof (settings as any).requestsPerMinute === 'number' ? (settings as any).requestsPerMinute : 30;
@@ -507,6 +509,13 @@ short; the user watches a live action log, so do not narrate every call.`;
             const reasoningEffort = (provider === 'orcarouter' && (settings as any).reasoningEffort?.enabled)
                 ? (settings as any).reasoningEffort.effort
                 : undefined;
+            // Z.ai thinking switch + optional reasoning depth (GLM-5.2+ only).
+            const zaiThinking = provider === 'zai'
+                ? (((settings as any).thinking?.enabled ?? true) ? 'enabled' : 'disabled')
+                : undefined;
+            const zaiReasoningEffort = (provider === 'zai' && (settings as any).reasoningEffort?.enabled)
+                ? (settings as any).reasoningEffort.effort
+                : undefined;
             const callProvider = async () => {
                 const result = provider === 'groq'
                     ? await this.callGroq(apiKey, modelName, baseUrl)
@@ -518,7 +527,9 @@ short; the user watches a live action log, so do not narrate every call.`;
                                 ? await this.callBai(apiKey, modelName, baseUrl)
                                 : provider === 'orcarouter'
                                     ? await this.callOrcaRouter(apiKey, modelName, baseUrl, reasoningEffort)
-                                    : await this.callGemini(apiKey, modelName);
+                                    : provider === 'zai'
+                                        ? await this.callZai(apiKey, modelName, baseUrl, zaiThinking, zaiReasoningEffort)
+                                        : await this.callGemini(apiKey, modelName);
 
                 // Charged only on a successful response, so a rate-limited retry
                 // does not silently burn the agent's chance to look at the plan.
@@ -568,7 +579,7 @@ short; the user watches a live action log, so do not narrate every call.`;
                 let textResponse = '';
                 const toolCalls: any[] = [];
 
-                if (provider === 'groq' || provider === 'openrouter' || provider === 'mistral' || provider === 'bai' || provider === 'orcarouter') {
+                if (provider === 'groq' || provider === 'openrouter' || provider === 'mistral' || provider === 'bai' || provider === 'orcarouter' || provider === 'zai') {
                     const choice = response?.choices?.[0];
                     const msg = choice?.message;
                     if (!msg) {
@@ -589,16 +600,17 @@ short; the user watches a live action log, so do not narrate every call.`;
                     const rawContentStr = msg.content ? String(msg.content) : '';
                     const extractedFromText = this.extractToolCallsFromText(rawContentStr);
                     const contentStr = extractedFromText.cleanedText;
-                    // OpenRouter calls it `reasoning`; OrcaRouter surfaces the trace
-                    // as `reasoning_content` (same as B.AI's DeepSeek/GLM-family
-                    // models which use the DeepSeek field name `reasoning_content`).
+                    // OpenRouter calls it `reasoning`; OrcaRouter and Z.ai surface
+                    // the trace as `reasoning_content` (same as B.AI's
+                    // DeepSeek/GLM-family models which use the DeepSeek field
+                    // name `reasoning_content`).
                     const rawReasoningStr = (msg as any).reasoning
                         ? String((msg as any).reasoning)
                         : ((msg as any).reasoning_content ? String((msg as any).reasoning_content) : '');
                     const extractedFromReasoning = this.extractToolCallsFromText(rawReasoningStr);
                     const reasoningStr = extractedFromReasoning.cleanedText;
                     textResponse = contentStr;
-                    if ((provider === 'openrouter' || provider === 'bai' || provider === 'orcarouter') && reasoningStr && reasoningStr.trim()) {
+                    if ((provider === 'openrouter' || provider === 'bai' || provider === 'orcarouter' || provider === 'zai') && reasoningStr && reasoningStr.trim()) {
                         textResponse = `${contentStr || ''}${contentStr ? '\n\n' : ''}**Reasoning**\n\n\`\`\`\n${reasoningStr}\n\`\`\``;
                     }
                     if (Array.isArray(msg.tool_calls)) {
@@ -974,7 +986,7 @@ short; the user watches a live action log, so do not narrate every call.`;
      * Conversation history in OpenAI Chat Completions shape.
      *
      * Shared by every OpenAI-compatible provider (OpenRouter, Groq, Mistral,
-     * B.AI, OrcaRouter), so image handling and the tool-call round trip stay identical
+     * B.AI, OrcaRouter, Z.ai), so image handling and the tool-call round trip stay identical
      * across them instead of drifting per provider.
      */
     private buildOpenAiMessages(): any[] {
@@ -1165,7 +1177,7 @@ short; the user watches a live action log, so do not narrate every call.`;
     // Existing stubs for other providers remain, but we should make sure they
     // handle (or ignore) images gracefully if they don't support them.
     // For now, only Gemini and the OpenAI-compatible providers (OpenRouter,
-    // Groq, Mistral, B.AI, OrcaRouter) are fully updated for vision.
+    // Groq, Mistral, B.AI, OrcaRouter, Z.ai) are fully updated for vision.
 
     private async callGroq(apiKey: string, model: string, baseUrl: string): Promise<any> {
         // Groq officially supports vision now with Llama 3.2 11B/90B
@@ -1182,7 +1194,7 @@ short; the user watches a live action log, so do not narrate every call.`;
      * B.AI exposes three protocols behind one key: OpenAI Chat Completions,
      * OpenAI Responses, and Anthropic Messages. We use /chat/completions
      * deliberately — this class already speaks that shape for OpenRouter, Groq,
-     * Mistral and OrcaRouter, so tool calls, multimodal content and the reply parser all
+     * Mistral, OrcaRouter and Z.ai, so tool calls, multimodal content and the reply parser all
      * work unchanged. Responses would need `input`/`max_output_tokens` and a
      * different `output[]` walk for no gain here.
      *
@@ -1249,6 +1261,57 @@ short; the user watches a live action log, so do not narrate every call.`;
 
         const response = await axios.post(
             `${this.normalizeBaseUrl(baseUrl, 'https://api.orcarouter.ai/v1')}/chat/completions`,
+            body,
+            {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        return response.data;
+    }
+
+    /**
+     * Z.ai (https://api.z.ai/api/paas/v4).
+     *
+     * OpenAI-compatible GLM endpoint — see https://docs.z.ai/. We use
+     * /chat/completions deliberately, the same shape this class already speaks
+     * for OpenRouter, Groq, Mistral, B.AI and OrcaRouter, so tool calls,
+     * multimodal content and the reply parser all work unchanged: Z.ai accepts
+     * OpenAI-style `tools` with `tool_choice: "auto"` (the only strategy it
+     * supports) and returns `tool_calls` with id / function.name /
+     * function.arguments.
+     *
+     * Z.ai specifics on top of the shared shape:
+     * - Auth is `Authorization: Bearer <key>`.
+     * - `thinking: {type: "enabled"|"disabled"}` controls the chain-of-thought
+     *   pass (GLM-4.5+; glm-5.3 / glm-5.3-flash force thinking and reject
+     *   "disabled").
+     * - `reasoning_effort` ("low"|"high"|"max", default "max") sizes that pass
+     *   but is only defined on GLM-5.2+, so it is sent solely when the user
+     *   enables it in AI Settings.
+     * - The thinking trace (where the model produces one) arrives as
+     *   `reasoning_content` on the chat-completion message, already handled by
+     *   the shared OpenAI-shape reply parser.
+     * - GLM Coding Plan keys must point the base URL at
+     *   https://api.z.ai/api/coding/paas/v4 instead; the Settings field is
+     *   free text so both work.
+     */
+    private async callZai(apiKey: string, model: string, baseUrl: string, thinking?: string, reasoningEffort?: string): Promise<any> {
+        const body: any = {
+            model,
+            messages: this.buildOpenAiMessages(),
+            tools: this.getOpenAiTools(),
+            tool_choice: 'auto'
+        };
+        if (thinking) body.thinking = { type: thinking };
+        // GLM-5.2+ only; other models would not know this field, so it stays
+        // off unless explicitly enabled.
+        if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+
+        const response = await axios.post(
+            `${this.normalizeBaseUrl(baseUrl, 'https://api.z.ai/api/paas/v4')}/chat/completions`,
             body,
             {
                 headers: {

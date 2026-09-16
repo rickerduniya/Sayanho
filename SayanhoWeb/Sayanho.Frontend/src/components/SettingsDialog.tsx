@@ -18,6 +18,12 @@ const BAI_DEFAULT_MODEL = 'gpt-5.6-luna';
 const ORCA_DEFAULT_BASE_URL = 'https://api.orcarouter.ai/v1';
 const ORCA_DEFAULT_MODEL = 'openai/gpt-4o-mini';
 
+/** Default Z.ai endpoint, per https://docs.z.ai/api-reference/introduction. */
+const ZAI_DEFAULT_BASE_URL = 'https://api.z.ai/api/paas/v4';
+const ZAI_DEFAULT_MODEL = 'glm-5.3';
+/** GLM Coding Plan keys use this endpoint instead of the general one. */
+const ZAI_CODING_BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
+
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose, onSave }) => {
     const { colors } = useTheme();
     const { settings: storeSettings, updateSettings } = useStore();
@@ -35,6 +41,10 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
     // orcarouter/auto router), so the authoritative list comes from the key.
     const [orcaModels, setOrcaModels] = useState<string[]>([]);
     const [orcaModelsStatus, setOrcaModelsStatus] = useState<{ state: 'idle' | 'loading' | 'error' | 'done'; message?: string }>({ state: 'idle' });
+
+    // Same again for Z.ai: GET {base}/models lists the IDs the key can call.
+    const [zaiModels, setZaiModels] = useState<string[]>([]);
+    const [zaiModelsStatus, setZaiModelsStatus] = useState<{ state: 'idle' | 'loading' | 'error' | 'done'; message?: string }>({ state: 'idle' });
 
     useEffect(() => {
         if (isOpen) {
@@ -154,6 +164,47 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
         }
     };
 
+    /**
+     * Fetch the model IDs this Z.ai key can call (GET {base}/models).
+     *
+     * Model codes are bare GLM IDs (glm-5.3, glm-4.7, glm-4.5-air, …) — see
+     * https://docs.z.ai/guides/overview/overview.
+     */
+    const loadZaiModels = async () => {
+        const ai = settings.aiSettings as any;
+        const apiKey = (ai?.zaiApiKey || '').trim();
+
+        if (!apiKey) {
+            setZaiModels([]);
+            setZaiModelsStatus({ state: 'error', message: 'Enter the API key first.' });
+            return;
+        }
+
+        setZaiModelsStatus({ state: 'loading' });
+        try {
+            const ids = await fetchOpenAiModelIds(ai?.zaiBaseUrl || ZAI_DEFAULT_BASE_URL, apiKey, ZAI_DEFAULT_BASE_URL);
+
+            setZaiModels(ids);
+            setZaiModelsStatus(
+                ids.length > 0
+                    ? { state: 'done', message: `${ids.length} model(s) available.` }
+                    : { state: 'error', message: 'The key is valid but no models are enabled on it.' }
+            );
+        } catch (e: any) {
+            const status = e?.response?.status;
+            const apiMessage = e?.response?.data?.error?.message || e?.response?.data?.message;
+            setZaiModels([]);
+            setZaiModelsStatus({
+                state: 'error',
+                message: status === 401
+                    ? 'Key rejected (401). Check the key on the Z.ai API-keys page.'
+                    : status === 403
+                        ? 'Key lacks permission (403). Check billing / plan status.'
+                        : apiMessage || e?.message || 'Could not reach the Z.ai API.'
+            });
+        }
+    };
+
     const handleSave = () => {
         if (settings) {
             ApplicationSettings.save(settings);
@@ -218,6 +269,12 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                     orcarouterBaseUrl: ORCA_DEFAULT_BASE_URL,
                     orcarouterReasoningEnabled: false,
                     orcarouterReasoningEffort: 'medium',
+                    zaiApiKey: '',
+                    zaiModelName: ZAI_DEFAULT_MODEL,
+                    zaiBaseUrl: ZAI_DEFAULT_BASE_URL,
+                    zaiThinkingEnabled: true,
+                    zaiReasoningEffortEnabled: false,
+                    zaiReasoningEffort: 'max',
                     requestsPerMinute: 30,
                     maxRetryAttempts: 2,
                     retryOnError: true,
@@ -386,6 +443,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                                     <option value="mistral">Mistral</option>
                                     <option value="bai">B.AI</option>
                                     <option value="orcarouter">OrcaRouter</option>
+                                    <option value="zai">Z.ai (GLM)</option>
                                 </select>
                             </div>
 
@@ -813,6 +871,148 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                                         <p className="text-xs opacity-70">
                                             One syntax across providers — mapped to thinking budgets upstream. Only reasoning families use it; other models ignore it.
                                         </p>
+                                    </div>
+                                </>
+                            ) : (settings.aiSettings?.provider === 'zai') ? (
+                                <>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">Z.ai API Key:</label>
+                                        <input
+                                            type="password"
+                                            value={(settings.aiSettings as any)?.zaiApiKey || ''}
+                                            onChange={e => {
+                                                setZaiModels([]);
+                                                setZaiModelsStatus({ state: 'idle' });
+                                                setSettings({
+                                                    ...settings,
+                                                    aiSettings: { ...settings.aiSettings, zaiApiKey: e.target.value }
+                                                });
+                                            }}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            placeholder="Create one under API Keys on the Z.ai open platform"
+                                        />
+                                        <p className="text-xs opacity-70">
+                                            Sent from your browser straight to Z.ai over HTTPS and stored only in this browser. It is never sent to the Sayanho backend.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">Z.ai Model:</label>
+                                        <input
+                                            type="text"
+                                            list="zai-model-options"
+                                            value={(settings.aiSettings as any)?.zaiModelName || ZAI_DEFAULT_MODEL}
+                                            onChange={e => setSettings({
+                                                ...settings,
+                                                aiSettings: { ...settings.aiSettings, zaiModelName: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            placeholder={`e.g. ${ZAI_DEFAULT_MODEL}`}
+                                        />
+                                        <datalist id="zai-model-options">
+                                            {zaiModels.map(id => <option key={id} value={id} />)}
+                                        </datalist>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={loadZaiModels}
+                                                disabled={zaiModelsStatus.state === 'loading'}
+                                                className="px-3 py-1.5 text-xs rounded border disabled:opacity-50"
+                                                style={{ borderColor: colors.border, color: colors.text }}
+                                            >
+                                                {zaiModelsStatus.state === 'loading' ? 'Loading…' : 'Fetch available models'}
+                                            </button>
+                                            {zaiModelsStatus.message && (
+                                                <span
+                                                    className="text-xs"
+                                                    style={{ color: zaiModelsStatus.state === 'error' ? '#dc2626' : colors.text, opacity: zaiModelsStatus.state === 'error' ? 1 : 0.7 }}
+                                                >
+                                                    {zaiModelsStatus.message}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {zaiModels.length > 0 && (
+                                            <select
+                                                value=""
+                                                onChange={e => {
+                                                    if (!e.target.value) return;
+                                                    setSettings({
+                                                        ...settings,
+                                                        aiSettings: { ...settings.aiSettings, zaiModelName: e.target.value }
+                                                    });
+                                                }}
+                                                className="w-full px-3 py-2 rounded border"
+                                                style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            >
+                                                <option value="">— pick from your available models —</option>
+                                                {zaiModels.map(id => <option key={id} value={id}>{id}</option>)}
+                                            </select>
+                                        )}
+                                        <p className="text-xs opacity-70">
+                                            Bare GLM codes (e.g. <code>glm-5.3</code>, <code>glm-4.7</code>, <code>glm-4.5-air</code>). The agent needs a model that supports function calling — the GLM-5 / GLM-4.7 / GLM-4.5 families do. For floor-plan images use a multimodal model such as <code>glm-5.3-flash</code>.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">Z.ai Base URL:</label>
+                                        <input
+                                            type="text"
+                                            value={(settings.aiSettings as any)?.zaiBaseUrl || ZAI_DEFAULT_BASE_URL}
+                                            onChange={e => setSettings({
+                                                ...settings,
+                                                aiSettings: { ...settings.aiSettings, zaiBaseUrl: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            placeholder={ZAI_DEFAULT_BASE_URL}
+                                        />
+                                        <p className="text-xs opacity-70">
+                                            Requests use the OpenAI-compatible <code>/chat/completions</code> endpoint on this base URL. GLM Coding Plan keys must use <code>{ZAI_CODING_BASE_URL}</code> instead.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">Thinking mode:</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={(settings.aiSettings as any)?.zaiThinkingEnabled ?? true}
+                                                onChange={e => setSettings({
+                                                    ...settings,
+                                                    aiSettings: { ...settings.aiSettings, zaiThinkingEnabled: e.target.checked }
+                                                })}
+                                            />
+                                            <span className="text-sm">Enable chain-of-thought (Z.ai thinking type)</span>
+                                        </div>
+                                        <p className="text-xs opacity-70">
+                                            Supported on GLM-4.5 and above. <code>glm-5.3</code> and <code>glm-5.3-flash</code> force thinking on — disabling it errors on those models.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">Reasoning effort (GLM-5.2+ only):</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={(settings.aiSettings as any)?.zaiReasoningEffortEnabled ?? false}
+                                                onChange={e => setSettings({
+                                                    ...settings,
+                                                    aiSettings: { ...settings.aiSettings, zaiReasoningEffortEnabled: e.target.checked }
+                                                })}
+                                            />
+                                            <span className="text-sm">Send reasoning_effort</span>
+                                        </div>
+                                        <select
+                                            value={(settings.aiSettings as any)?.zaiReasoningEffort || 'max'}
+                                            onChange={e => setSettings({
+                                                ...settings,
+                                                aiSettings: { ...settings.aiSettings, zaiReasoningEffort: e.target.value as any }
+                                            })}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                        >
+                                            <option value="low">low — light thinking</option>
+                                            <option value="high">high — enhanced thinking</option>
+                                            <option value="max">max — deep thinking (default)</option>
+                                        </select>
                                     </div>
                                 </>
                             ) : (
