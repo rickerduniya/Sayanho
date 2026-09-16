@@ -57,6 +57,12 @@ permissive so half-configured boards don't deadlock):
 
 ## Connection map
 
+Same-type distribution boards never feed each other: an SPN DB cannot feed
+another SPN DB, an HTPN cannot feed another HTPN, and a VTPN cannot feed
+another VTPN. If you run out of ways, add another board of the same type fed
+from its proper upstream parent (SPN DB ← HTPN, HTPN ← VTPN or Source,
+VTPN ← Source) — never daisy-chain the same type.
+
 Work strictly downstream-to-upstream **within each group**, but build the groups
 in this order so that every parent exists before its children need it.
 
@@ -183,5 +189,7 @@ unfed loads as complete.
 - Putting an AC or geyser on a Point Switch Board. They are dedicated HTPN
   circuits.
 - Using `out1` on an HTPN. HTPN outputs are always phase-suffixed.
+- Feeding an SPN DB from another SPN DB, an HTPN from another HTPN, or a VTPN
+  from another VTPN. Same-type boards never feed each other.
 - Adding a VTPN for a single-HTPN dwelling.
 - Reusing a point key because the first attempt failed for another reason.

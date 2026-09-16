@@ -12,6 +12,9 @@ may not match what the tools accepted.
 
 ## The distribution chain
 
+The chain is a strict hierarchy — same-type boards never feed each other:
+no SPN DB ← SPN DB, no HTPN ← HTPN, no VTPN ← VTPN.
+
 ```
 Source
   └── VTPN            (only when more than one HTPN is needed)

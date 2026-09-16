@@ -160,6 +160,7 @@ Connection rules:
 - AC Point and Geyser Point connect to HTPN outgoings (dedicated circuits).
 - All other electrical loads connect to Point Switch Board out ports (not directly to SPN DB).
 - Avg. 5A Switch Board connects to SPN DB (represents a power circuit group).
+- Same-type distribution boards never feed each other: SPN DB cannot feed SPN DB, HTPN cannot feed HTPN, VTPN cannot feed VTPN.
 - Use Point Switch Board for fan-out; each out port feeds only one load.
 - Never attach more than one connector to the same connection point key on an item.
 - Always fetch actual connection point keys from get_diagram_state_json before connecting.
