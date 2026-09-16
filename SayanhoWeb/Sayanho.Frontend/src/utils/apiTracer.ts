@@ -26,6 +26,7 @@ export interface ApiTraceEntry {
 const SENSITIVE_HEADERS = new Set([
     'authorization',
     'x-api-key',
+    'x-zai-api-key',
     'api-key',
     'x-goog-api-key',
     'openai-api-key',

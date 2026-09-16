@@ -893,7 +893,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                                             placeholder="Create one under API Keys on the Z.ai open platform"
                                         />
                                         <p className="text-xs opacity-70">
-                                            Sent from your browser straight to Z.ai over HTTPS and stored only in this browser. It is never sent to the Sayanho backend.
+                                            Stored only in this browser. Chat requests are relayed through your Sayanho backend (Z.ai blocks browser-direct chat calls); the key is forwarded, never stored there. Model fetching goes straight to Z.ai.
                                         </p>
                                     </div>
                                     <div className="space-y-3">

@@ -16,6 +16,7 @@ import { getSkill, getSkillIndex } from '../agent/skills';
 import { looksUnfinished } from '../agent/turnHeuristics';
 import { normalizeSldOperation, isNormalizeError } from '../agent/sldOperations';
 import type { AgentHooks } from '../agent/AgentController';
+import { API_URL as BACKEND_API_URL } from '../config/api';
 
 export interface ChatMessage {
     role: 'system' | 'user' | 'assistant' | 'tool';
@@ -1294,6 +1295,13 @@ short; the user watches a live action log, so do not narrate every call.`;
      * - The thinking trace (where the model produces one) arrives as
      *   `reasoning_content` on the chat-completion message, already handled by
      *   the shared OpenAI-shape reply parser.
+     * - Browser-direct POSTs are blocked: Z.ai answers CORS preflights for
+     *   GET /models but not for POST /chat/completions, so the browser refuses
+     *   the call ("Network Error"). Chat therefore goes through the Sayanho
+     *   backend relay (POST {backend}/api/aiproxy/zai/chat/completions), which
+     *   forwards server-to-server. The key travels in the X-Zai-Api-Key header
+     *   (redacted in traces, never stored server-side); only /models stays
+     *   browser-direct.
      * - GLM Coding Plan keys must point the base URL at
      *   https://api.z.ai/api/coding/paas/v4 instead; the Settings field is
      *   free text so both work.
@@ -1310,12 +1318,13 @@ short; the user watches a live action log, so do not narrate every call.`;
         // off unless explicitly enabled.
         if (reasoningEffort) body.reasoning_effort = reasoningEffort;
 
+        const targetBase = this.normalizeBaseUrl(baseUrl, 'https://api.z.ai/api/paas/v4');
         const response = await axios.post(
-            `${this.normalizeBaseUrl(baseUrl, 'https://api.z.ai/api/paas/v4')}/chat/completions`,
+            `${BACKEND_API_URL}/aiproxy/zai/chat/completions?baseUrl=${encodeURIComponent(targetBase)}`,
             body,
             {
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
+                    'X-Zai-Api-Key': apiKey,
                     'Content-Type': 'application/json'
                 }
             }

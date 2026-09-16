@@ -17,7 +17,11 @@ let __reqId = 0;
  *
  * The interceptors below are registered on the axios *global* default, so they
  * see every axios call in the app — including third-party LLM calls to
- * OpenRouter, Groq, Mistral and B.AI. Three things must therefore be scoped:
+ * OpenRouter, Groq, Mistral, B.AI and OrcaRouter. (Z.ai chat is relayed
+ * through our own backend proxy, so those requests are scoped as backend
+ * requests below — which is what we want: the session header is harmless
+ * there and backend outages correctly escalate.) Three things must therefore
+ * be scoped:
  *
  *  1. The Sayanho session token. Attaching it to a third-party host leaks the
  *     token AND overwrites that provider's own Authorization header, which made

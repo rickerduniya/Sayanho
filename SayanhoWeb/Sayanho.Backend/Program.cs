@@ -50,6 +50,13 @@ builder.Services.AddControllers(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<AuthenticationService>();
+// Server-to-server relay for LLM providers browsers cannot call directly
+// (Z.ai: no CORS preflight answer on POST /chat/completions). Long timeout:
+// thinking models can take minutes on a single non-streaming turn.
+builder.Services.AddHttpClient("zai-proxy", client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(10);
+});
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
