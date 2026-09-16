@@ -14,6 +14,10 @@ interface SettingsDialogProps {
 const BAI_DEFAULT_BASE_URL = 'https://api.b.ai/v1';
 const BAI_DEFAULT_MODEL = 'gpt-5.6-luna';
 
+/** Default OrcaRouter endpoint, per https://docs.orcarouter.ai/getting-started/quickstart. */
+const ORCA_DEFAULT_BASE_URL = 'https://api.orcarouter.ai/v1';
+const ORCA_DEFAULT_MODEL = 'openai/gpt-4o-mini';
+
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose, onSave }) => {
     const { colors } = useTheme();
     const { settings: storeSettings, updateSettings } = useStore();
@@ -25,6 +29,12 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
     // accounts — GET /v1/models is the only authoritative source.
     const [baiModels, setBaiModels] = useState<string[]>([]);
     const [baiModelsStatus, setBaiModelsStatus] = useState<{ state: 'idle' | 'loading' | 'error' | 'done'; message?: string }>({ state: 'idle' });
+
+    // Same idea as B.AI: OrcaRouter serves a live, per-account catalog behind
+    // GET /v1/models (provider-prefixed IDs like openai/gpt-4o-mini, plus the
+    // orcarouter/auto router), so the authoritative list comes from the key.
+    const [orcaModels, setOrcaModels] = useState<string[]>([]);
+    const [orcaModelsStatus, setOrcaModelsStatus] = useState<{ state: 'idle' | 'loading' | 'error' | 'done'; message?: string }>({ state: 'idle' });
 
     useEffect(() => {
         if (isOpen) {
@@ -43,6 +53,25 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
     if (!isOpen || !settings) return null;
 
     /**
+     * List the model IDs an OpenAI-compatible `GET {base}/models` endpoint
+     * exposes for a key (B.AI, OrcaRouter, …). Trims a pasted full endpoint or
+     * trailing slash so `${base}/models` stays valid.
+     */
+    const fetchOpenAiModelIds = async (baseUrlRaw: string, apiKey: string, fallbackBaseUrl: string): Promise<string[]> => {
+        const baseUrl = (baseUrlRaw || fallbackBaseUrl)
+            .trim()
+            .replace(/\/+$/, '')
+            .replace(/\/(chat\/completions|responses|messages|models)$/i, '');
+        const response = await axios.get(`${baseUrl || fallbackBaseUrl}/models`, {
+            headers: { Authorization: `Bearer ${apiKey}` }
+        });
+        return (response.data?.data || [])
+            .map((m: any) => (typeof m === 'string' ? m : m?.id))
+            .filter((id: any): id is string => typeof id === 'string' && id.length > 0)
+            .sort((a: string, b: string) => a.localeCompare(b));
+    };
+
+    /**
      * Fetch the model IDs this B.AI key is entitled to (GET /v1/models).
      *
      * Kept as an explicit button rather than an effect: it spends a request on
@@ -51,10 +80,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
     const loadBaiModels = async () => {
         const ai = settings.aiSettings as any;
         const apiKey = (ai?.baiApiKey || '').trim();
-        const baseUrl = (ai?.baiBaseUrl || BAI_DEFAULT_BASE_URL)
-            .trim()
-            .replace(/\/+$/, '')
-            .replace(/\/(chat\/completions|responses|messages|models)$/i, '');
 
         if (!apiKey) {
             setBaiModels([]);
@@ -64,13 +89,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
 
         setBaiModelsStatus({ state: 'loading' });
         try {
-            const response = await axios.get(`${baseUrl || BAI_DEFAULT_BASE_URL}/models`, {
-                headers: { Authorization: `Bearer ${apiKey}` }
-            });
-            const ids: string[] = (response.data?.data || [])
-                .map((m: any) => (typeof m === 'string' ? m : m?.id))
-                .filter((id: any): id is string => typeof id === 'string' && id.length > 0)
-                .sort((a: string, b: string) => a.localeCompare(b));
+            const ids = await fetchOpenAiModelIds(ai?.baiBaseUrl || BAI_DEFAULT_BASE_URL, apiKey, BAI_DEFAULT_BASE_URL);
 
             setBaiModels(ids);
             setBaiModelsStatus(
@@ -89,6 +108,48 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                     : status === 403
                         ? 'Key lacks permission (403). Check the account status.'
                         : apiMessage || e?.message || 'Could not reach the B.AI API.'
+            });
+        }
+    };
+
+    /**
+     * Fetch the model IDs this OrcaRouter key can call (GET /v1/models).
+     *
+     * IDs are provider-prefixed (openai/gpt-4o-mini, anthropic/…,
+     * google/…, …) plus the orcarouter/auto router — see
+     * https://docs.orcarouter.ai/getting-started/models.
+     */
+    const loadOrcaModels = async () => {
+        const ai = settings.aiSettings as any;
+        const apiKey = (ai?.orcarouterApiKey || '').trim();
+
+        if (!apiKey) {
+            setOrcaModels([]);
+            setOrcaModelsStatus({ state: 'error', message: 'Enter the API key first.' });
+            return;
+        }
+
+        setOrcaModelsStatus({ state: 'loading' });
+        try {
+            const ids = await fetchOpenAiModelIds(ai?.orcarouterBaseUrl || ORCA_DEFAULT_BASE_URL, apiKey, ORCA_DEFAULT_BASE_URL);
+
+            setOrcaModels(ids);
+            setOrcaModelsStatus(
+                ids.length > 0
+                    ? { state: 'done', message: `${ids.length} model(s) available.` }
+                    : { state: 'error', message: 'The key is valid but no models are enabled on it.' }
+            );
+        } catch (e: any) {
+            const status = e?.response?.status;
+            const apiMessage = e?.response?.data?.error?.message || e?.response?.data?.message;
+            setOrcaModels([]);
+            setOrcaModelsStatus({
+                state: 'error',
+                message: status === 401
+                    ? 'Key rejected (401). Check the key on the OrcaRouter dashboard.'
+                    : status === 403
+                        ? 'Key lacks permission (403). Check the workspace status.'
+                        : apiMessage || e?.message || 'Could not reach the OrcaRouter API.'
             });
         }
     };
@@ -152,6 +213,11 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                     baiApiKey: '',
                     baiModelName: BAI_DEFAULT_MODEL,
                     baiBaseUrl: BAI_DEFAULT_BASE_URL,
+                    orcarouterApiKey: '',
+                    orcarouterModelName: ORCA_DEFAULT_MODEL,
+                    orcarouterBaseUrl: ORCA_DEFAULT_BASE_URL,
+                    orcarouterReasoningEnabled: false,
+                    orcarouterReasoningEffort: 'medium',
                     requestsPerMinute: 30,
                     maxRetryAttempts: 2,
                     retryOnError: true,
@@ -319,6 +385,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                                     <option value="openrouter">OpenRouter</option>
                                     <option value="mistral">Mistral</option>
                                     <option value="bai">B.AI</option>
+                                    <option value="orcarouter">OrcaRouter</option>
                                 </select>
                             </div>
 
@@ -615,6 +682,136 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose,
                                         />
                                         <p className="text-xs opacity-70">
                                             Requests use the OpenAI-compatible <code>/chat/completions</code> endpoint on this base URL.
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (settings.aiSettings?.provider === 'orcarouter') ? (
+                                <>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">OrcaRouter API Key:</label>
+                                        <input
+                                            type="password"
+                                            value={(settings.aiSettings as any)?.orcarouterApiKey || ''}
+                                            onChange={e => {
+                                                setOrcaModels([]);
+                                                setOrcaModelsStatus({ state: 'idle' });
+                                                setSettings({
+                                                    ...settings,
+                                                    aiSettings: { ...settings.aiSettings, orcarouterApiKey: e.target.value }
+                                                });
+                                            }}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            placeholder="sk-orca-..."
+                                        />
+                                        <p className="text-xs opacity-70">
+                                            Sent from your browser straight to OrcaRouter over HTTPS and stored only in this browser. It is never sent to the Sayanho backend. Get one on the OrcaRouter dashboard — keys start with <code>sk-orca-</code>.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">OrcaRouter Model:</label>
+                                        <input
+                                            type="text"
+                                            list="orca-model-options"
+                                            value={(settings.aiSettings as any)?.orcarouterModelName || ORCA_DEFAULT_MODEL}
+                                            onChange={e => setSettings({
+                                                ...settings,
+                                                aiSettings: { ...settings.aiSettings, orcarouterModelName: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            placeholder={`e.g. ${ORCA_DEFAULT_MODEL}`}
+                                        />
+                                        <datalist id="orca-model-options">
+                                            {orcaModels.map(id => <option key={id} value={id} />)}
+                                        </datalist>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={loadOrcaModels}
+                                                disabled={orcaModelsStatus.state === 'loading'}
+                                                className="px-3 py-1.5 text-xs rounded border disabled:opacity-50"
+                                                style={{ borderColor: colors.border, color: colors.text }}
+                                            >
+                                                {orcaModelsStatus.state === 'loading' ? 'Loading…' : 'Fetch available models'}
+                                            </button>
+                                            {orcaModelsStatus.message && (
+                                                <span
+                                                    className="text-xs"
+                                                    style={{ color: orcaModelsStatus.state === 'error' ? '#dc2626' : colors.text, opacity: orcaModelsStatus.state === 'error' ? 1 : 0.7 }}
+                                                >
+                                                    {orcaModelsStatus.message}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {orcaModels.length > 0 && (
+                                            <select
+                                                value=""
+                                                onChange={e => {
+                                                    if (!e.target.value) return;
+                                                    setSettings({
+                                                        ...settings,
+                                                        aiSettings: { ...settings.aiSettings, orcarouterModelName: e.target.value }
+                                                    });
+                                                }}
+                                                className="w-full px-3 py-2 rounded border"
+                                                style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            >
+                                                <option value="">— pick from your available models —</option>
+                                                {orcaModels.map(id => <option key={id} value={id}>{id}</option>)}
+                                            </select>
+                                        )}
+                                        <p className="text-xs opacity-70">
+                                            Model IDs are provider-prefixed (e.g. <code>openai/gpt-4o-mini</code>, <code>google/gemini-2.5-flash</code>). The agent needs a model that supports function calling — prefer a fixed model over <code>orcarouter/auto</code>, which picks a different model per request and is less reliable at structured tool output.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">OrcaRouter Base URL:</label>
+                                        <input
+                                            type="text"
+                                            value={(settings.aiSettings as any)?.orcarouterBaseUrl || ORCA_DEFAULT_BASE_URL}
+                                            onChange={e => setSettings({
+                                                ...settings,
+                                                aiSettings: { ...settings.aiSettings, orcarouterBaseUrl: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                            placeholder={ORCA_DEFAULT_BASE_URL}
+                                        />
+                                        <p className="text-xs opacity-70">
+                                            Requests use the OpenAI-compatible <code>/chat/completions</code> endpoint on this base URL.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="font-bold text-sm block">Reasoning effort:</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={(settings.aiSettings as any)?.orcarouterReasoningEnabled ?? false}
+                                                onChange={e => setSettings({
+                                                    ...settings,
+                                                    aiSettings: { ...settings.aiSettings, orcarouterReasoningEnabled: e.target.checked }
+                                                })}
+                                            />
+                                            <span className="text-sm">Enable reasoning (OrcaRouter reasoning_effort)</span>
+                                        </div>
+                                        <select
+                                            value={(settings.aiSettings as any)?.orcarouterReasoningEffort || 'medium'}
+                                            onChange={e => setSettings({
+                                                ...settings,
+                                                aiSettings: { ...settings.aiSettings, orcarouterReasoningEffort: e.target.value as any }
+                                            })}
+                                            className="w-full px-3 py-2 rounded border"
+                                            style={{ backgroundColor: colors.canvasBackground, borderColor: colors.border, color: colors.text }}
+                                        >
+                                            <option value="minimal">minimal</option>
+                                            <option value="low">low</option>
+                                            <option value="medium">medium</option>
+                                            <option value="high">high</option>
+                                            <option value="max">max</option>
+                                        </select>
+                                        <p className="text-xs opacity-70">
+                                            One syntax across providers — mapped to thinking budgets upstream. Only reasoning families use it; other models ignore it.
                                         </p>
                                     </div>
                                 </>

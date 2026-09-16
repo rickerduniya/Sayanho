@@ -103,9 +103,11 @@ When deployed to a hosting service (e.g., Render, Azure), set the `ASPNETCORE_EN
 
 ## AI Providers
 
-The assistant and the layout agent can run on Gemini, Groq, OpenRouter, Mistral, or B.AI. Pick one under **Settings → AI Settings → Provider** and fill in that provider's key, model, and base URL.
+The assistant and the layout agent can run on Gemini, Groq, OpenRouter, Mistral, B.AI, or OrcaRouter. Pick one under **Settings → AI Settings → Provider** and fill in that provider's key, model, and base URL.
 
 For **B.AI** (`https://api.b.ai/v1`), Sayanho uses the OpenAI-compatible `/chat/completions` endpoint with `Authorization: Bearer <key>`. Model access is tied to the credential, so use **Fetch available models** to list the model IDs your key can actually call — the agent needs one that supports function calling. See <https://docs.b.ai/llmservice/api/>.
+
+For **OrcaRouter** (`https://api.orcarouter.ai/v1`), Sayanho uses the OpenAI-compatible `/chat/completions` endpoint with `Authorization: Bearer <key>` (keys start with `sk-orca-`). Model IDs are provider-prefixed (e.g. `openai/gpt-4o-mini`, `google/gemini-2.5-flash`); use **Fetch available models** to list the live catalog for your key. Prefer a fixed model for the agent — `orcarouter/auto` routes each request to a different model and is less reliable at structured tool output. Reasoning models are controlled via the unified `reasoning_effort` option (minimal/low/medium/high/max). See <https://docs.orcarouter.ai/>.
 
 Keys are held in the browser's `localStorage` and sent only to the provider you selected; they never reach the Sayanho backend. Note that a browser-side key is visible to anyone with access to that browser profile, so use a key scoped for this purpose and revoke it if the machine is shared.
 

@@ -11,7 +11,7 @@ export interface AppSettings {
     connectorSpecTextFontSize: number;
     sldDownstreamGapFactor: number;
     aiSettings: {
-        provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'bai';
+        provider: 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'bai' | 'orcarouter';
         geminiApiKey: string;
         geminiModelName: string;
         groqApiKey: string;
@@ -31,6 +31,11 @@ export interface AppSettings {
         baiApiKey: string;
         baiModelName: string;
         baiBaseUrl: string;
+        orcarouterApiKey: string;
+        orcarouterModelName: string;
+        orcarouterBaseUrl: string;
+        orcarouterReasoningEnabled: boolean;
+        orcarouterReasoningEffort: 'minimal' | 'low' | 'medium' | 'high' | 'max';
         requestsPerMinute: number;
         maxRetryAttempts: number;
         retryOnError: boolean;
@@ -82,6 +87,11 @@ const DEFAULT_SETTINGS: AppSettings = {
         baiApiKey: '',
         baiModelName: 'gpt-5.6-luna',
         baiBaseUrl: 'https://api.b.ai/v1',
+        orcarouterApiKey: '',
+        orcarouterModelName: 'openai/gpt-4o-mini',
+        orcarouterBaseUrl: 'https://api.orcarouter.ai/v1',
+        orcarouterReasoningEnabled: false,
+        orcarouterReasoningEffort: 'medium',
         requestsPerMinute: 30,
         maxRetryAttempts: 2,
         retryOnError: true,
@@ -261,6 +271,19 @@ export class ApplicationSettings {
                 apiKey: ai.baiApiKey || '',
                 modelName: ai.baiModelName || 'gpt-5.6-luna',
                 baseUrl: ai.baiBaseUrl || 'https://api.b.ai/v1',
+                ...common
+            };
+        }
+        if (provider === 'orcarouter') {
+            return {
+                provider,
+                apiKey: ai.orcarouterApiKey || '',
+                modelName: ai.orcarouterModelName || 'openai/gpt-4o-mini',
+                baseUrl: ai.orcarouterBaseUrl || 'https://api.orcarouter.ai/v1',
+                reasoningEffort: {
+                    enabled: typeof ai.orcarouterReasoningEnabled === 'boolean' ? ai.orcarouterReasoningEnabled : DEFAULT_SETTINGS.aiSettings.orcarouterReasoningEnabled,
+                    effort: (ai.orcarouterReasoningEffort || DEFAULT_SETTINGS.aiSettings.orcarouterReasoningEffort) as any
+                },
                 ...common
             };
         }

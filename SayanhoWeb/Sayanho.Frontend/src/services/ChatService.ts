@@ -451,13 +451,15 @@ short; the user watches a live action log, so do not narrate every call.`;
                 : provider === 'openrouter' ? 'openai/gpt-4o-mini'
                     : provider === 'mistral' ? 'mistral-small-latest'
                         : provider === 'bai' ? 'gpt-5.6-luna'
-                            : 'gemini-2.5-flash'
+                            : provider === 'orcarouter' ? 'openai/gpt-4o-mini'
+                                : 'gemini-2.5-flash'
         );
         const baseUrl = settings.baseUrl || (
             provider === 'openrouter' ? 'https://openrouter.ai/api/v1'
                 : provider === 'mistral' ? 'https://api.mistral.ai/v1'
                     : provider === 'bai' ? 'https://api.b.ai/v1'
-                        : 'https://api.groq.com/openai/v1'
+                        : provider === 'orcarouter' ? 'https://api.orcarouter.ai/v1'
+                            : 'https://api.groq.com/openai/v1'
         );
         const extraHeaders = ((settings as any).extraHeaders && typeof (settings as any).extraHeaders === 'object') ? (settings as any).extraHeaders : undefined;
         const requestsPerMinute = typeof (settings as any).requestsPerMinute === 'number' ? (settings as any).requestsPerMinute : 30;
@@ -502,6 +504,9 @@ short; the user watches a live action log, so do not narrate every call.`;
 
         try {
             const reasoning = (provider === 'openrouter' && (settings as any).reasoning) ? (settings as any).reasoning : undefined;
+            const reasoningEffort = (provider === 'orcarouter' && (settings as any).reasoningEffort?.enabled)
+                ? (settings as any).reasoningEffort.effort
+                : undefined;
             const callProvider = async () => {
                 const result = provider === 'groq'
                     ? await this.callGroq(apiKey, modelName, baseUrl)
@@ -511,7 +516,9 @@ short; the user watches a live action log, so do not narrate every call.`;
                             ? await this.callMistral(apiKey, modelName, baseUrl)
                             : provider === 'bai'
                                 ? await this.callBai(apiKey, modelName, baseUrl)
-                                : await this.callGemini(apiKey, modelName);
+                                : provider === 'orcarouter'
+                                    ? await this.callOrcaRouter(apiKey, modelName, baseUrl, reasoningEffort)
+                                    : await this.callGemini(apiKey, modelName);
 
                 // Charged only on a successful response, so a rate-limited retry
                 // does not silently burn the agent's chance to look at the plan.
@@ -561,7 +568,7 @@ short; the user watches a live action log, so do not narrate every call.`;
                 let textResponse = '';
                 const toolCalls: any[] = [];
 
-                if (provider === 'groq' || provider === 'openrouter' || provider === 'mistral' || provider === 'bai') {
+                if (provider === 'groq' || provider === 'openrouter' || provider === 'mistral' || provider === 'bai' || provider === 'orcarouter') {
                     const choice = response?.choices?.[0];
                     const msg = choice?.message;
                     if (!msg) {
@@ -582,15 +589,16 @@ short; the user watches a live action log, so do not narrate every call.`;
                     const rawContentStr = msg.content ? String(msg.content) : '';
                     const extractedFromText = this.extractToolCallsFromText(rawContentStr);
                     const contentStr = extractedFromText.cleanedText;
-                    // OpenRouter calls it `reasoning`; B.AI's DeepSeek/GLM-family
-                    // models use the DeepSeek field name `reasoning_content`.
+                    // OpenRouter calls it `reasoning`; OrcaRouter surfaces the trace
+                    // as `reasoning_content` (same as B.AI's DeepSeek/GLM-family
+                    // models which use the DeepSeek field name `reasoning_content`).
                     const rawReasoningStr = (msg as any).reasoning
                         ? String((msg as any).reasoning)
                         : ((msg as any).reasoning_content ? String((msg as any).reasoning_content) : '');
                     const extractedFromReasoning = this.extractToolCallsFromText(rawReasoningStr);
                     const reasoningStr = extractedFromReasoning.cleanedText;
                     textResponse = contentStr;
-                    if ((provider === 'openrouter' || provider === 'bai') && reasoningStr && reasoningStr.trim()) {
+                    if ((provider === 'openrouter' || provider === 'bai' || provider === 'orcarouter') && reasoningStr && reasoningStr.trim()) {
                         textResponse = `${contentStr || ''}${contentStr ? '\n\n' : ''}**Reasoning**\n\n\`\`\`\n${reasoningStr}\n\`\`\``;
                     }
                     if (Array.isArray(msg.tool_calls)) {
@@ -966,7 +974,7 @@ short; the user watches a live action log, so do not narrate every call.`;
      * Conversation history in OpenAI Chat Completions shape.
      *
      * Shared by every OpenAI-compatible provider (OpenRouter, Groq, Mistral,
-     * B.AI), so image handling and the tool-call round trip stay identical
+     * B.AI, OrcaRouter), so image handling and the tool-call round trip stay identical
      * across them instead of drifting per provider.
      */
     private buildOpenAiMessages(): any[] {
@@ -1156,7 +1164,8 @@ short; the user watches a live action log, so do not narrate every call.`;
 
     // Existing stubs for other providers remain, but we should make sure they
     // handle (or ignore) images gracefully if they don't support them.
-    // For now, only Gemini and OpenRouter (which covers OpenAI/Anthropic) are fully updated for vision.
+    // For now, only Gemini and the OpenAI-compatible providers (OpenRouter,
+    // Groq, Mistral, B.AI, OrcaRouter) are fully updated for vision.
 
     private async callGroq(apiKey: string, model: string, baseUrl: string): Promise<any> {
         // Groq officially supports vision now with Llama 3.2 11B/90B
@@ -1172,8 +1181,8 @@ short; the user watches a live action log, so do not narrate every call.`;
      *
      * B.AI exposes three protocols behind one key: OpenAI Chat Completions,
      * OpenAI Responses, and Anthropic Messages. We use /chat/completions
-     * deliberately — this class already speaks that shape for OpenRouter, Groq
-     * and Mistral, so tool calls, multimodal content and the reply parser all
+     * deliberately — this class already speaks that shape for OpenRouter, Groq,
+     * Mistral and OrcaRouter, so tool calls, multimodal content and the reply parser all
      * work unchanged. Responses would need `input`/`max_output_tokens` and a
      * different `output[]` walk for no gain here.
      *
@@ -1191,6 +1200,56 @@ short; the user watches a live action log, so do not narrate every call.`;
                 tools: this.getOpenAiTools(),
                 tool_choice: 'auto'
             },
+            {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        return response.data;
+    }
+
+    /**
+     * OrcaRouter (https://api.orcarouter.ai/v1).
+     *
+     * OpenAI-compatible gateway across OpenAI, Anthropic, Google Gemini,
+     * DeepSeek, xAI Grok, Qwen, Kimi and others — see
+     * https://docs.orcarouter.ai/. We use /chat/completions deliberately, the
+     * same shape this class already speaks for OpenRouter, Groq, Mistral and
+     * B.AI, so tool calls, multimodal content and the reply parser all work
+     * unchanged: OrcaRouter translates OpenAI-style `tools` to each upstream's
+     * native shape internally.
+     *
+     * Wire differences from callOpenRouter:
+     * - Auth is `Authorization: Bearer sk-orca-...`.
+     * - No OpenRouter-only headers (HTTP-Referer / X-Title) or `reasoning`
+     *   object. Reasoning uses OrcaRouter's unified `reasoning_effort` field
+     *   (`minimal`/`low`/`medium`/`high`/`max`), which it maps per upstream
+     *   (OpenAI native, Claude thinking budget, Gemini thinkingConfig).
+     * - Model IDs are provider-prefixed (e.g. `openai/gpt-4o-mini`), or
+     *   `orcarouter/auto` to let the gateway pick the cheapest live model.
+     *   For the agent prefer a fixed model — auto-routing is non-deterministic
+     *   and weaker at structured tool output.
+     * - Reasoning trace (where the upstream provides one) arrives as
+     *   `reasoning_content` on the chat-completion message, already handled by
+     *   the shared OpenAI-shape reply parser.
+     */
+    private async callOrcaRouter(apiKey: string, model: string, baseUrl: string, reasoningEffort?: string): Promise<any> {
+        const body: any = {
+            model,
+            messages: this.buildOpenAiMessages(),
+            tools: this.getOpenAiTools(),
+            tool_choice: 'auto'
+        };
+        // Only sent when the user enables it in AI Settings. Non-reasoning
+        // models ignore it; reasoning families (o-series, Claude, Gemini
+        // thinking, Grok) use it to size the hidden thinking pass.
+        if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+
+        const response = await axios.post(
+            `${this.normalizeBaseUrl(baseUrl, 'https://api.orcarouter.ai/v1')}/chat/completions`,
+            body,
             {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
