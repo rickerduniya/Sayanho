@@ -3076,7 +3076,7 @@ short; the user watches a live action log, so do not narrate every call.`;
                     },
                     planId: { type: "string" }
                 },
-                required: ["id"]
+                required: ["requests"]
             }),
             f("layout_place_component", "Place one component on the floor plan. Give explicit x/y (your own computed point or a suggested one), or a roomId plus anchor. Explicit ceiling-fan points outside every room are refused; sweep overlaps are validated.", {
                 type: "object",
