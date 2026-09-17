@@ -327,8 +327,11 @@ electrical-design-workflow first and follow its phases in order.
    - layout_suggest_positions_batch instead of repeated layout_suggest_positions
    - layout_place_components instead of repeated layout_place_component
    - layout_set_rooms_info instead of repeated layout_set_room_info
-   - apply_sld_operations instead of repeated connect_items / set_item_properties
-   One batch call carrying 20 items is correct; 20 separate calls is not.
+    - apply_sld_operations instead of repeated connect_items / set_item_properties
+    One batch call carrying 25 items is correct; 25 separate calls is not.
+    Keep each layout_place_components call to ONE room and at most ~25 items —
+    spread 9 rooms over several turns. A single 40+ item call risks truncated
+    JSON, in which case nothing executes.
 3) You have coordinate and quantity authority. layout_suggest_positions(_batch)
    gives vetted coordinates (recommended counts, sweep clearance checked) — use
    it by default. But you may place by your own numbers instead: your own
@@ -801,7 +804,23 @@ short; the user watches a live action log, so do not narrate every call.`;
                         return [...this.history];
                     }
                     let result;
-                    const args = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
+                    let args: any;
+                    try {
+                        args = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
+                    } catch {
+                        // One malformed call (truncated JSON from an output-limit
+                        // stop) must not kill the whole run. Report it as a tool
+                        // error so the model retries that call with a smaller batch.
+                        result = { error: `Invalid JSON arguments for ${toolCall.function.name}: the call was truncated mid-reply. Retry it with a smaller batch (one room per layout_place_components call, max ~25 items).` };
+                        this.history.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            content: JSON.stringify(result),
+                            name: toolCall.function.name
+                        } as any);
+                        toolCallsExecuted += 1;
+                        continue;
+                    }
 
                     // Supervision gate. Checked between tool calls rather than
                     // mid-call so a stop can never leave the stores half-mutated.
@@ -1350,6 +1369,27 @@ short; the user watches a live action log, so do not narrate every call.`;
     }
 
 
+    private isRetryableLlmError(e: any): boolean {
+        const status = e?.response?.status;
+        if (typeof status === 'number' && [429, 500, 502, 503, 529].includes(status)) return true;
+        // No HTTP response at all (dropped connection, DNS, socket hang up).
+        if (!e?.response) return true;
+        const msg = (e?.response?.data?.error?.message || e?.message || '').toString().toLowerCase();
+        return /network error|timeout|timed out|temporar|overload|unavailable|upstream|try again|rate limit|too many request/.test(msg);
+    }
+
+    private throwIfProviderErrorChoice(response: any): void {
+        const choice = response?.choices?.[0];
+        const apiError = (choice as any)?.error || (response as any)?.error;
+        if (apiError) {
+            const msg = apiError.message || JSON.stringify(apiError);
+            throw new Error(`Provider error: ${msg}`);
+        }
+        if (choice && !choice.message && choice.finish_reason === 'error') {
+            throw new Error('Provider error: the model returned finish_reason error with no message (transient upstream failure). Retry the same request.');
+        }
+    }
+
     private async callWithThrottleAndRetry<T>(
         fn: () => Promise<T>,
         requestsPerMinute: number,
@@ -1361,14 +1401,20 @@ short; the user watches a live action log, so do not narrate every call.`;
         while (true) {
             await this.enforceRequestSpacing(requestsPerMinute);
             try {
-                return await fn();
+                const result = await fn();
+                this.throwIfProviderErrorChoice(result);
+                return result;
             } catch (e: any) {
                 const retryAfterSec = this.parseRetryAfterSeconds(e);
-                if (!retryOnError || retryAfterSec === null || attempt >= maxAttempts) {
+                const retryable = this.isRetryableLlmError(e);
+                if (!retryOnError || !retryable || attempt >= maxAttempts) {
                     throw e;
                 }
                 attempt += 1;
-                await this.sleep(Math.ceil(retryAfterSec * 1000));
+                const backoffMs = retryAfterSec !== null
+                    ? Math.ceil(retryAfterSec * 1000)
+                    : Math.min(15000, 1000 * Math.pow(2, attempt));
+                await this.sleep(backoffMs);
             }
         }
     }
@@ -2680,6 +2726,13 @@ short; the user watches a live action log, so do not narrate every call.`;
         const name = (toolName || '').toString();
         if (!result || typeof result !== 'object') return result;
 
+        // Skill bodies (load-placement is ~45k chars) are needed once; replaying
+        // the full text on every subsequent turn is the largest single source of
+        // prompt bloat on long design runs. Keep the acknowledgement only.
+        if (name === 'load_skill') {
+            return { success: true, name: (result as any).name ?? null };
+        }
+
         const truncate = (v: any, max: number) => {
             const s = (v ?? '').toString();
             if (s.length <= max) return s;
@@ -3190,8 +3243,19 @@ short; the user watches a live action log, so do not narrate every call.`;
                 properties: {
                     rooms: {
                         type: "array",
-                        description: "Array of { roomId, name, type }",
-                        items: { type: "object" }
+                        description: "Array of { roomId, name, type } where type is one of: bedroom | living_room | kitchen | bathroom | toilet | balcony | corridor | staircase | utility | office | dining | storage | pooja | other",
+                        items: {
+                            type: "object",
+                            properties: {
+                                roomId: { type: "string" },
+                                name: { type: "string" },
+                                type: {
+                                    type: "string",
+                                    description: "bedroom | living_room | kitchen | bathroom | toilet | balcony | corridor | staircase | utility | office | dining | storage | pooja | other"
+                                }
+                            },
+                            required: ["roomId"]
+                        }
                     },
                     planId: { type: "string" }
                 },

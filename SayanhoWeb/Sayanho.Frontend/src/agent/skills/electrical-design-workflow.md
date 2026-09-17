@@ -56,6 +56,9 @@ Per room, follow `load-placement` skill for quantities. For each room:
    call. This is the most-called tool in a design run, and one call per purpose per
    room is the single biggest waste of turns.
 2. `layout_place_components` with one batch per room (lights + fans together).
+   Keep each call to ONE room and at most ~25 components — spread the rooms over
+   several turns. One giant call for the whole flat risks truncated JSON, in
+   which case nothing executes.
 
 Ceiling-mounted: `ceiling_fan_point` only.
 Wall-mounted: `bulb` and `tube_light` (**all lights go on walls, never the
@@ -221,7 +224,7 @@ carrying 20 components is one tool call and is always preferable to 20 separate
 | Instead of | Use | Carries |
 |---|---|---|
 | N × `layout_suggest_positions` | `layout_suggest_positions_batch` | up to 40 requests |
-| N × `layout_place_component` | `layout_place_components` | up to 120 components |
+| N × `layout_place_component` | `layout_place_components` | one room per call, max ~25 items (never the whole flat at once) |
 | N × `layout_update_component` | `layout_update_components` | up to 120 updates |
 | N × `layout_set_room_info` | `layout_set_rooms_info` | every room |
 | N × `connect_items` / `set_item_properties` | `apply_sld_operations` | a whole connection group |
