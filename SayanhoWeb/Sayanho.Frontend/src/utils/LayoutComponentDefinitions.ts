@@ -234,7 +234,7 @@ export const LAYOUT_COMPONENT_DEFINITIONS: Record<LayoutComponentType, LayoutCom
         // Wall, not ceiling — standard Indian domestic batten mounting at
         // ~2.1-2.4 m, reachable for tube replacement without a ladder.
         placementType: 'wall',
-        defaultWattage: 36,
+        defaultWattage: 18,
         description: 'Fluorescent / LED Batten Tube Light — wall mounted',
     },
 
@@ -302,6 +302,8 @@ export const LAYOUT_COMPONENT_DEFINITIONS: Record<LayoutComponentType, LayoutCom
         size: { width: 32, height: 20 },
         sldEquivalent: 'Avg. 5A Switch Board',
         placementType: 'wall',
+        // Average connected load per 5A socket board (CPWD diversity assumption).
+        defaultWattage: 150,
         description: 'Average 5A Switch Board (4M modular plate)',
     },
 

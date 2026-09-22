@@ -75,7 +75,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 30, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "12 W", "Description": "Bulb", "Type": "Lighting" }
+            properties: { "Power": "9 W", "Description": "Bulb", "Type": "Lighting" }
         }
     },
     {
@@ -97,7 +97,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 30, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "80 W", "Description": "Ceiling Fan", "Type": "Appliance" }
+            properties: { "Power": "75 W", "Description": "Ceiling Fan", "Type": "Appliance" }
         }
     },
     {
@@ -108,7 +108,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 30, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "60 W", "Description": "Exhaust Fan", "Type": "Appliance" }
+            properties: { "Power": "40 W", "Description": "Exhaust Fan", "Type": "Appliance" }
         }
     },
     {
@@ -119,7 +119,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 40, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "2200 W", "Description": "Split AC", "Type": "Appliance" }
+            properties: { "Power": "1500 W", "Description": "Split AC", "Type": "Appliance" }
         }
     },
     {
@@ -130,7 +130,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 40, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "2200 W", "Description": "AC Point", "Type": "Appliance" }
+            properties: { "Power": "1500 W", "Description": "AC Point", "Type": "Appliance" }
         }
     },
     {
@@ -141,7 +141,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 30, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "1200 W", "Description": "Geyser", "Type": "Appliance" }
+            properties: { "Power": "2000 W", "Description": "Geyser", "Type": "Appliance" }
         }
     },
     {
@@ -152,7 +152,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 30, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "1200 W", "Description": "Geyser Point", "Type": "Appliance" }
+            properties: { "Power": "2000 W", "Description": "Geyser Point", "Type": "Appliance" }
         }
     },
     {
@@ -163,7 +163,7 @@ const LOAD_ITEMS: ItemRule[] = [
             connectionPoints: { "in": { x: 30, y: 0 } }
         },
         defaults: {
-            properties: { "Power": "10 W", "Description": "Call Bell", "Type": "Other" }
+            properties: { "Power": "5 W", "Description": "Call Bell", "Type": "Other" }
         }
     }
 ];
@@ -374,6 +374,7 @@ const CONNECTOR_POINT_ITEMS: ItemRule[] = [
         },
         defaults: {
             properties: {
+                "Power": "150 W",
                 "Avg. Run": "10 M",
                 "Type": "Power"
             }

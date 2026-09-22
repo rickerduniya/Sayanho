@@ -499,6 +499,22 @@ async function createProperSldItem(
         // unless we implementing update logic.
     };
 
+    // 3b. Stamp the layout wattage onto the SLD symbol so network analysis
+    // sees the same load the floor plan totals use. The backend catalogue
+    // does not reliably carry Power for load symbols, which previously left
+    // every lighting/fan/appliance branch analyzing at 0 W until Power was
+    // hand-written onto each symbol. Layout is the single source of truth.
+    {
+        const layoutDef = LAYOUT_COMPONENT_DEFINITIONS[layoutComp.type];
+        const layoutWatts = Number(layoutComp.properties?.wattage ?? layoutDef?.defaultWattage ?? 0);
+        if (Number.isFinite(layoutWatts) && layoutWatts > 0) {
+            newItem.properties[0] = {
+                ...newItem.properties[0],
+                'Power': `${layoutWatts} W`,
+            };
+        }
+    }
+
 
     const resolvedIconPath = await resolveIconPathForSldName(sldName);
     const iconName = resolvedIconPath || `${sldName}.svg`;

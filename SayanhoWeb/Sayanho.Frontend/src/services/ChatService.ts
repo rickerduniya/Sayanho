@@ -118,7 +118,6 @@ const TOOLS_EXCLUDED_FROM_DESIGN_RUNS = new Set([
     'lock_item',
     'duplicate_item',
     'update_connector',
-    'delete_connector',
     'delete_item_from_diagram',
     'update_item_fields',
     'undo',
@@ -250,8 +249,6 @@ export class ChatService {
     private diagramCallbacks: DiagramCallbacks | null = null;
     private currentSheets: CanvasSheet[] = [];
     private lastLlmRequestAtMs: number = 0;
-    private readonly maxRequestMessages: number = 40;
-    private readonly maxRequestChars: number = 60000;
 
     /**
      * Supervision hooks, set while an agent run is active.
@@ -2645,35 +2642,16 @@ short; the user watches a live action log, so do not narrate every call.`;
 
 
 
+    /**
+     * Full conversation history for the next provider request.
+     *
+     * Deliberately uncapped: design runs need the skill bodies and early
+     * geometry/placement results to stay visible for all 20+ turns. Truncating
+     * to a rolling window evicted the skills mid-run, leaving the model to
+     * work from memory of rules it could no longer re-read.
+     */
     private getRequestHistory(): ChatMessage[] {
-        const all = this.history;
-        if (all.length <= 1) return all;
-
-        const system = all.find(m => m.role === 'system') || all[0];
-        const rest = all.filter(m => m !== system);
-
-        const picked: ChatMessage[] = [];
-        for (let i = rest.length - 1; i >= 0; i--) {
-            picked.push(rest[i]);
-            if (picked.length >= this.maxRequestMessages) break;
-        }
-        picked.reverse();
-
-        while (picked.length > 0 && picked[0].role === 'tool') {
-            const idx = rest.indexOf(picked[0]);
-            if (idx <= 0) break;
-            const prev = rest[idx - 1];
-            if (!prev) break;
-            picked.unshift(prev);
-        }
-
-        const withSystem = [system, ...picked];
-        let totalChars = withSystem.reduce((acc, m) => acc + (m.content?.length || 0) + 40, 0);
-        while (withSystem.length > 2 && totalChars > this.maxRequestChars) {
-            const removed = withSystem.splice(1, 1)[0];
-            totalChars -= (removed?.content?.length || 0) + 40;
-        }
-        return withSystem;
+        return [...this.history];
     }
 
     private compactToolResult(toolName: string, result: any): any {
@@ -2995,7 +2973,7 @@ short; the user watches a live action log, so do not narrate every call.`;
             f("sld_auto_rate", "Run backend auto-rating on all SLD sheets: sizes breakers and cables from network analysis and writes the ratings back (undo-safe). Run after wiring is complete, before validate_diagram. Reports success/message plus a process log tail.", { type: "object", properties: {} }),
             f("undo", "Undo the last action.", { type: "object", properties: {} }),
             f("redo", "Redo the last undone action.", { type: "object", properties: {} }),
-            f("apply_sld_operations", "Run several SLD tool calls in one request. Each operation is { \"tool\": \"<tool_name>\", ...that tool's arguments }, or { \"tool\": \"<tool_name>\", \"args\": { ... } } — both shapes work. Use it for connect_items and set_item_properties batches.", {
+            f("apply_sld_operations", "Run several SLD tool calls in one request. Each operation is { \"tool\": \"<tool_name>\", ...that tool's arguments }, or { \"tool\": \"<tool_name>\", \"args\": { ... } } — both shapes work. Use it for connect_items, set_item_properties and delete_connector batches (delete_connector is only available inside this batch during a design run, not as a standalone call).", {
                 type: "object",
                 properties: {
                     operations: {
