@@ -86,8 +86,9 @@ Before placing anything in a room, mentally identify:
 
 > **CRITICAL — ALL light points go on WALLS, never on the ceiling.**
 > This applies to **both** `tube_light` and `bulb`, in **every** room type —
-> bedrooms, living rooms, kitchens, bathrooms, toilets, corridors, staircases,
-> balconies, pooja rooms, storage, parking. No exceptions.
+> bedrooms, living rooms, kitchens, pantries, bathrooms, toilets, corridors,
+> staircases, foyers, balconies, verandas, terraces, pooja rooms, storage,
+> dressing rooms, laundries, utilities, parking. No exceptions.
 >
 > Why this is standard Indian residential practice:
 > - Cost: no false ceiling needed
@@ -120,10 +121,15 @@ wall so you leave the boundary wall clear for the exhaust fan:
   clear of the shower spray zone and off the exhaust fan's wall segment
 - corridor — the longest wall, evenly spaced if 2
 - staircase — the landing wall
-- balcony — the wall shared with the room (i.e. the house side, sheltered from
-  rain), not the open parapet side
-- storage / pooja / parking — the wall facing the entry door, so the light is
-  behind you as you walk in and you are not lighting your own shadow
+- storage / pooja / parking / pantry / laundry / utility — the wall facing
+  the entry door, so the light is behind you as you walk in and you are not
+  lighting your own shadow
+- dressing — the mirror wall (plus a second on the opposite wall if large)
+- foyer — the wall facing the entrance door (`tube_light`/`bulb`)
+- veranda / terrace / balcony — the wall shared with the house (i.e. the
+  house side, sheltered from rain), not the open parapet side. If a terrace
+  has no house-side wall at all, use the most sheltered wall available and
+  say so in the review.
 
 ### 2.2 Quantity Table
 
@@ -146,6 +152,13 @@ Every entry below is **wall-mounted**. The notes say which wall.
 | pooja | any | 1 | `bulb` | Wall facing the entry door, warm tone |
 | office | ≤ 12 m² | 2 | `tube_light` | Wall over desk area, and the general-area wall |
 | office | > 12 m² | 3 | `tube_light` | Evenly distributed on walls |
+| foyer | any | 1 + 1 porch bulb | `tube_light` / `bulb` | Wall facing entrance door; plus 1 `bulb` on the house-side porch wall |
+| veranda | any | 1 per ~4 m run | `bulb` | House-side wall only, sheltered side; never the parapet side |
+| terrace | any | 1–2 | `bulb` | House-side wall; if none exists, the most sheltered wall available (say so) |
+| pantry | any | 1 | `tube_light` | Wall above the counter |
+| laundry | any | 1 | `tube_light` | Wall above the counter, clear of splash |
+| dressing | any | 1–2 | `tube_light` | Mirror wall first, opposite wall if large |
+| parking | per bay | 1 | `tube_light` | Wall facing the bay; most sheltered wall for open sides |
 
 ### 2.3 Lighting Placement Intelligence
 
@@ -218,8 +231,15 @@ uses `purpose: "ceiling"`.
 | lobby / hall (with seating) | 1 | Treat like living_room: 2 if area > 22 m² |
 | lobby / passage (pure transit, no furniture) | **0** | Like corridor |
 | kitchen | **0** | Use exhaust fan instead |
+| pantry | **0** | Never (too small, no occupancy) |
 | bathroom / toilet | **0** | Never |
+| laundry | **0** | Damp zone — exhaust instead |
+| dressing | **0** | Never (short occupancy) |
 | balcony | **0** | Never (use wall fan if needed) |
+| veranda | **0** | Default for semi-open space — **1 only if the drawing shows the sit-out is roofed** (roofed Indian verandas commonly carry a fan); never on an open porch |
+| terrace | **0** | Never (open to sky) |
+| foyer | **0** | Wall light instead (often double-height) |
+| parking | **0** | Never |
 | corridor | **0** | Never |
 | staircase | **0** | Never |
 | storage / utility | **0** | Never |
@@ -384,9 +404,10 @@ coordinates to correct it.
 
 - If a room has two doors (e.g., master bedroom with attached bathroom), place
   one switch board at the main entry door.
-- For pass-through rooms (corridors with doors at both ends), consider a switch
-  at each entry for two-way control — but this is one board, not two separate
-  circuits.
+- For pass-through rooms (corridors with doors at both ends), place one board
+  at the main entry. A second board at the far entry is allowed only if it
+  feeds loads in its own zone — the catalog has no two-way switching
+  mechanism, so two boards can never control the same light.
 
 ### 5.4 Special Cases
 
@@ -468,6 +489,19 @@ match how the room is USED:
 **Pooja Room:**
 - Place on a side wall, low.
 - **Rationale**: Electric diya, small amplifier for bhajans.
+
+**Dressing Room:**
+- Place near the mirror wall, low.
+- **Rationale**: Hair dryer, trimmer.
+
+**Pantry / Laundry:**
+- Place above the counter, away from sink/splash.
+- **Rationale**: Kettle/toaster (pantry); iron (laundry).
+
+**Never in:** bathrooms, toilets, corridors, staircases, foyers, balconies,
+verandas, terraces, storage, utilities, or parking. Outdoor and transit
+spaces get no sockets (weather + no use); wet rooms get none (CPWD: no
+socket in a bathroom).
 
 Use `purpose: "wall"` and pick the wall that matches the functional reasoning
 above. State which wall you chose and why. Like every switch board it must sit
@@ -797,7 +831,7 @@ Same as bedroom, plus:
 | Component | Qty | Position | Reasoning |
 |---|---|---|---|
 | `bulb` | 1 per landing | Landing **wall** at each level | Safety illumination |
-| `point_switch_board` | 1 | At bottom of stairs | Two-way switch is ideal |
+| `point_switch_board` | 1 | At bottom of stairs | Single control point (no two-way mechanism in catalog) |
 
 ### Balcony
 
@@ -825,8 +859,71 @@ Same as bedroom, plus:
 
 | Component | Qty | Position | Reasoning |
 |---|---|---|---|
-| `bulb` | 1 | **Wall**, facing the parking bay | Vehicle parking illumination |
+| `bulb` | 1 per bay | **Wall**, facing the parking bay | Vehicle parking illumination |
 | `point_switch_board` | 1 | Beside entry, latch side | Control |
+
+### Foyer / Entrance Lobby
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `tube_light` / `bulb` | 1 | **Wall** facing the entrance door | First impression, often double-height so no fan |
+| `bulb` | 1 | House-side porch wall outside | Porch illumination |
+| `point_switch_board` | 1 | Beside entry, latch side | Control |
+| `call_bell` | 1 per dwelling | **Outside** the main entrance door | Bell push at the entry; the chime may sit just inside |
+
+### Veranda / Sit-out / Porch (covered)
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `bulb` | 1 per ~4 m of house-side wall | House-side **wall** only, never the parapet | Evening sit-out use, protected from rain |
+| `point_switch_board` | 1 | Inside adjacent room, near the veranda door | Weather protection for switch |
+| `ceiling_fan_point` | 0–1 | Only if the drawing shows a roof over the sit-out | Roofed Indian verandas commonly carry a fan; open porches never do |
+
+### Terrace (open to sky)
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `bulb` | 1–2 | House-side **wall**; if none exists, the most sheltered wall available (say so in review) | Night use, rain-proof |
+| `point_switch_board` | 1 | At the stair exit | Control without re-entering the stair |
+
+### Pantry / Servery (no cooking range)
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `tube_light` | 1 | **Wall** above the counter | Counter illumination |
+| `point_switch_board` | 1 | Beside door, latch side (may share the kitchen board if adjacent) | Control |
+| `avg_5a_switch_board` | 1 | Above counter, away from sink | Kettle, toaster |
+
+No exhaust fan (no cooking smoke) and no ceiling fan (small, short occupancy).
+
+### Laundry / Wash Area
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `tube_light` | 1 | **Wall** above the counter, clear of splash | Work light in a wet zone |
+| `exhaust_fan` | 1 | **Boundary wall**, near ceiling | Damp air must vent outdoors |
+| `point_switch_board` | 1 | Beside door, latch side | Control |
+| `avg_5a_switch_board` | 1 | Above counter, away from splash | Iron |
+
+### Dressing / Walk-in Wardrobe
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `tube_light` | 1–2 | Mirror **wall** first, opposite wall if large | Shadow-free grooming light |
+| `point_switch_board` | 1 | Beside door, latch side | Control |
+| `avg_5a_switch_board` | 1 | Near the mirror, low | Hair dryer, trimmer |
+
+No ceiling fan (short occupancy, clothes storage).
+
+### Office / Study / Workstation
+
+| Component | Qty | Position | Reasoning |
+|---|---|---|---|
+| `ceiling_fan_point` | 1 | Room centre | Air circulation while working |
+| `tube_light` | 2 (≤ 12 m²) or 3 (> 12 m²) | **Wall** over the desk first, then general walls | The worker must not sit in their own shadow |
+| `point_switch_board` | 1 | Beside entry, latch side | Control |
+| `avg_5a_switch_board` | 1–2 | At desk height band on the desk wall | Computer, printer, chargers |
+| `ac_point` | 0–1 | **Boundary wall**; 1 for a closed full-day office, 0 for an open workstation zone cooled by the adjoining room | Say which you chose and why |
 
 ---
 
@@ -853,8 +950,11 @@ Before finalizing placement for any room, verify:
 8. **Bathroom/toilet switch boards are OUTSIDE** the wet room.
 9. **Switch boards are on the latch side of doors**, not the hinge side.
 10. **One call bell total** for the entire dwelling, not one per room.
-11. **Ceiling fans only in habitable rooms** — never in bathrooms, toilets,
-    kitchens, corridors, or balconies.
+11. **Ceiling fans only in habitable rooms** — `bedroom`, `living_room`,
+    `dining`, `office` only (plus a roofed `veranda` as a stated exception).
+    Never in bathrooms, toilets, kitchens, pantries, laundries, dressing
+    rooms, corridors, foyers, staircases, balconies, terraces, storage,
+    utilities, pooja rooms, or parking.
 12. **If computed count > 6 items of one type in any room**, re-read the area —
     the plan is probably uncalibrated.
 13. **No switch board or distribution board over a door/window span** — point

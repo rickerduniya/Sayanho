@@ -37,13 +37,9 @@ import {
     getAreaLabel,
     getDistanceLabelWithUnit
 } from '../utils/LayoutDrawingTools';
-import { RoomType } from '../types/layout';
+import { RoomType, ROOM_TYPES } from '../types/layout';
 
-const ROOM_TYPES: RoomType[] = [
-    'bedroom', 'living_room', 'kitchen', 'bathroom', 'toilet', 'balcony',
-    'corridor', 'staircase', 'utility', 'office', 'dining', 'storage',
-    'pooja', 'other'
-];
+const ROOM_TYPES_LIST: RoomType[] = ROOM_TYPES;
 
 const prettyRoomType = (type: RoomType) =>
     type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -432,7 +428,7 @@ export const LayoutInspector: React.FC = () => {
                             className="w-full min-w-0 rounded bg-black/10 px-1 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/10"
                             style={{ color: colors.text }}
                         >
-                            {ROOM_TYPES.map(type => (
+                            {ROOM_TYPES_LIST.map(type => (
                                 <option key={type} value={type}>{prettyRoomType(type)}</option>
                             ))}
                         </select>

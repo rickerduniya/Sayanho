@@ -3157,7 +3157,7 @@ short; the user watches a live action log, so do not narrate every call.`;
                     name: { type: "string" },
                     type: {
                         type: "string",
-                        description: "bedroom | living_room | kitchen | bathroom | toilet | balcony | corridor | staircase | utility | office | dining | storage | pooja | other"
+                        description: "bedroom | living_room | kitchen | bathroom | toilet | balcony | corridor | staircase | utility | office | dining | storage | pooja | foyer | veranda | terrace | pantry | laundry | dressing | parking | other — pick by use, not by label: sit-out/porch = veranda, wardrobe = dressing, wash area = laundry, powder room = toilet (no geyser), servery = pantry, covered parking = parking, entrance lobby = foyer"
                     },
                     planId: { type: "string" }
                 },

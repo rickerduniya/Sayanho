@@ -30,6 +30,7 @@ import { ApplicationSettings } from './utils/ApplicationSettings';
 import { exportProjectToFile, importProjectFromFile } from './utils/LocalProjectService';
 import { Toast } from './components/Toast';
 import { ServerStatusBanner } from './components/ServerStatusBanner';
+import { DetectionStatusBanner } from './components/DetectionStatusBanner';
 import { BrowserRouter, Navigate, Routes, Route, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, User } from 'lucide-react';
 import LandingPage from './components/LandingPage';
@@ -920,8 +921,13 @@ function App() {
     return (
         <BrowserRouter>
             {/* Rendered outside <Routes> so cold-start feedback is visible on
-                every page, including the landing page where the wake begins. */}
-            <ServerStatusBanner />
+                every page, including the landing page where the wake begins.
+                Stacked in one container so the server and detection banners
+                never overlap when both are waking. */}
+            <div className="fixed left-1/2 top-4 z-[10000] flex -translate-x-1/2 flex-col items-center gap-2 px-4">
+                <ServerStatusBanner />
+                <DetectionStatusBanner />
+            </div>
             <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/auth" element={<AuthPage />} />

@@ -30,6 +30,7 @@ import {
     LayoutComponent,
     LayoutComponentType,
     RoomType,
+    ROOM_TYPES,
     Point
 } from '../types/layout';
 import {
@@ -1051,11 +1052,7 @@ export class LayoutAgentTools {
         const resolved = resolveId(args.roomId, plan.rooms.map(r => r.id), 'roomId');
         if (isError(resolved)) return resolved;
 
-        const validTypes: RoomType[] = [
-            'bedroom', 'living_room', 'kitchen', 'bathroom', 'toilet', 'balcony',
-            'corridor', 'staircase', 'utility', 'office', 'dining', 'storage',
-            'pooja', 'other'
-        ];
+        const validTypes: RoomType[] = ROOM_TYPES;
 
         const updates: { name?: string; type?: RoomType } = {};
         if (args.name) updates.name = args.name;

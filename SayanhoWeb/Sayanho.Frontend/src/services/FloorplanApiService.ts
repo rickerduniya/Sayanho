@@ -1,8 +1,9 @@
 import { Wall, Door, LayoutWindow, Room, Point, FloorPlan, OcrResult, OcrItem, RoomType } from '../types/layout';
 import { generateLayoutId, snapToWall } from '../utils/LayoutDrawingTools';
 import { stitchWalls } from '../utils/WallStitching';
+import { detectionWake, HF_SPACE_ROOT } from './detectionWakeService';
 
-const API_URL = "https://nilche111-floorplan3d-api.hf.space/predict";
+const API_URL = `${HF_SPACE_ROOT}/predict`;
 
 // ============================================================================
 // Module-Level Utility Functions for OCR Room Enrichment
@@ -71,23 +72,38 @@ function getPolygonBoundingBox(polygon: { x: number; y: number }[]): { x1: numbe
 }
 
 /**
- * Map detected text to RoomType
+ * Map detected text to RoomType.
+ *
+ * Labels are normalised (lowercase, separators stripped) so "SIT-OUT",
+ * "Walk In" and "M.BED" match. Order is specific-before-general: e.g. a
+ * "wash area" must resolve before the bathroom keywords, and a "car porch"
+ * before the veranda keywords — otherwise the generic match wins and the
+ * room gets the wrong electrical treatment (a powder room typed as a
+ * bathroom would even gain a spurious geyser point).
  */
 function mapNameToRoomType(name: string): RoomType {
-    const lowerName = name.toLowerCase();
+    const n = name.toLowerCase().replace(/[\s._\-]/g, '');
 
-    if (lowerName.includes('bed') || lowerName.includes('m.bed') || lowerName.includes('master')) return 'bedroom';
-    if (lowerName.includes('bath') || lowerName.includes('toilet') || lowerName.includes('wc') || lowerName.includes('pwdr') || lowerName.includes('wash')) return 'bathroom';
-    if (lowerName.includes('kitchen') || lowerName.includes('cook') || lowerName.includes('pantry')) return 'kitchen';
-    if (lowerName.includes('living') || lowerName.includes('hall') || lowerName.includes('lounge') || lowerName.includes('drawing') || lowerName.includes('sitting')) return 'living_room';
-    if (lowerName.includes('dining')) return 'dining';
-    if (lowerName.includes('balcony') || lowerName.includes('terrace') || lowerName.includes('sitout') || lowerName.includes('deck') || lowerName.includes('verandah')) return 'balcony';
-    if (lowerName.includes('store') || lowerName.includes('storage') || lowerName.includes('clt') || lowerName.includes('closet') || lowerName.includes('wardrobe')) return 'storage';
-    if (lowerName.includes('pooja') || lowerName.includes('puja') || lowerName.includes('prayer')) return 'pooja';
-    if (lowerName.includes('office') || lowerName.includes('study') || lowerName.includes('library')) return 'office';
-    if (lowerName.includes('utility') || lowerName.includes('wash area')) return 'utility';
-    if (lowerName.includes('stair') || lowerName.includes('lift')) return 'staircase';
-    if (lowerName.includes('passage') || lowerName.includes('corridor') || lowerName.includes('lobby')) return 'corridor';
+    if (n.includes('washarea') || n.includes('laundry') || n.includes('dhobi')) return 'laundry';
+    if (n.includes('bath') || n.includes('shower') || n.includes('tub') || n.includes('jacuzzi')) return 'bathroom';
+    if (n.includes('wc') || n.includes('watercloset') || n.includes('powder') || n.includes('pwdr') || n.includes('washroom') || n.includes('restroom') || n.includes('urinal')) return 'toilet';
+    if (n.includes('bed') || n.includes('mbed') || n.includes('master') || n.includes('guest') || n.includes('kids') || n.includes('children') || n.includes('nursery') || n.includes('servant')) return 'bedroom';
+    if (n.includes('pantry') || n.includes('servery')) return 'pantry';
+    if (n.includes('kitchen') || n.includes('cook')) return 'kitchen';
+    if (n.includes('foyer') || n.includes('vestibule') || n.includes('reception') || n.includes('entrancelobby') || n.includes('entrance')) return 'foyer';
+    if (n.includes('parking') || n.includes('garage') || n.includes('carporch')) return 'parking';
+    if (n.includes('veranda') || n.includes('verandah') || n.includes('porch') || n.includes('sitout') || n.includes('portico')) return 'veranda';
+    if (n.includes('terrace') || n.includes('courtyard') || n.includes('aangan') || n.includes('otta') || n.includes('deck') || n.includes('roof')) return 'terrace';
+    if (n.includes('dining') || n.includes('breakfast')) return 'dining';
+    if (n.includes('living') || n.includes('hall') || n.includes('lounge') || n.includes('drawing') || n.includes('sitting') || n.includes('family') || n.includes('theatre') || n.includes('theater')) return 'living_room';
+    if (n.includes('office') || n.includes('study') || n.includes('library') || n.includes('gym') || n.includes('fitness')) return 'office';
+    if (n.includes('dress') || n.includes('wardrobe') || n.includes('closet') || n.includes('clt') || n.includes('walkin')) return 'dressing';
+    if (n.includes('pooja') || n.includes('puja') || n.includes('prayer') || n.includes('mandir') || n.includes('shrine')) return 'pooja';
+    if (n.includes('balcony')) return 'balcony';
+    if (n.includes('passage') || n.includes('corridor') || n.includes('lobby') || n.includes('gallery')) return 'corridor';
+    if (n.includes('stair') || n.includes('lift')) return 'staircase';
+    if (n.includes('store') || n.includes('storage') || n.includes('godown') || n.includes('attic') || n.includes('loft')) return 'storage';
+    if (n.includes('utility') || n.includes('meter') || n.includes('pump')) return 'utility';
 
     return 'other';
 }
@@ -243,7 +259,7 @@ export function enrichRoomsWithOcr(rooms: Room[], ocrItems: OcrItem[]): void {
                 if (text === text.toUpperCase() && /[A-Z]/.test(text)) score += 20;
 
                 // Bonus for known room keywords
-                if (/bed|bath|kitchen|living|dining|toilet|wc|hall|store|pooja|balcony/i.test(text)) {
+                if (/bed|bath|kitchen|living|dining|toilet|wc|hall|store|pooja|balcony|foyer|veranda|porch|terrace|pantry|laundry|dress|park|garage|utility|office|study|corridor|stair|lobby|passage|sitout|wardrobe|powder|parking/i.test(text)) {
                     score += 30;
                 }
 
@@ -764,6 +780,14 @@ export const FloorplanApiService = {
         };
 
         try {
+            // The Space sleeps when idle. This is normally already warm (woken
+            // at app boot and at login), but if the session outlasted the
+            // keep-alive, warm it here — capped well below the full budget so
+            // a dead Space fails fast into the retry path below instead of
+            // stalling detection. The result is intentionally not gated on:
+            // fetchWithRetry remains the safety net.
+            await detectionWake.ensureAwake({ budgetMs: 120_000 });
+
             const response = await fetchWithRetry(API_URL, {
                 method: 'POST',
                 body: formData
@@ -786,6 +810,10 @@ export const FloorplanApiService = {
             }
 
             const imgResult = data.images[0];
+
+            // Real Space traffic just succeeded — feed the keep-alive's idle
+            // timer so it only pings during genuine quiet periods.
+            detectionWake.noteActivity();
 
             // Reconcile rotation if dimensions are swapped (EXIF issue)
             return processDetectionResult(imgResult, actualWidth, actualHeight);

@@ -154,7 +154,7 @@ describe('recommended fan quantities (skill Section 3 table)', () => {
     });
 
     it('gives zero fans to non-habitable rooms', () => {
-        for (const t of ['kitchen', 'bathroom', 'toilet', 'balcony', 'corridor', 'staircase', 'storage', 'utility', 'pooja', 'other']) {
+        for (const t of ['kitchen', 'pantry', 'bathroom', 'toilet', 'balcony', 'veranda', 'terrace', 'corridor', 'foyer', 'staircase', 'storage', 'dressing', 'utility', 'laundry', 'parking', 'pooja', 'other']) {
             expect(recommendedCeilingFanCount(t, 50)).toBe(0);
         }
     });

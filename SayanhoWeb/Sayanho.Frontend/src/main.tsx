@@ -6,6 +6,7 @@ import './index.css'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './auth/AuthContext'
 import { serverWake } from './services/serverWakeService'
+import { detectionWake } from './services/detectionWakeService'
 
 // Start waking the backend before React even mounts.
 //
@@ -20,6 +21,12 @@ import { serverWake } from './services/serverWakeService'
 if (!import.meta.env.VITE_DISABLE_SERVER_WAKE) {
     void serverWake.start();
 }
+
+// Same treatment for the Hugging Face detection Space: it suspends when idle
+// and a cold start costs a minute or more (container + model load). Waking it
+// here overlaps that with page render; AuthContext wakes it again at login,
+// and detectLayout re-checks right before POSTing.
+void detectionWake.start();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <React.StrictMode>

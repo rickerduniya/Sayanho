@@ -313,8 +313,11 @@ export interface CeilingPlacementOptions {
  * for anything over 22 m². Surfacing this number in the suggest response
  * makes the shortfall visible at decision time.
  *
- * Returns 0 for room types that never take ceiling fans (kitchen, bathroom,
- * toilet, balcony, corridor, staircase, storage, utility, pooja).
+ * Returns 0 for room types that never take ceiling fans (kitchen, pantry,
+ * bathroom, toilet, balcony, veranda, terrace, corridor, foyer, staircase,
+ * storage, dressing, utility, laundry, parking, pooja, other). Verandas are
+ * 0 by default as semi-open space — add a fan only when the drawing shows
+ * the sit-out is roofed (see load-placement Section 3).
  */
 export function recommendedCeilingFanCount(roomType: string, areaSqm: number): number {
     switch (roomType) {

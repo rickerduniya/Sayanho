@@ -38,6 +38,17 @@ in order. Do not skip ahead: later phases depend on ids produced by earlier ones
    infer the purpose from fixtures visible in the drawing (WC and basin → toilet,
    sink and counter → kitchen, bed → bedroom). Commit all of them in **one**
    `layout_set_rooms_info` call, and say which rooms you inferred rather than read.
+   `type` must be exactly one of: `bedroom` `living_room` `kitchen` `bathroom`
+   `toilet` `balcony` `corridor` `staircase` `utility` `office` `dining`
+   `storage` `pooja` `foyer` `veranda` `terrace` `pantry` `laundry` `dressing`
+   `parking` `other`. Type by **use, not by label** — the common traps are:
+   `living` → `living_room`; `bath` → `bathroom`; hall/passage → `corridor`
+   (unless furnished, then `living_room`); sit-out/porch/portico → `veranda`;
+   open terrace/courtyard → `terrace`; walk-in wardrobe/closet → `dressing`;
+   wash area → `laundry`; powder room → `toilet` (a WC-only room must never
+   get a geyser); servery → `pantry`; covered parking/garage → `parking`;
+   entrance lobby/vestibule → `foyer`. Anything else invalid fails the whole
+   call — never guess a value outside the list.
 
 **Milestone: report the room list with areas, plus any detection discrepancies you
 found, before placing anything.**

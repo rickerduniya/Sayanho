@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { API_URL, AUTH_TOKEN_KEY } from '../config/api';
+import { detectionWake } from '../services/detectionWakeService';
 
 export interface AuthUser {
     id: string;
@@ -37,6 +38,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setSession = useCallback((response: AuthenticationResponse) => {
         sessionStorage.setItem(AUTH_TOKEN_KEY, response.token);
         setUser(response.user);
+        // Login / register / session-restore all land here: wake the HF
+        // detection Space now so its cold start overlaps the time the user
+        // spends reaching Detect Rooms instead of blocking it.
+        void detectionWake.start();
     }, []);
 
     const clearSession = useCallback(() => {

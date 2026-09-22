@@ -1,28 +1,22 @@
-// Server Status Banner
+// Detection Status Banner
 // ---------------------------------------------------------------------------
-// Honest, non-blocking feedback about the backend cold start. Mounted once at
-// the app root so it is visible on the landing page, the auth page, and the
-// designer alike.
-//
-// Deliberate choices:
-//  - Nothing is shown while the backend responds quickly. A banner that always
-//    flashes on load trains users to ignore it.
-//  - The elapsed seconds are shown while waking. A counter that visibly moves
-//    reads as "working" where a static spinner reads as "hung".
-//  - "Ready" is only confirmed if we actually told the user we were waking,
-//    otherwise the success toast is noise.
+// Honest, non-blocking feedback about the Hugging Face detection cold start.
+// Mounted next to <ServerStatusBanner /> inside the shared stacked container
+// in App, so the two can never overlap. Same deliberate choices as its
+// sibling: nothing flashes on a fast probe, elapsed seconds count up while
+// warming, and "ready" is only confirmed if waking was announced first.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Loader2, WifiOff, RefreshCw } from 'lucide-react';
-import { useServerStatus } from '../hooks/useServerStatus';
-import { serverWake } from '../services/serverWakeService';
+import { useDetectionStatus } from '../hooks/useDetectionStatus';
+import { detectionWake } from '../services/detectionWakeService';
 
 const READY_CONFIRMATION_MS = 2500;
 
-export const ServerStatusBanner: React.FC = () => {
-    const { status, elapsedMs } = useServerStatus();
+export const DetectionStatusBanner: React.FC = () => {
+    const { status, elapsedMs } = useDetectionStatus();
 
-    // Only celebrate readiness if the user was told we were waking up.
+    // Only celebrate readiness if the user was told we were warming up.
     const announcedWakingRef = useRef(false);
     const [showReady, setShowReady] = useState(false);
 
@@ -50,16 +44,14 @@ export const ServerStatusBanner: React.FC = () => {
     const seconds = Math.floor(elapsedMs / 1000);
 
     return (
-        // Positioned by the shared stacked container in App (which also holds
-        // DetectionStatusBanner), so the two banners can never overlap.
         <div role="status" aria-live="polite">
             {isWaking && (
-                <div className="flex items-center gap-3 rounded-xl border border-blue-400/40 bg-blue-600/95 px-4 py-2.5 text-white shadow-2xl backdrop-blur">
+                <div className="flex items-center gap-3 rounded-xl border border-violet-400/40 bg-violet-600/95 px-4 py-2.5 text-white shadow-2xl backdrop-blur">
                     <Loader2 size={18} className="shrink-0 animate-spin" />
                     <div className="min-w-0">
-                        <p className="text-sm font-semibold leading-tight">Waking up server…</p>
+                        <p className="text-sm font-semibold leading-tight">Warming up detection…</p>
                         <p className="text-[11px] leading-tight opacity-85">
-                            The free server sleeps when idle. First start takes up to 30 seconds
+                            The detection service sleeps when idle. First Detect Rooms can take a couple of minutes
                             {seconds > 0 ? ` · ${seconds}s` : ''}
                         </p>
                     </div>
@@ -70,14 +62,14 @@ export const ServerStatusBanner: React.FC = () => {
                 <div className="flex items-center gap-3 rounded-xl border border-red-400/40 bg-red-600/95 px-4 py-2.5 text-white shadow-2xl backdrop-blur">
                     <WifiOff size={18} className="shrink-0" />
                     <div className="min-w-0">
-                        <p className="text-sm font-semibold leading-tight">Can't reach the server</p>
+                        <p className="text-sm font-semibold leading-tight">Can't reach detection</p>
                         <p className="text-[11px] leading-tight opacity-85">
                             Check your connection, then try again.
                         </p>
                     </div>
                     <button
                         type="button"
-                        onClick={() => serverWake.ensureAwake({ force: true })}
+                        onClick={() => detectionWake.ensureAwake({ force: true })}
                         className="ml-1 flex shrink-0 items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/25"
                     >
                         <RefreshCw size={13} />
@@ -89,7 +81,7 @@ export const ServerStatusBanner: React.FC = () => {
             {!isWaking && !isUnreachable && showReady && (
                 <div className="flex items-center gap-2.5 rounded-xl border border-green-400/40 bg-green-600/95 px-4 py-2.5 text-white shadow-2xl backdrop-blur">
                     <CheckCircle2 size={18} className="shrink-0" />
-                    <p className="text-sm font-semibold leading-tight">Server ready</p>
+                    <p className="text-sm font-semibold leading-tight">Detection ready</p>
                 </div>
             )}
         </div>

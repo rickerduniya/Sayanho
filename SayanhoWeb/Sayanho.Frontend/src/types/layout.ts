@@ -28,20 +28,45 @@ export interface Room {
 }
 
 export type RoomType =
-    | 'bedroom'
-    | 'living_room'
-    | 'kitchen'
-    | 'bathroom'
-    | 'toilet'
-    | 'balcony'
-    | 'corridor'
-    | 'staircase'
-    | 'utility'
-    | 'office'
-    | 'dining'
-    | 'storage'
-    | 'pooja'
+    // --- Habitable (fan + lights + 5A sockets + switch board; AC optional) ---
+    | 'bedroom' // master / guest / kids / servant (use `name` for which)
+    | 'living_room' // living / hall with seating / drawing / family room
+    | 'dining' // dining room / breakfast nook
+    | 'office' // study / home office / workstation / gym
+    // --- Wet service (bulb + exhaust; switch board OUTSIDE; never sockets) ---
+    | 'bathroom' // bath + WC combined (gets a geyser point)
+    | 'toilet' // WC / powder room only (no geyser — the key difference)
+    // --- Dry service ---
+    | 'kitchen' // full cooking kitchen (exhaust + 5A over platform)
+    | 'pantry' // servery / tea kitchen, no cooking range (no exhaust, no fan)
+    | 'laundry' // wash / laundry area (exhaust for damp + 16A washer provision)
+    | 'utility' // meter / pump / electrical room
+    | 'storage' // store / godown / loft / attic
+    | 'dressing' // walk-in wardrobe / dressing (mirror-wall lights, no fan)
+    | 'pooja' // pooja / mandir (warm light + low 5A for diya)
+    // --- Circulation ---
+    | 'corridor' // passage / lobby / gallery (transit only, no fan)
+    | 'foyer' // entrance foyer / vestibule (decorative light + bell, no fan)
+    | 'staircase' // stairs / lift (twin-control landing lights)
+    // --- Semi-open / open (weatherproof fittings; switch inside) ---
+    | 'balcony' // covered balcony (house-wall bulkhead, no fan, no sockets)
+    | 'veranda' // porch / sit-out / portico (bulkheads; fan only if roofed)
+    | 'terrace' // open terrace / courtyard (weatherproof bulkheads only)
+    // --- Vehicle ---
+    | 'parking' // covered parking / garage (tube per bay + EV/16A provision)
     | 'other';
+
+/**
+ * Single source of truth for every room-type list in the app (inspector
+ * dropdown, agent tool validation, OCR fallback). Import this instead of
+ * re-declaring the array, so the three can never drift apart again.
+ */
+export const ROOM_TYPES: RoomType[] = [
+    'bedroom', 'living_room', 'kitchen', 'bathroom', 'toilet', 'balcony',
+    'corridor', 'staircase', 'utility', 'office', 'dining', 'storage',
+    'pooja', 'foyer', 'veranda', 'terrace', 'pantry', 'laundry',
+    'dressing', 'parking', 'other'
+];
 
 export type MeasurementUnit = 'm' | 'ft';
 
