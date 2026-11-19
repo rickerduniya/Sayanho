@@ -81,16 +81,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ConfiguredCors", policy =>
     {
-        if (allowedOrigins.Length > 0)
-        {
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        }
-        else
-        {
-            policy.SetIsOriginAllowed(_ => false);
-        }
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -103,6 +97,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseCors("ConfiguredCors");
 app.UseRateLimiter();
 app.UseMiddleware<SessionAuthenticationMiddleware>();

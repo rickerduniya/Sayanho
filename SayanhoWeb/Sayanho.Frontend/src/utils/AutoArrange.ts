@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Wire-driven top-down auto-arrange.
  *
  * The layout is derived from the REAL wiring (the connector/edge list), never
@@ -730,7 +730,18 @@ function layoutComponent(
                 }
                 // Step 5 — left-to-right: grow any gap below the Step-4 minimum
                 // by shifting the whole right subtree, never just the node.
-                const ids = (tierBuckets.get(t) ?? []).slice().sort((a, b) => centerOf(a) - centerOf(b));
+                // Sayanho AutoArrange: Maintain topological port order so lower-tier
+                // expansions never invert the horizontal sequence of sibling subtrees.
+                const plannedOrder = tierOrders.get(t) ?? [];
+                const tierIds = tierBuckets.get(t) ?? [];
+                const ids = tierIds.slice().sort((a, b) => {
+                    const idxA = plannedOrder.indexOf(a);
+                    const idxB = plannedOrder.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return centerOf(a) - centerOf(b);
+                });
                 for (let i = 1; i < ids.length; i++) {
                     const A = ids[i - 1];
                     const B = ids[i];

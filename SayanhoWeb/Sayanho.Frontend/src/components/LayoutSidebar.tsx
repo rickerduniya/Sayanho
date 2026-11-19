@@ -23,7 +23,7 @@ import { ChevronDown, ChevronRight, Search, Zap, Info, X } from 'lucide-react';
 const componentIconUrl = (def: LayoutComponentDef): string | null =>
     def.svgIcon ? api.getIconUrl(def.svgIcon) : null;
 
-export const LayoutSidebar: React.FC = () => {
+export const LayoutSidebar: React.FC<{ onComponentSelected?: () => void }> = ({ onComponentSelected }) => {
     const { theme, colors } = useTheme();
     const {
         setActiveTool,
@@ -74,6 +74,7 @@ export const LayoutSidebar: React.FC = () => {
     const handleComponentClick = (type: LayoutComponentType) => {
         setActiveTool('component');
         setSelectedComponentType(type);
+        if (onComponentSelected) onComponentSelected();
     };
 
     const isSelected = (type: LayoutComponentType) =>
@@ -251,7 +252,7 @@ export const LayoutSidebar: React.FC = () => {
             )}
 
             {/* Tabs */}
-            <div className="flex p-1 mx-2 mt-2 rounded-lg bg-gray-100 dark:bg-white/5 space-x-1">
+            <div className="flex p-0.5 mx-1.5 mt-1.5 rounded-lg bg-gray-100 dark:bg-white/5 space-x-1">
                 <button
                     onClick={() => setActiveTab('library')}
                     className={`
@@ -282,7 +283,7 @@ export const LayoutSidebar: React.FC = () => {
             </div>
 
             {/* Search Box */}
-            <div className="px-2 py-2 border-b" style={{ borderColor: colors.border }}>
+            <div className="px-1.5 py-1.5 border-b" style={{ borderColor: colors.border }}>
                 <div className="relative">
                     <Search
                         size={14}

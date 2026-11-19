@@ -228,7 +228,7 @@ export const ChatPanel = () => {
 
     return (
         <div
-            className="fixed right-3 top-3 bottom-3 w-[400px] max-w-[calc(100vw-1.5rem)] rounded-xl shadow-2xl flex flex-col z-40 border transition-all duration-300 ease-in-out"
+            className="fixed sm:right-1.5 inset-x-0 sm:inset-x-auto top-11 bottom-0 sm:bottom-2 sm:w-[360px] max-w-full sm:max-w-[calc(100vw-1.5rem)] rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col z-50 border transition-all duration-300 ease-in-out"
             style={{ backgroundColor: colors.panelBackground, borderColor: colors.border }}
         >
             {/* Toast Notification */}
@@ -253,14 +253,14 @@ export const ChatPanel = () => {
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleNewChat}
-                        className="p-1.5 rounded hover:bg-white/20 transition-colors"
+                        className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors"
                         title="New Conversation"
                     >
-                        <PlusCircle size={18} />
+                        <PlusCircle size={20} />
                     </button>
                     <button
                         onClick={toggleChat}
-                        className="p-1.5 rounded hover:bg-white/20 transition-colors"
+                        className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors"
                         title="Close"
                     >
                         <X size={20} />
@@ -484,7 +484,9 @@ export const ChatPanel = () => {
                         <button
                             onClick={handleSend}
                             disabled={isLoading || (!input.trim() && pendingImages.length === 0)}
-                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-[1px]"
+                            className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                            title="Send message"
+                            aria-label="Send message"
                         >
                             <Send size={18} />
                         </button>

@@ -83,8 +83,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
     return (
         <div
-            className="flex items-center h-8 px-2 gap-1"
-            style={{ color: colors.text, backgroundColor: colors.panelBackground }}
+            className="flex items-center h-8 px-1 gap-0.5 bg-transparent"
+            style={{ color: colors.text }}
         >
             {/* Moved to File Menu */}
             {/* <ToolbarButton icon={<FolderOpen size={16} />} onClick={onLoad} tooltip="Load Project" />

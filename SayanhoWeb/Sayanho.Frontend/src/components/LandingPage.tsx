@@ -3,30 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { Sun, Moon } from 'lucide-react';
 import './LandingPage.css';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { AdSlot } from './AdSlot';
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
+    const isDark = theme === 'dark';
     const [scrolled, setScrolled] = useState(false);
     const [activeFeature, setActiveFeature] = useState(0);
-    const [isDark, setIsDark] = useState(() => {
-        const saved = localStorage.getItem('lp-theme');
-        return saved ? saved === 'dark' : true; // Default to dark
-    });
 
     useEffect(() => {
         const handleScroll = () => {
-            setScrolled(window.scrollY > 50);
+            setScrolled(window.scrollY > 20);
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
-
-    useEffect(() => {
-        localStorage.setItem('lp-theme', isDark ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-lp-theme', isDark ? 'dark' : 'light');
-    }, [isDark]);
 
     const features = [
         {
@@ -75,7 +69,7 @@ const LandingPage: React.FC = () => {
                 <div className="lp-nav-right">
                     <button
                         className="theme-toggle"
-                        onClick={() => setIsDark(!isDark)}
+                        onClick={toggleTheme}
                         title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                     >
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}

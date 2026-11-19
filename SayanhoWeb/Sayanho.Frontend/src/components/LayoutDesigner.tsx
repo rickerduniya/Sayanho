@@ -24,10 +24,18 @@ interface LayoutDesignerProps {
     /** Design Agent panel visibility, owned by App so a run survives view switches. */
     showAgent?: boolean;
     onToggleAgent?: () => void;
+    isMobile?: boolean;
 }
 
 export interface LayoutDesignerRef {
     saveImage: () => void;
+    zoomIn: () => void;
+    zoomOut: () => void;
+    fitView: () => void;
+    openUploadDialog: () => void;
+    calibrateScale: () => void;
+    toggleInspector: () => void;
+    showInspector: boolean;
 }
 
 /**
@@ -49,7 +57,7 @@ const TOOL_SHORTCUTS: Record<string, DrawingTool> = {
     c: 'connection'
 };
 
-export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>(({ showLeftPanel, showChat, onToggleChat, showAgent, onToggleAgent }, ref) => {
+export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>(({ showLeftPanel, showChat, onToggleChat, showAgent, onToggleAgent, isMobile = false }, ref) => {
     const { colors, theme } = useTheme();
     const canvasRef = useRef<LayoutCanvasRef>(null);
 
@@ -232,8 +240,18 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
     const loadSummary = currentPlan ? calculateFloorPlanLoad(currentPlan) : null;
 
     useImperativeHandle(ref, () => ({
-        saveImage: () => canvasRef.current?.saveImage()
-    }));
+        saveImage: () => canvasRef.current?.saveImage(),
+        zoomIn: () => canvasRef.current?.zoomIn(),
+        zoomOut: () => canvasRef.current?.zoomOut(),
+        fitView: () => canvasRef.current?.fitView(),
+        openUploadDialog: () => setShowUploadDialog(true),
+        calibrateScale: () => {
+            setActiveTool('calibrate');
+            setMeasuredPixels(undefined);
+        },
+        toggleInspector: () => setShowInspector(prev => !prev),
+        showInspector
+    }), [showInspector, setActiveTool]);
 
     React.useEffect(() => {
         registerCanvasSnapshotCallback(async () => canvasRef.current?.captureSnapshot() || '');
@@ -555,77 +573,24 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
                 />
             </div>
 
-            {/* Toolbar.
-                On its own row below App's top bar (menu / branding / view toggle
-                / account) rather than sharing it. It was previously centred on the
-                whole viewport at ~880px wide, so on anything under ~1600px it ran
-                underneath the SLD/Layout toggle — and because App's top bar paints
-                after this at the same z-index, the toggle captured the clicks and
-                the right-hand tools became unreachable. A dedicated row removes the
-                competition entirely; overflow-x-auto keeps every tool reachable on
-                narrow windows. */}
-            <div className="pointer-events-none absolute left-2 right-2 top-14 z-50 flex justify-center">
-                <div className="pointer-events-auto max-w-full overflow-x-auto">
-                    <LayoutToolbar
-                        scale={scale}
-                        onZoomIn={() => canvasRef.current?.zoomIn()}
-                        onZoomOut={() => canvasRef.current?.zoomOut()}
-                        onFitView={() => canvasRef.current?.fitView()}
-                        onUploadPlan={() => setShowUploadDialog(true)}
-                        onScaleCalibrate={() => {
-                            setActiveTool('calibrate');
-                            setMeasuredPixels(undefined);
-                        }}
-                        showMagicWires={showMagicWires}
-                        onToggleMagicWires={() => setShowMagicWires(!showMagicWires)}
-                        showChat={showChat}
-                        onToggleChat={onToggleChat}
-                        showAgent={showAgent}
-                        onToggleAgent={onToggleAgent}
-                        showWalls={showWalls}
-                        onToggleWalls={() => setLayoutVisibility('showWalls', !showWalls)}
-                        showDoors={showDoors}
-                        onToggleDoors={() => setLayoutVisibility('showDoors', !showDoors)}
-                        showWindows={showWindows}
-                        onToggleWindows={() => setLayoutVisibility('showWindows', !showWindows)}
-                        showRooms={showRooms}
-                        onToggleRooms={() => setLayoutVisibility('showRooms', !showRooms)}
-                        isAddTextMode={isAddTextMode}
-                        onAddText={() => setIsAddTextMode(!isAddTextMode)}
-                        showInspector={showInspector}
-                        onToggleInspector={() => setShowInspector(prev => !prev)}
-                        onNotify={(status, message) => {
-                            setSyncStatus(status);
-                            setSyncMessage(message);
-                            window.setTimeout(() => setSyncStatus('idle'), 3500);
-                        }}
-                    />
-                </div>
-            </div>
-
-            {/* Left Sidebar - Floating.
-                top-28 clears App's top bar (row 1) and the tool row (row 2). */}
-            {showLeftPanel && (
+            {/* Left Sidebar - Floating below master header (Desktop only) */}
+            {showLeftPanel && !isMobile && (
                 <div
-                    className="absolute left-4 top-28 bottom-14 w-48 z-40 premium-glass rounded-xl overflow-hidden flex flex-col transition-all duration-300 animate-slide-in-left shadow-xl"
+                    className="absolute left-1.5 top-11 bottom-9 w-44 z-40 premium-glass rounded-xl overflow-hidden flex flex-col transition-all duration-300 animate-slide-in-left shadow-xl"
                     style={{ backgroundColor: colors.panelBackground }}
                 >
                     <LayoutSidebar />
                 </div>
             )}
 
-            {/* Right properties panel.
-                The Layout view previously had no equivalent of the SLD
-                properties panel, so element attributes (wall thickness, room
-                name/type, door width, component label and wattage) simply could
-                not be edited after creation. */}
-            {showInspector && (
+            {/* Right properties panel (Desktop only) */}
+            {showInspector && !isMobile && (
                 <div
-                    className="absolute right-4 top-28 bottom-14 w-56 z-40 premium-glass rounded-xl overflow-hidden flex flex-col animate-slide-in-right shadow-xl"
+                    className="absolute right-1.5 top-11 bottom-9 w-48 z-40 premium-glass rounded-xl overflow-hidden flex flex-col animate-slide-in-right shadow-xl"
                     style={{ backgroundColor: colors.panelBackground }}
                 >
                     <div
-                        className="flex items-center justify-between border-b px-3 py-2"
+                        className="flex items-center justify-between border-b px-2.5 py-1.5"
                         style={{ borderColor: colors.border, color: colors.text }}
                     >
                         <span className="text-xs font-semibold">Properties</span>
@@ -645,36 +610,36 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
             )}
 
             {drawingState.activeTool === 'connection' && (
-                <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 rounded-full px-4 py-2 text-xs font-medium shadow-lg" style={{ backgroundColor: colors.panelBackground, color: colors.text, border: `1px solid ${colors.border}` }}>
+                <div className="absolute top-11 left-1/2 -translate-x-1/2 z-40 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg" style={{ backgroundColor: colors.panelBackground, color: colors.text, border: `1px solid ${colors.border}` }}>
                     Connection mode: click a Point Switch Board and a load. Each connection uses the next free SLD output, from out1 to out9.
                 </div>
             )}
 
-            {/* Load Summary Panel â€” sits left of the properties panel when that
+            {/* Load Summary Panel — sits left of the properties panel when that
                 is open, otherwise hugs the right edge. */}
             {loadSummary && loadSummary.totalLoad > 0 && (
                 <div
-                    className={`absolute top-28 z-40 premium-glass rounded-xl p-3 shadow-lg animate-fade-in transition-all duration-300 ${showInspector ? 'right-64' : 'right-4'}`}
+                    className={`absolute top-11 z-40 premium-glass rounded-xl p-2.5 shadow-lg animate-fade-in transition-all duration-300 ${showInspector ? 'right-[202px]' : 'right-1.5'}`}
                     style={{ backgroundColor: colors.panelBackground }}
                 >
-                    <div className="text-xs font-medium mb-2 flex items-center gap-2" style={{ color: colors.text }}>
-                        <Layers size={14} className="text-blue-500" />
+                    <div className="text-xs font-medium mb-1.5 flex items-center gap-1.5" style={{ color: colors.text }}>
+                        <Layers size={13} className="text-blue-500" />
                         Load Summary
                     </div>
-                    <div className="space-y-1 text-xs" style={{ color: colors.text }}>
-                        <div className="flex justify-between gap-4">
+                    <div className="space-y-0.5 text-xs" style={{ color: colors.text }}>
+                        <div className="flex justify-between gap-3">
                             <span className="opacity-60">Lighting:</span>
                             <span className="font-mono">{loadSummary.lightingLoad}W</span>
                         </div>
-                        <div className="flex justify-between gap-4">
+                        <div className="flex justify-between gap-3">
                             <span className="opacity-60">Power:</span>
                             <span className="font-mono">{loadSummary.powerLoad}W</span>
                         </div>
-                        <div className="flex justify-between gap-4">
+                        <div className="flex justify-between gap-3">
                             <span className="opacity-60">HVAC:</span>
                             <span className="font-mono">{loadSummary.hvacLoad}W</span>
                         </div>
-                        <div className="flex justify-between gap-4 border-t pt-1 mt-1 font-medium" style={{ borderColor: colors.border }}>
+                        <div className="flex justify-between gap-3 border-t pt-1 mt-1 font-medium" style={{ borderColor: colors.border }}>
                             <span>Total:</span>
                             <span className="font-mono text-blue-500">{loadSummary.totalLoad}W</span>
                         </div>
@@ -702,10 +667,10 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
             )}
 
             {/* Bottom bar: floor-plan tabs on the left, live status readout on the
-                right. The tool hint used to render at top-centre underneath the
-                floating toolbar, where it was overlapped and unreadable. */}
-            <div
-                className="absolute bottom-2 left-4 right-4 z-30 premium-glass rounded-full pl-3 pr-2 py-1.5 animate-slide-in-bottom shadow-lg"
+                right. Pushed to the outside boundary and thinned (Desktop only). */}
+            {!isMobile && (
+                <div
+                className="absolute bottom-1 left-1.5 right-1.5 z-30 premium-glass rounded-full pl-2.5 pr-2 py-1 animate-slide-in-bottom shadow-lg"
                 style={{ backgroundColor: colors.menuBackground }}
             >
                 <div className="flex items-center gap-2">
@@ -761,7 +726,7 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
                                             setRenamingPlanId(plan.id);
                                             setRenameDraft(plan.name);
                                         }}
-                                        title={`${plan.name} â€” double-click to rename`}
+                                        title={`${plan.name} — double-click to rename`}
                                         className="max-w-[140px] truncate"
                                     >
                                         {plan.name}
@@ -803,7 +768,7 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
                         {/* Empty state */}
                         {floorPlans.length === 0 && (
                             <span className="text-xs opacity-60" style={{ color: colors.text }}>
-                                No floor plans â€” click + to upload or create one
+                                No floor plans — click + to upload or create one
                             </span>
                         )}
                     </div>
@@ -834,9 +799,9 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
                         {currentPlan && (
                             <span
                                 className="font-mono opacity-50"
-                                title={currentPlan.isScaleCalibrated ? 'Scale calibrated' : 'Scale not calibrated â€” measurements are approximate'}
+                                title={currentPlan.isScaleCalibrated ? 'Scale calibrated' : 'Scale not calibrated — measurements are approximate'}
                             >
-                                1{currentPlan.measurementUnit === 'ft' ? 'ft' : 'm'} â‰ˆ{' '}
+                                1{currentPlan.measurementUnit === 'ft' ? 'ft' : 'm'} ≈{' '}
                                 {Math.round(
                                     currentPlan.measurementUnit === 'ft'
                                         ? currentPlan.pixelsPerMeter * 0.3048
@@ -850,6 +815,7 @@ export const LayoutDesigner = forwardRef<LayoutDesignerRef, LayoutDesignerProps>
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Dialogs */}
             <UploadPlanDialog

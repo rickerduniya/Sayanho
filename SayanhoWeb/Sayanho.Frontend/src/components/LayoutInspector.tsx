@@ -249,7 +249,7 @@ export const LayoutInspector: React.FC = () => {
     // -----------------------------------------------------------------------
     if (!plan) {
         return (
-            <div className="h-full flex flex-col p-3" style={{ color: colors.text }}>
+            <div className="h-full flex flex-col p-2" style={{ color: colors.text }}>
                 <SectionHeader icon={<Layers size={14} />} title="No floor plan" />
                 <p className="text-[11px] leading-relaxed opacity-60">
                     Upload a floor plan image or add a blank plan to start drafting.
@@ -261,14 +261,14 @@ export const LayoutInspector: React.FC = () => {
     if (totalSelected === 0) {
         return (
             <div className="h-full flex flex-col overflow-hidden" style={{ color: colors.text }}>
-                <div className="px-3 pt-3">
+                <div className="px-2 pt-2">
                     <SectionHeader
                         icon={<Keyboard size={14} />}
                         title="Shortcuts"
                         subtitle="Select an element to edit it"
                     />
                 </div>
-                <div className="flex-1 overflow-y-auto px-3 pb-3">
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
                     <div className="space-y-1">
                         {SHORTCUTS.map(([keys, label]) => (
                             <div key={keys} className="flex items-center justify-between gap-2">
@@ -337,7 +337,7 @@ export const LayoutInspector: React.FC = () => {
         const commonThickness = wallThicknesses.size === 1 ? [...wallThicknesses][0] : null;
 
         return (
-            <div className="h-full overflow-y-auto p-3" style={{ color: colors.text }}>
+            <div className="h-full overflow-y-auto p-2" style={{ color: colors.text }}>
                 <SectionHeader
                     icon={<Layers size={14} />}
                     title={`${totalSelected} selected`}
@@ -380,7 +380,7 @@ export const LayoutInspector: React.FC = () => {
     const textItem = selection!.textItems[0];
 
     return (
-        <div className="h-full overflow-y-auto p-3 space-y-1.5" style={{ color: colors.text }}>
+        <div className="h-full overflow-y-auto p-2 space-y-1.5" style={{ color: colors.text }}>
             {wall && (
                 <>
                     <SectionHeader icon={<Ruler size={14} />} title="Wall" />

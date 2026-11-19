@@ -11,8 +11,8 @@ export const ViewModeToggle: React.FC = () => {
     const { activeView, setActiveView, setActiveTool } = useLayoutStore();
 
     const modes: { key: ViewMode; label: string; icon: React.ReactNode }[] = [
-        { key: 'sld', label: 'SLD', icon: <Zap size={14} /> },
-        { key: 'layout', label: 'Layout', icon: <Home size={14} /> }
+        { key: 'sld', label: 'SLD', icon: <Zap size={13} /> },
+        { key: 'layout', label: 'Layout', icon: <Home size={13} /> }
     ];
 
     return (
@@ -30,10 +30,10 @@ export const ViewModeToggle: React.FC = () => {
                         }
                     }}
                     className={`
-                        flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                        flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
                         transition-all duration-200
                         ${activeView === mode.key
-                            ? 'bg-blue-500 text-white shadow-md'
+                            ? 'bg-blue-500 text-white shadow-sm'
                             : 'hover:bg-white/10'
                         }
                     `}

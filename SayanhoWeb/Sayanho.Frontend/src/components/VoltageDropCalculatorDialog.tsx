@@ -106,7 +106,7 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
 
             {/* Dialog */}
             <div
-                className="relative bg-white rounded-lg shadow-2xl w-[500px] max-h-[90vh] overflow-y-auto"
+                className="relative bg-white rounded-xl shadow-2xl w-[520px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden"
                 style={{
                     backgroundColor: colors.panelBackground,
                     color: colors.text,
@@ -115,20 +115,20 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
             >
                 {/* Header */}
                 <div
-                    className="flex items-center justify-between px-4 py-3 border-b"
+                    className="flex items-center justify-between px-5 py-3.5 border-b shrink-0"
                     style={{ borderColor: colors.border }}
                 >
-                    <h2 className="text-lg font-semibold">Voltage Drop Calculator</h2>
+                    <h2 className="text-base font-semibold">Voltage Drop Calculator</h2>
                     <button
                         onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold p-1 rounded transition-colors"
                     >
                         ×
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
+                <div className="p-5 space-y-4 flex-1 overflow-y-auto">
                     {/* Conductor Material */}
                     <div className="flex items-center gap-4">
                         <label className="w-32 text-sm font-medium">Conductor:</label>
@@ -355,16 +355,34 @@ export const VoltageDropCalculatorDialog: React.FC<VoltageDropCalculatorDialogPr
 
                 {/* Footer */}
                 <div
-                    className="flex justify-end px-4 py-3 border-t"
+                    className="flex justify-between items-center px-5 py-3 border-t shrink-0 bg-slate-50/50 dark:bg-slate-900/50"
                     style={{ borderColor: colors.border }}
                 >
                     <button
-                        onClick={onClose}
-                        className="px-4 py-2 border rounded-md hover:bg-gray-100"
-                        style={{ borderColor: colors.border }}
+                        type="button"
+                        onClick={handleReset}
+                        className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                     >
-                        Close
+                        Reset Form
                     </button>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={handleCalculate}
+                            disabled={isCalculating}
+                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
+                        >
+                            {isCalculating ? 'Calculating…' : 'Calculate'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-1.5 border rounded-md text-sm hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                            style={{ borderColor: colors.border }}
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

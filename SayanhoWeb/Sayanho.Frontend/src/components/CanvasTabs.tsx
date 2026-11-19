@@ -151,7 +151,7 @@ export const CanvasTabs: React.FC<CanvasTabsProps> = () => {
                                 onDoubleClick={() => handleStartEdit(sheet.sheetId, sheet.name)}
                                 onContextMenu={(e) => handleContextMenu(e, sheet.sheetId)}
                                 className={`
-                                    flex items-center px-3 py-0.5 rounded-full min-w-[80px] max-w-[140px] group relative transition-all duration-200 flex-shrink-0
+                                    flex items-center px-2 py-0.5 rounded-full min-w-[70px] max-w-[130px] group relative transition-all duration-200 flex-shrink-0
                                     ${isActive ? 'shadow-md scale-105 font-medium' : 'hover:bg-white/10 opacity-80 hover:opacity-100'}
                                     ${!editingId ? 'cursor-pointer' : 'cursor-text'}
                                 `}

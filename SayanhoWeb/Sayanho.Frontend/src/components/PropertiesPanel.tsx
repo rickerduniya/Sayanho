@@ -43,14 +43,14 @@ const DropdownField = ({ label, value, options, onChange, editMode, colors, plac
     }, [editMode, options, value, onChange]);
 
     return (
-        <div className="mb-3">
+        <div className="mb-2">
             {label && <label className="text-xs block mb-1 font-medium" style={{ color: colors.text, opacity: 0.8 }}>{label}</label>}
             {editMode ? (
                 <div className="relative">
                     <select
                         value={value || ""}
                         onChange={(e) => onChange(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10"
+                        className="w-full px-2 py-1.5 text-xs rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10"
                         style={{ color: colors.text }}
                     >
                         <option value="" className="bg-white dark:bg-slate-800">{placeholder}</option>
@@ -64,7 +64,7 @@ const DropdownField = ({ label, value, options, onChange, editMode, colors, plac
                 </div>
             ) : (
                 <div
-                    className="text-xs font-medium px-3 py-2 rounded-lg border bg-white/30 dark:bg-white/5 border-white/20 dark:border-white/10"
+                    className="text-xs font-medium px-2 py-1.5 rounded-lg border bg-white/30 dark:bg-white/5 border-white/20 dark:border-white/10"
                     style={{ color: colors.text }}
                 >
                     {value || "—"}
@@ -1804,30 +1804,30 @@ export const PropertiesPanel: React.FC = React.memo(() => {
 
     return (
         <div className="h-full flex flex-col" style={{ backgroundColor: colors.panelBackground }}>
-            <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: colors.border }}>
-                <h2 className="font-semibold text-sm" style={{ color: colors.text }}>
+            <div className="px-2.5 py-2 border-b flex items-center justify-between" style={{ borderColor: colors.border }}>
+                <h2 className="font-semibold text-sm truncate" style={{ color: colors.text }}>
                     {selectedItem ? selectedItem.name : (selectedConnector?.materialType === "Wiring" ? "Wire Properties" : "Cable Properties")}
                 </h2>
                 {editMode ? (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                         <button onClick={handleSave} className="text-green-600 hover:text-green-700" title="Save">
-                            <Save size={16} />
+                            <Save size={15} />
                         </button>
                         <button onClick={handleCancel} className="text-red-600 hover:text-red-700" title="Cancel">
-                            <X size={16} />
+                            <X size={15} />
                         </button>
                     </div>
                 ) : (
                     <button
                         onClick={() => setEditMode(true)}
-                        className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                        className="text-blue-600 hover:text-blue-700 text-xs font-medium shrink-0"
                     >
                         Edit
                     </button>
                 )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-2">
                 {selectedItem && (
                     <>
                         {/* Page 1: Main Properties */}

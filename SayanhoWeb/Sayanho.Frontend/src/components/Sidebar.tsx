@@ -31,7 +31,7 @@ const getItemCategory = (name: string): string => {
     return "Others";
 };
 
-export const Sidebar = () => {
+export const Sidebar = ({ onItemAdded }: { onItemAdded?: () => void } = {}) => {
     const { addItem, sheets, activeSheetId, stagingItems, removeStagingItem, isStagingItemPlaced } = useStore();
     const currentSheet = sheets.find(s => s.sheetId === activeSheetId);
 
@@ -109,17 +109,40 @@ export const Sidebar = () => {
         }
     };
 
+    const calculateNextPlacement = (existingItems: CanvasItem[] = []): { x: number; y: number } => {
+        const base = { x: 280, y: 240 };
+        if (!existingItems || existingItems.length === 0) return base;
+
+        const count = existingItems.length;
+        const col = count % 4;
+        const row = Math.floor(count / 4) % 4;
+
+        let targetX = base.x + col * 140 + (row % 2 === 1 ? 30 : 0);
+        let targetY = base.y + row * 120;
+
+        const isOccupied = existingItems.some(i =>
+            Math.abs(i.position.x - targetX) < 40 && Math.abs(i.position.y - targetY) < 40
+        );
+        if (isOccupied) {
+            targetX += 50;
+            targetY += 50;
+        }
+
+        return { x: targetX, y: targetY };
+    };
+
     const handleAddClick = async () => {
         if (!selectedItem || !currentSheet) return;
 
         const itemData = items.find(i => i.name === selectedItem);
         if (!itemData) return;
 
-        // Create new item at fixed position (300, 300)
+        // Create new item with cascaded placement to prevent overlap
+        const spawnPos = calculateNextPlacement(currentSheet.canvasItems);
         const newItem: CanvasItem = {
             uniqueID: crypto.randomUUID(),
             name: itemData.name,
-            position: { x: 300, y: 300 },
+            position: spawnPos,
             size: itemData.size,
             connectionPoints: itemData.connectionPoints,
             properties: [],
@@ -292,6 +315,7 @@ export const Sidebar = () => {
 
         // Add item to canvas
         addItem(newItem);
+        if (onItemAdded) onItemAdded();
     };
 
     const toggleGroup = (group: string) => {
@@ -299,10 +323,11 @@ export const Sidebar = () => {
     };
 
     const handlePlaceStagingItem = async (item: CanvasItem) => {
-        // Create a copy of the item with a new position
+        // Create a copy of the item with a cascaded position to prevent stacking
+        const spawnPos = calculateNextPlacement(currentSheet?.canvasItems);
         const newItem: CanvasItem = {
             ...item,
-            position: { x: 300, y: 300 }
+            position: spawnPos
         };
 
         try {
@@ -449,6 +474,7 @@ export const Sidebar = () => {
         // Add item to canvas and remove from staging
         addItem(newItem);
         removeStagingItem(item.uniqueID);
+        if (onItemAdded) onItemAdded();
     };
 
     return (
@@ -456,14 +482,14 @@ export const Sidebar = () => {
             {/* Tabs */}
             <div className="flex border-b" style={{ borderColor: colors.border }}>
                 <button
-                    className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'library' ? 'border-b-2 border-blue-500' : 'opacity-60 hover:opacity-100'}`}
+                    className={`flex-1 py-1.5 text-sm font-medium transition-colors ${activeTab === 'library' ? 'border-b-2 border-blue-500' : 'opacity-60 hover:opacity-100'}`}
                     style={{ color: activeTab === 'library' ? colors.text : colors.text }}
                     onClick={() => setActiveTab('library')}
                 >
                     Library
                 </button>
                 <button
-                    className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'unplaced' ? 'border-b-2 border-blue-500' : 'opacity-60 hover:opacity-100'}`}
+                    className={`flex-1 py-1.5 text-sm font-medium transition-colors ${activeTab === 'unplaced' ? 'border-b-2 border-blue-500' : 'opacity-60 hover:opacity-100'}`}
                     style={{ color: activeTab === 'unplaced' ? colors.text : colors.text }}
                     onClick={() => setActiveTab('unplaced')}
                 >
@@ -476,11 +502,11 @@ export const Sidebar = () => {
                 {activeTab === 'library' ? (
                     <>
                         {/* Search Box */}
-                        <div className="p-4 border-b" style={{ borderColor: colors.border }}>
+                        <div className="p-2 border-b" style={{ borderColor: colors.border }}>
                             <input
                                 type="text"
                                 placeholder="Search components..."
-                                className="w-full px-3 py-2 text-sm rounded-lg bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 dark:placeholder-gray-400"
+                                className="w-full px-2.5 py-1.5 text-sm rounded-lg bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 dark:placeholder-gray-400"
                                 style={{
                                     color: colors.text,
                                 }}
@@ -490,33 +516,33 @@ export const Sidebar = () => {
                         </div>
 
                         {/* Grouped Item List */}
-                        <div className="flex-1 overflow-y-auto px-2 py-2">
+                        <div className="flex-1 overflow-y-auto px-1.5 py-1.5">
                             {Object.keys(groupedItems).length === 0 ? (
                                 <div className="text-center opacity-50 py-4 text-sm" style={{ color: colors.text }}>
                                     No items found
                                 </div>
                             ) : (
                                 Object.entries(groupedItems).map(([category, categoryItems]) => (
-                                    <div key={category} className="mb-2">
+                                    <div key={category} className="mb-1.5">
                                         <button
                                             onClick={() => toggleGroup(category)}
                                             className={`
-                                                flex items-center w-full px-2 py-1.5 mb-1 text-xs font-bold uppercase tracking-wider rounded-md transition-all
+                                                flex items-center w-full px-2 py-1 mb-1 text-xs font-bold uppercase tracking-wider rounded-md transition-all
                                                 ${CATEGORY_STYLES[category] || 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-200'}
                                                 hover:brightness-95 dark:hover:brightness-110
                                             `}
                                         >
-                                            {expandedGroups[category] ? <ChevronDown size={14} className="mr-1" /> : <ChevronRight size={14} className="mr-1" />}
-                                            {category} ({categoryItems.length})
+                                            {expandedGroups[category] ? <ChevronDown size={13} className="mr-1" /> : <ChevronRight size={13} className="mr-1" />}
+                                            <span className="truncate">{category} ({categoryItems.length})</span>
                                         </button>
 
                                         {expandedGroups[category] && (
-                                            <div className="pl-1 space-y-1 animate-fade-in">
+                                            <div className="pl-1 space-y-0.5 animate-fade-in">
                                                 {categoryItems.map((item) => (
                                                     <div
                                                         key={item.name}
                                                         className={`
-                                                            px-3 py-2 text-sm cursor-grab active:cursor-grabbing select-none rounded-md transition-all
+                                                            px-2 py-1.5 text-sm cursor-grab active:cursor-grabbing select-none rounded-md transition-all
                                                             ${selectedItem === item.name ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/50' : 'hover:bg-black/5 dark:hover:bg-white/5'}
                                                         `}
                                                         style={{ color: selectedItem === item.name ? undefined : colors.text }}
@@ -524,9 +550,8 @@ export const Sidebar = () => {
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, item.name)}
                                                     >
-                                                        <div className="flex items-center gap-2">
-                                                            {/* Optional: Add icon preview if available */}
-                                                            <span>{item.name}</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="truncate">{item.name}</span>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -538,12 +563,12 @@ export const Sidebar = () => {
                         </div>
 
                         {/* Bottom Buttons */}
-                        <div className="p-4 mt-auto border-t" style={{ borderColor: colors.border }}>
+                        <div className="p-2 mt-auto border-t" style={{ borderColor: colors.border }}>
                             <button
                                 onClick={handleAddClick}
                                 disabled={!selectedItem}
                                 className={`
-                                    w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-lg flex items-center justify-center gap-2
+                                    w-full py-1.5 text-sm font-semibold text-white rounded-lg transition-all shadow-md flex items-center justify-center gap-2
                                     ${!selectedItem ? 'bg-gray-400/50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30 active:scale-95'}
                                 `}
                             >
@@ -553,10 +578,10 @@ export const Sidebar = () => {
                     </>
                 ) : (
                     // Unplaced Items Tab
-                    <div className="flex-1 p-4 space-y-3">
+                    <div className="flex-1 p-2 space-y-2">
                         {visibleStagingItems.length === 0 ? (
-                            <div className="text-center py-10 opacity-50 text-sm" style={{ color: colors.text }}>
-                                <div className="text-2xl mb-2">📥</div>
+                            <div className="text-center py-8 opacity-50 text-sm" style={{ color: colors.text }}>
+                                <div className="text-2xl mb-1">📥</div>
                                 No unplaced items.<br />
                                 Create items in Layout to see them here.
                             </div>

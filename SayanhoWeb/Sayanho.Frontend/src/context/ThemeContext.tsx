@@ -28,14 +28,20 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [theme, setTheme] = useState<Theme>('light');
+    const [theme, setTheme] = useState<Theme>(() => {
+        const saved = localStorage.getItem('sayanho-theme') || localStorage.getItem('lp-theme');
+        return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+    });
 
     const toggleTheme = () => {
         setTheme(prev => prev === 'light' ? 'dark' : 'light');
     };
 
-    // Apply dark mode class to HTML element
+    // Apply dark mode class and attribute to HTML element
     useEffect(() => {
+        localStorage.setItem('sayanho-theme', theme);
+        localStorage.setItem('lp-theme', theme);
+        document.documentElement.setAttribute('data-lp-theme', theme);
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
         } else {
@@ -44,16 +50,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [theme]);
 
     const colors: ThemeColors = {
-        canvasBackground: theme === 'dark' ? '#020617' : '#f0f4f8', // Slate 950 / Cool Gray
-        panelBackground: theme === 'dark' ? '#020617' : '#ffffff', // Solid Opaque
+        canvasBackground: theme === 'dark' ? '#060911' : '#f0f4f8',
+        panelBackground: theme === 'dark' ? '#0d131f' : '#ffffff',
         text: theme === 'dark' ? '#f8fafc' : '#1e293b',
-        menuBackground: theme === 'dark' ? '#020617' : '#ffffff', // Solid Opaque
-        toolbarBackground: theme === 'dark' ? '#020617' : '#ffffff', // Solid Opaque
+        menuBackground: theme === 'dark' ? '#0d131f' : '#ffffff',
+        toolbarBackground: theme === 'dark' ? '#0d131f' : '#ffffff',
         menuForeground: '#ffffff',
         menuText: theme === 'dark' ? '#f8fafc' : '#1e293b',
         border: theme === 'dark' ? '#1e293b' : '#e2e8f0', // Opaque borders (Slate 800 / Slate 200)
-        glassBackground: theme === 'dark' ? 'rgba(2, 6, 23, 0.8)' : 'rgba(255, 255, 255, 0.6)',
-        glassBorder: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)',
+        glassBackground: theme === 'dark' ? 'rgba(13, 19, 31, 0.9)' : 'rgba(255, 255, 255, 0.8)',
+        glassBorder: theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
         accent: '#818cf8', // Indigo 400
         accentForeground: '#ffffff',
         muted: theme === 'dark' ? '#1e293b' : '#e2e8f0',

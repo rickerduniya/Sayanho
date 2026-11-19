@@ -26,11 +26,11 @@ export const AutoRatingResultDialog: React.FC<AutoRatingResultDialogProps> = ({
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]" onClick={onClose}>
             <div
-                className="rounded-lg shadow-xl border w-[600px] max-h-[80vh] flex flex-col p-6 animate-slide-in-top"
+                className="rounded-xl shadow-2xl border w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden animate-slide-in-top"
                 style={{ backgroundColor: colors.panelBackground, borderColor: colors.border }}
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex flex-col items-center text-center gap-4">
+                <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center text-center gap-4">
                     {success ? (
                         <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
                             <CheckCircle size={32} className="text-green-600" />

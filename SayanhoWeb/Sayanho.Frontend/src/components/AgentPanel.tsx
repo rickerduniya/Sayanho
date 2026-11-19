@@ -432,7 +432,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({ isOpen, onClose, showToa
 
     return (
         <div
-            className="fixed left-3 top-3 bottom-3 z-[60] flex w-[420px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border shadow-2xl"
+            className="fixed sm:left-1.5 inset-x-0 sm:inset-x-auto top-11 bottom-0 sm:bottom-2 sm:w-[380px] max-w-full sm:max-w-[calc(100vw-1.5rem)] rounded-t-2xl sm:rounded-xl z-[60] flex flex-col overflow-hidden border shadow-2xl"
             style={{ backgroundColor: colors.panelBackground, borderColor: colors.border }}
         >
             {/* Header */}
@@ -447,10 +447,11 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({ isOpen, onClose, showToa
                 </div>
                 <button
                     onClick={onClose}
-                    className="rounded p-1.5 transition-colors hover:bg-white/20"
+                    className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg transition-colors hover:bg-white/20"
                     title="Close"
+                    aria-label="Close"
                 >
-                    <X size={18} />
+                    <X size={20} />
                 </button>
             </div>
 
@@ -568,17 +569,17 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({ isOpen, onClose, showToa
                         What should the agent do?
                     </p>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                         {PRESET_GOALS.map(preset => (
                             <button
                                 key={preset.label}
                                 onClick={() => runAgent(preset.goal)}
                                 disabled={preflight.blockers.length > 0}
-                                className="flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-[11px] transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+                                className="flex w-full items-center gap-2.5 rounded-xl border px-3 py-3 min-h-[46px] text-left text-xs font-medium transition-all active:scale-98 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
                                 style={{ borderColor: colors.border, color: colors.text }}
                             >
-                                <Play size={12} className="shrink-0 text-blue-500" />
-                                {preset.label}
+                                <Play size={14} className="shrink-0 text-blue-500" />
+                                <span>{preset.label}</span>
                             </button>
                         ))}
                     </div>
@@ -596,16 +597,17 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({ isOpen, onClose, showToa
                             }}
                             placeholder="Or describe your own goal…"
                             rows={2}
-                            className="flex-1 resize-none rounded-lg border bg-transparent px-2 py-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="flex-1 resize-none rounded-xl border bg-transparent px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                             style={{ borderColor: colors.border, color: colors.text }}
                         />
                         <button
                             onClick={() => runAgent(goal)}
                             disabled={!goal.trim() || preflight.blockers.length > 0}
-                            className="rounded-lg bg-blue-600 p-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-blue-600 p-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 shrink-0"
                             title="Run"
+                            aria-label="Run"
                         >
-                            <Play size={15} />
+                            <Play size={16} />
                         </button>
                     </div>
                 </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Sidebar } from './components/Sidebar';
 import { Canvas, CanvasRef } from './components/Canvas';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -17,8 +18,16 @@ import { NetworkMonitor } from './components/NetworkMonitor';
 
 // Layout Designer imports
 import { LayoutDesigner, LayoutDesignerRef } from './components/LayoutDesigner';
+import { LayoutSidebar } from './components/LayoutSidebar';
+import { LayoutInspector } from './components/LayoutInspector';
 import { ViewModeToggle } from './components/ViewModeToggle';
 import { useLayoutStore } from './store/useLayoutStore';
+import { useIsMobile } from './hooks/useIsMobile';
+import { MobileNavBar } from './components/MobileNavBar';
+import { MobileBottomSheet } from './components/MobileBottomSheet';
+import { MobileToolsSheet } from './components/MobileToolsSheet';
+import { MobileSheetsSheet } from './components/MobileSheetsSheet';
+import { MobileAISheet } from './components/MobileAISheet';
 
 import { api } from './services/api';
 import { useStore } from './store/useStore';
@@ -32,7 +41,12 @@ import { Toast } from './components/Toast';
 import { ServerStatusBanner } from './components/ServerStatusBanner';
 import { DetectionStatusBanner } from './components/DetectionStatusBanner';
 import { BrowserRouter, Navigate, Routes, Route, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, User } from 'lucide-react';
+import {
+    ChevronDown, LogOut, User, Undo, Redo, MessageSquare, Bot, Sun, Moon,
+    MousePointer2, Hand, ZoomIn, ZoomOut, RotateCcw, Maximize, LayoutGrid,
+    Zap, Eye, EyeOff, Type, PanelLeftClose, PanelLeftOpen, PanelRight,
+    Pencil, Square, DoorOpen, Grid3X3, ArrowUpFromLine, Sparkles, Ruler, Layers, GitBranch, Check
+} from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
 import { useAuth } from './auth/AuthContext';
@@ -42,12 +56,23 @@ function DesignerApp() {
     const { user, logout } = useAuth();
     const { getCurrentSheet, setSheet, updateSheet, sheets, setSheets, applyAutoRatingResults, undo, redo, calculateNetwork, addItem, selectItem, showCurrentValues, toggleShowCurrentValues, isPropertiesPanelOpen, isChatOpen, toggleChat } = useStore();
     const currentSheet = getCurrentSheet();
-    const { colors, theme } = useTheme();
+    const { colors, theme, toggleTheme } = useTheme();
 
-    // Layout store - for view mode toggle
-    const { activeView } = useLayoutStore();
+    // Layout store - for view mode toggle and layout tools
+    const {
+        activeView,
+        drawingState,
+        setActiveTool,
+        setWallThickness,
+        setContinuousWallMode,
+        visibility: { showWalls, showDoors, showWindows, showRooms },
+        setLayoutVisibility
+    } = useLayoutStore();
+    const activeTool = drawingState.activeTool;
 
     // UI State
+    const isMobile = useIsMobile();
+    const [activeMobileSheet, setActiveMobileSheet] = useState<'components' | 'properties' | 'tools' | 'sheets' | 'ai' | null>(null);
     const [showLeftPanel, setShowLeftPanel] = useState(true);
     const [showMenu, setShowMenu] = useState(true); // Toggle MenuBar visibility
     const [scale, setScale] = useState(1);
@@ -55,7 +80,36 @@ function DesignerApp() {
     const [isAddTextMode, setIsAddTextMode] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showAccountMenu, setShowAccountMenu] = useState(false);
+    const [showLayersMenu, setShowLayersMenu] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
+
+    const layersButtonRef = useRef<HTMLButtonElement>(null);
+    const [layersMenuPos, setLayersMenuPos] = useState({ top: 0, left: 0 });
+
+    const handleToggleLayersMenu = () => {
+        if (!showLayersMenu && layersButtonRef.current) {
+            const rect = layersButtonRef.current.getBoundingClientRect();
+            setLayersMenuPos({
+                top: rect.bottom + 6,
+                left: Math.max(10, rect.left - 40)
+            });
+        }
+        setShowLayersMenu(prev => !prev);
+    };
+
+    const accountButtonRef = useRef<HTMLButtonElement>(null);
+    const [accountMenuPos, setAccountMenuPos] = useState({ top: 0, right: 0 });
+
+    const handleToggleAccountMenu = () => {
+        if (!showAccountMenu && accountButtonRef.current) {
+            const rect = accountButtonRef.current.getBoundingClientRect();
+            setAccountMenuPos({
+                top: rect.bottom + 6,
+                right: Math.max(10, window.innerWidth - rect.right)
+            });
+        }
+        setShowAccountMenu(prev => !prev);
+    };
 
     const [showVoltageDropDialog, setShowVoltageDropDialog] = useState(false);
     const [showNetworkMonitor, setShowNetworkMonitor] = useState(false);
@@ -592,6 +646,7 @@ function DesignerApp() {
                     onToggleChat={toggleChat}
                     showAgent={showAgentPanel}
                     onToggleAgent={() => setShowAgentPanel(prev => !prev)}
+                    isMobile={isMobile}
                 />
             ) : (
                 <div className="absolute inset-0 z-0">
@@ -605,16 +660,34 @@ function DesignerApp() {
                 </div>
             )}
 
-            {/* Top Bar Area - Menu & Toolbar */}
-            <div className="absolute top-0 left-0 right-0 z-50 p-2 pointer-events-none flex justify-between items-start">
-                {/* Branding - in toolbar */}
-                <div className="absolute left-1/2 transform -translate-x-1/2 -top-1 pointer-events-none z-50">
-                    <h1 className="text-lg font-bold tracking-widest uppercase opacity-70" style={{ color: theme === 'dark' ? '#fff' : '#333' }}>Sayanho <span className="text-xs font-normal opacity-60">V1.2</span></h1>
-                </div>
+            {/* Master Studio Header (Extreme Top Bar - No Floating Toolbar) */}
+            <header
+                className={`relative z-50 flex ${isMobile ? 'h-11 px-2' : 'h-10 px-2'} w-full shrink-0 items-center justify-between border-b backdrop-blur-xl shadow-sm select-none`}
+                style={{
+                    backgroundColor: colors.panelBackground,
+                    borderColor: colors.border,
+                    color: colors.text
+                }}
+            >
+                {/* Left Section: Brand, Menus & View Mode Toggle */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 mr-0.5">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-600 text-[11px] font-bold text-white shadow-sm shadow-blue-500/20 shrink-0">
+                            ⚡
+                        </div>
+                        <div className="flex flex-col justify-center leading-none">
+                            <span className="font-bold text-xs tracking-wider uppercase leading-none">
+                                Sayanho
+                            </span>
+                            <span className="text-[9px] font-semibold text-blue-500 dark:text-blue-400 tracking-wider leading-none mt-0.5">
+                                v2.0
+                            </span>
+                        </div>
+                    </div>
 
-                {/* Menu Bar */}
-                {showMenu && (
-                    <div className="premium-glass rounded-full px-3 py-1 z-50 pointer-events-auto" style={{ backgroundColor: colors.menuBackground }}>
+                    <div className="h-3.5 w-px bg-gray-300 dark:bg-gray-700 mx-0.5" />
+
+                    {showMenu && (
                         <MenuBar
                             onLoad={handleOpen}
                             onSave={handleSave}
@@ -622,133 +695,585 @@ function DesignerApp() {
                             onSaveImage={handleSaveImage}
                             onSettings={() => setShowSettings(true)}
                             onGenerateEstimate={handleGenerateEstimate}
-
                             onOpenVoltageDrop={() => setShowVoltageDropDialog(true)}
                             onOpenNetworkMonitor={() => setShowNetworkMonitor(true)}
                             onSaveLocal={handleSaveLocal}
                             onLoadLocal={handleLoadLocal}
+                            isMobile={isMobile}
                         />
-                    </div>
-                )}
+                    )}
 
-                <div className="flex items-start gap-2 z-50 pointer-events-auto">
-                    <div className="premium-glass rounded-full px-2 py-1" style={{ backgroundColor: colors.menuBackground }}>
-                        <ViewModeToggle />
-                    </div>
-
-                    {user && (
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setShowAccountMenu(!showAccountMenu)}
-                                className="premium-glass flex items-center gap-2 rounded-full px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-white/15"
-                                style={{ backgroundColor: colors.menuBackground, color: colors.text }}
-                                aria-expanded={showAccountMenu}
-                                aria-label="Open account menu"
-                            >
-                                <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-bold text-white">
-                                    {(user.displayName || user.email).trim().charAt(0).toUpperCase()}
-                                </span>
-                                <span className="hidden max-w-32 sm:flex sm:flex-col">
-                                    <span className="truncate text-xs font-semibold leading-tight">{user.displayName}</span>
-                                    <span className="truncate text-[10px] opacity-65">{user.email}</span>
-                                </span>
-                                <ChevronDown size={14} className={`transition-transform ${showAccountMenu ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {showAccountMenu && (
-                                <div
-                                    className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border shadow-xl"
-                                    style={{ backgroundColor: colors.panelBackground, borderColor: colors.border, color: colors.text }}
-                                >
-                                    <div className="flex items-start gap-3 p-3">
-                                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-500 text-white">
-                                            <User size={18} />
-                                        </span>
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide opacity-55">Signed in as</p>
-                                            <p className="truncate text-sm font-semibold">{user.displayName}</p>
-                                            <p className="truncate text-xs opacity-70">{user.email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="border-t p-1.5" style={{ borderColor: colors.border }}>
-                                        <button
-                                            type="button"
-                                            onClick={handleLogout}
-                                            disabled={isSigningOut}
-                                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            <LogOut size={16} />
-                                            {isSigningOut ? 'Signing out…' : 'Sign out'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                    {!isMobile && (
+                        <>
+                            <div className="h-3.5 w-px bg-gray-300 dark:bg-gray-700 mx-0.5" />
+                            <ViewModeToggle />
+                        </>
                     )}
                 </div>
 
-                {/* Toolbar - Centered (SLD mode only) */}
-                {activeView === 'sld' && (
-                    <div className="absolute left-1/2 transform -translate-x-1/2 top-0 pointer-events-auto">
-                        <div className="premium-glass rounded-xl p-1.5 flex items-center h-[36px]">
-                            <Toolbar
-                                onLoad={handleOpen}
-                                onZoomIn={handleZoomIn}
-                                onZoomOut={handleZoomOut}
-                                onSetZoom={handleSetZoom}
-                                onResetZoom={handleResetZoom}
-                                onFitContent={handleFitContent}
-                                scale={scale}
-                                showLeftPanel={showLeftPanel}
-                                onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
-                                showMenu={showMenu}
-                                onToggleMenu={() => setShowMenu(!showMenu)}
-                                showChat={isChatOpen}
-                                onToggleChat={toggleChat}
-                                showAgent={showAgentPanel}
-                                onToggleAgent={() => setShowAgentPanel(prev => !prev)}
-                                onAutoRate={handleAutoRate}
-                                onAddText={() => setIsAddTextMode(!isAddTextMode)}
-                                isAddTextMode={isAddTextMode}
-                                onUndo={undo}
-                                onRedo={redo}
-                                panMode={panMode}
-                                onSetPanMode={setPanMode}
-                                onCalculate={calculateNetwork}
-                                onAutoArrange={handleAutoArrange}
-                                onCopyTrace={handleCopyTrace}
-                                showCurrentValues={showCurrentValues}
-                                onToggleShowCurrentValues={toggleShowCurrentValues}
-                            />
-                        </div>
+                {/* Center Section: View Mode Toggle on Mobile, Contextual Tools on Desktop */}
+                {isMobile ? (
+                    <div className="flex items-center justify-center mx-auto">
+                        <ViewModeToggle />
                     </div>
-                )}
-            </div>
+                ) : (
+                    <div className="flex items-center gap-1.5 mx-auto">
+                        {activeView === 'sld' ? (
+                            // ================= SLD TOOLS =================
+                            <div className="flex items-center gap-1 shrink-0">
+                            {/* Select / Pan */}
+                            <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-border/50">
+                                <button
+                                    type="button"
+                                    onClick={() => setPanMode(false)}
+                                    title="Select Mode (V)"
+                                    className={`p-1 rounded-md transition-all ${!panMode ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <MousePointer2 size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPanMode(true)}
+                                    title="Pan Canvas Mode (H / Space)"
+                                    className={`p-1 rounded-md transition-all ${panMode ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <Hand size={13} />
+                                </button>
+                            </div>
 
-            {/* Left Sidebar (SLD mode only) */}
-            {activeView === 'sld' && showLeftPanel && (
-                <div className="absolute left-4 top-12 bottom-4 w-48 z-40 premium-glass rounded-xl overflow-hidden flex flex-col transition-all duration-300 animate-slide-in-left">
+                            <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+
+                            {/* Zoom & Arrange Controls */}
+                            <div className="flex items-center gap-0.5 bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-border/50">
+                                <button
+                                    type="button"
+                                    onClick={handleZoomOut}
+                                    title="Zoom Out"
+                                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                >
+                                    <ZoomOut size={13} />
+                                </button>
+                                <div className="flex items-center px-0.5">
+                                    <input
+                                        type="number"
+                                        value={Math.round(scale * 100)}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            if (!isNaN(val) && val > 0 && val <= 500) {
+                                                handleSetZoom(val / 100);
+                                            }
+                                        }}
+                                        className="w-8 text-[11px] font-mono text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded appearance-none"
+                                        style={{ color: colors.text }}
+                                        min="10"
+                                        max="500"
+                                    />
+                                    <span className="text-[10px] font-mono opacity-50">%</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleZoomIn}
+                                    title="Zoom In"
+                                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                >
+                                    <ZoomIn size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleResetZoom}
+                                    title="Reset Zoom (65%)"
+                                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                >
+                                    <RotateCcw size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleFitContent}
+                                    title="Fit Content"
+                                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                >
+                                    <Maximize size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAutoArrange}
+                                    title="Auto Arrange"
+                                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                >
+                                    <LayoutGrid size={13} />
+                                </button>
+                            </div>
+
+                            <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+
+                            {/* Electrical Actions */}
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={handleAutoRate}
+                                    title="Run Auto-Rating Analysis"
+                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all shadow-sm"
+                                >
+                                    <Zap size={13} className="fill-amber-500/30" />
+                                    <span className="hidden xl:inline">Auto-Rate</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={toggleShowCurrentValues}
+                                    title={showCurrentValues ? "Hide Current Values" : "Show Calculated Current Values"}
+                                    className={`p-1 rounded-lg border transition-all ${showCurrentValues ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'border-border/50 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                >
+                                    {showCurrentValues ? <Eye size={13} /> : <EyeOff size={13} />}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddTextMode(!isAddTextMode)}
+                                    title="Add Text Label"
+                                    className={`p-1 rounded-lg border transition-all ${isAddTextMode ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'border-border/50 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                >
+                                    <Type size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLeftPanel(!showLeftPanel)}
+                                    title={showLeftPanel ? "Hide Component Library" : "Show Component Library"}
+                                    className={`p-1 rounded-lg border transition-all ${showLeftPanel ? 'bg-black/10 dark:bg-white/15 border-border' : 'border-border/50 opacity-60 hover:opacity-100'}`}
+                                >
+                                    {showLeftPanel ? <PanelLeftClose size={13} /> : <PanelLeftOpen size={13} />}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        // ================= LAYOUT TOOLS =================
+                        <div className="flex items-center gap-1 shrink-0">
+                            {/* Select / Pan */}
+                            <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-border/50">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('select')}
+                                    title="Select Tool (V)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'select' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <MousePointer2 size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('pan')}
+                                    title="Pan Tool (Space)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'pan' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <Hand size={13} />
+                                </button>
+                            </div>
+
+                            <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+
+                            {/* Drawing Tools */}
+                            <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-border/50 gap-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('wall')}
+                                    title="Draw Wall (W)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'wall' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <Pencil size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('room')}
+                                    title="Draw Room (R)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'room' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <Square size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('door')}
+                                    title="Add Door (D)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'door' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <DoorOpen size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('window')}
+                                    title="Add Window (N)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'window' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <Grid3X3 size={13} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool('stair')}
+                                    title="Add Stairs (S)"
+                                    className={`p-1 rounded-md transition-all ${activeTool === 'stair' ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70'}`}
+                                >
+                                    <ArrowUpFromLine size={13} />
+                                </button>
+                            </div>
+
+                            {/* Wall Thickness sub-control when wall active */}
+                            {activeTool === 'wall' && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs animate-fade-in">
+                                    <span className="text-[10px] font-bold uppercase opacity-60">T:</span>
+                                    <input
+                                        type="number"
+                                        min="2"
+                                        max="80"
+                                        value={drawingState.wallThickness}
+                                        onChange={(e) => setWallThickness(parseInt(e.target.value) || 10)}
+                                        className="w-7 bg-transparent text-center font-mono focus:outline-none text-xs"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setContinuousWallMode(!drawingState.continuousWallMode)}
+                                        title={drawingState.continuousWallMode ? "Continuous Mode ON" : "Single Line Mode"}
+                                        className={`p-0.5 rounded ${drawingState.continuousWallMode ? 'text-blue-500 font-bold' : 'opacity-40'}`}
+                                    >
+                                        <Sparkles size={11} />
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+
+                            {/* Calibration, Layers, Connection */}
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => layoutRef.current?.calibrateScale()}
+                                    title="Calibrate Scale"
+                                    className={`p-1 rounded-lg border transition-all ${activeTool === 'calibrate' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'border-border/50 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                >
+                                    <Ruler size={13} />
+                                </button>
+
+                                {/* LAYER TOGGLE BUTTON - Triggers unclipped portal */}
+                                <button
+                                    ref={layersButtonRef}
+                                    type="button"
+                                    onClick={handleToggleLayersMenu}
+                                    title="Toggle Architectural Layers Visibility"
+                                    className={`p-1 rounded-lg border transition-all ${showLayersMenu ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'border-border/50 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                >
+                                    <Layers size={13} />
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTool(activeTool === 'connection' ? 'select' : 'connection')}
+                                    title="Connect Components Mode (C)"
+                                    className={`p-1 rounded-lg border transition-all ${activeTool === 'connection' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'border-border/50 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                >
+                                    <GitBranch size={13} />
+                                </button>
+
+                                {/* Layout Zoom Controls */}
+                                <div className="flex items-center gap-0.5 bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-border/50">
+                                    <button
+                                        type="button"
+                                        onClick={() => layoutRef.current?.zoomOut()}
+                                        title="Zoom Out"
+                                        className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                    >
+                                        <ZoomOut size={13} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => layoutRef.current?.fitView()}
+                                        title="Fit Floor Plan to Screen"
+                                        className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                    >
+                                        <Maximize size={13} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => layoutRef.current?.zoomIn()}
+                                        title="Zoom In"
+                                        className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100"
+                                    >
+                                        <ZoomIn size={13} />
+                                    </button>
+                                </div>
+
+                                {/* Panel Toggles */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLeftPanel(!showLeftPanel)}
+                                    title={showLeftPanel ? "Hide Layout Sidebar" : "Show Layout Sidebar"}
+                                    className={`p-1 rounded-lg border transition-all ${showLeftPanel ? 'bg-black/10 dark:bg-white/15 border-border' : 'border-border/50 opacity-60 hover:opacity-100'}`}
+                                >
+                                    {showLeftPanel ? <PanelLeftClose size={13} /> : <PanelLeftOpen size={13} />}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => layoutRef.current?.toggleInspector()}
+                                    title="Toggle Properties Panel"
+                                    className="p-1 rounded-lg border border-border/50 hover:bg-black/5 dark:hover:bg-white/10 transition-all"
+                                >
+                                    <PanelRight size={13} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                )}
+
+                {/* Right Section: Undo/Redo, AI Chat, Agent, Theme, User Icon ONLY */}
+                <div className="flex items-center gap-1 shrink-0">
+                    {/* Quick Undo / Redo */}
+                    <div className="flex items-center gap-0.5 mr-0.5">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (activeView === 'layout') useLayoutStore.getState().undo();
+                                else undo();
+                            }}
+                            title="Undo (Ctrl+Z)"
+                            className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                            style={{ color: colors.text }}
+                        >
+                            <Undo size={13} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (activeView === 'layout') useLayoutStore.getState().redo();
+                                else redo();
+                            }}
+                            title="Redo (Ctrl+Y)"
+                            className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                            style={{ color: colors.text }}
+                        >
+                            <Redo size={13} />
+                        </button>
+                    </div>
+
+                    {/* AI Triggers: Mobile Header 1-tap Bot Trigger vs Desktop Slim Icons */}
+                    {isMobile ? (
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setShowAgentPanel(prev => !prev)}
+                                title="Autonomous Design Agent"
+                                aria-label="Autonomous Design Agent"
+                                className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl transition-all active:scale-95 ${showAgentPanel ? 'bg-indigo-600 text-white shadow-md' : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'}`}
+                            >
+                                <Bot size={18} />
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="h-3.5 w-px bg-gray-300 dark:bg-gray-700 mx-0.5" />
+
+                            {/* AI Chat & Agent Triggers (Desktop) */}
+                            <button
+                                type="button"
+                                onClick={toggleChat}
+                                title="AI Design Assistant"
+                                className={`p-1 rounded-lg transition-all ${isChatOpen ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                style={isChatOpen ? undefined : { color: colors.text }}
+                            >
+                                <MessageSquare size={13} />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowAgentPanel(prev => !prev)}
+                                title="Autonomous Design Agent"
+                                className={`p-1 rounded-lg transition-all ${showAgentPanel ? 'bg-indigo-600 text-white shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                style={showAgentPanel ? undefined : { color: colors.text }}
+                            >
+                                <Bot size={13} />
+                            </button>
+                        </>
+                    )}
+
+                    <div className="h-3.5 w-px bg-gray-300 dark:bg-gray-700 mx-0.5" />
+
+                    {/* Theme Toggle (min 36x36px on mobile, p-1 on desktop) */}
+                    <button
+                        type="button"
+                        onClick={toggleTheme}
+                        title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                        className="min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 p-1 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        style={{ color: colors.text }}
+                    >
+                        {theme === 'dark' ? <Sun size={isMobile ? 16 : 13} /> : <Moon size={isMobile ? 16 : 13} />}
+                    </button>
+
+                    {/* User Account Avatar ONLY (no full name in top bar) */}
+                    {user && (
+                        <div className="relative ml-0.5">
+                            <button
+                                ref={accountButtonRef}
+                                type="button"
+                                onClick={handleToggleAccountMenu}
+                                className="min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-lg cursor-pointer"
+                                title={`Account: ${user.displayName || user.email}`}
+                                aria-expanded={showAccountMenu}
+                                aria-label="Open account menu"
+                            >
+                                <span className="grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-sm ring-2 ring-transparent hover:ring-blue-400 transition-all shrink-0">
+                                    {(user.displayName || user.email).trim().charAt(0).toUpperCase()}
+                                </span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </header>
+
+            {/* Left Sidebar (SLD mode only - floating right below docked top bar, pushed outwards, Desktop only) */}
+            {activeView === 'sld' && showLeftPanel && !isMobile && (
+                <div className="absolute left-1.5 top-11 bottom-2 w-44 z-40 premium-glass rounded-xl overflow-hidden flex flex-col transition-all duration-300 animate-slide-in-left shadow-xl">
                     <Sidebar />
                 </div>
             )}
 
-            {/* Right Properties Panel (SLD mode only) */}
-            {activeView === 'sld' && (
-                <div className={`absolute right-4 top-12 bottom-4 w-56 z-40 pointer-events-none transition-opacity duration-300 ${isPropertiesPanelOpen ? 'opacity-100' : 'opacity-0'}`}>
+            {/* Right Properties Panel (SLD mode only - floating right below docked top bar, pushed outwards, Desktop only) */}
+            {activeView === 'sld' && !isMobile && (
+                <div className={`absolute right-1.5 top-11 bottom-2 w-48 z-40 pointer-events-none transition-opacity duration-300 ${isPropertiesPanelOpen ? 'opacity-100' : 'opacity-0'}`}>
                     {isPropertiesPanelOpen && (
-                        <div className="pointer-events-auto h-full premium-glass rounded-xl overflow-hidden flex flex-col animate-slide-in-right">
+                        <div className="pointer-events-auto h-full premium-glass rounded-xl overflow-hidden flex flex-col animate-slide-in-right shadow-xl">
                             <PropertiesPanel />
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Bottom Tabs (SLD mode only) */}
-            {activeView === 'sld' && (
-                <div className={`absolute bottom-2 z-30 premium-glass rounded-full px-4 py-0.5 animate-slide-in-bottom transition-all duration-300 ${showLeftPanel ? 'left-56' : 'left-4'} right-60`}>
+            {/* Bottom Tabs (SLD mode only - hugging bottom edge, moving outwards, Desktop only) */}
+            {activeView === 'sld' && !isMobile && (
+                <div className={`absolute bottom-1 z-30 premium-glass rounded-full px-2 py-0.5 animate-slide-in-bottom transition-all duration-300 ${showLeftPanel ? 'left-48' : 'left-2'} ${isPropertiesPanelOpen ? 'right-52' : 'right-2'}`}>
                     <CanvasTabs />
                 </div>
+            )}
+
+            {/* Mobile Bottom Navigation Bar & Mobile Bottom Sheets */}
+            {isMobile && (
+                <>
+                    {/* Floating Quick Zoom Pill (Large Male-Thumb Touch Friendly: 44-48px targets) */}
+                    <div className="fixed bottom-[74px] right-3 z-30 flex items-center bg-slate-900/95 text-white border border-slate-700/80 rounded-full p-1 shadow-2xl backdrop-blur-md gap-1">
+                        <button
+                            type="button"
+                            onClick={activeView === 'layout' ? () => layoutRef.current?.zoomOut() : handleZoomOut}
+                            className="w-11 h-11 flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded-full text-slate-200 transition-all active:scale-95"
+                            title="Zoom Out"
+                            aria-label="Zoom Out"
+                        >
+                            <ZoomOut size={18} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={activeView === 'layout' ? () => layoutRef.current?.fitView() : handleFitContent}
+                            className="h-11 px-3.5 flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded-full text-xs font-bold text-slate-200 tracking-wider transition-all active:scale-95 font-mono"
+                            title="Fit View"
+                            aria-label="Fit View"
+                        >
+                            FIT
+                        </button>
+                        <button
+                            type="button"
+                            onClick={activeView === 'layout' ? () => layoutRef.current?.zoomIn() : handleZoomIn}
+                            className="w-11 h-11 flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded-full text-slate-200 transition-all active:scale-95"
+                            title="Zoom In"
+                            aria-label="Zoom In"
+                        >
+                            <ZoomIn size={18} />
+                        </button>
+                    </div>
+
+                    <MobileNavBar
+                        onOpenComponents={() => setActiveMobileSheet(prev => prev === 'components' ? null : 'components')}
+                        onOpenProperties={() => setActiveMobileSheet(prev => prev === 'properties' ? null : 'properties')}
+                        onOpenTools={() => setActiveMobileSheet(prev => prev === 'tools' ? null : 'tools')}
+                        onOpenSheets={() => setActiveMobileSheet(prev => prev === 'sheets' ? null : 'sheets')}
+                        onOpenAIStudio={() => setActiveMobileSheet(prev => prev === 'ai' ? null : 'ai')}
+                        activeSheet={activeMobileSheet}
+                        isAgentOpen={showAgentPanel}
+                    />
+
+                    {/* Mobile Bottom Sheets */}
+                    <MobileBottomSheet
+                        isOpen={activeMobileSheet === 'components'}
+                        onClose={() => setActiveMobileSheet(null)}
+                        title={activeView === 'sld' ? 'Component Library' : 'Layout Palette'}
+                        icon={<LayoutGrid size={16} />}
+                    >
+                        {activeView === 'sld' ? (
+                            <Sidebar onItemAdded={() => setActiveMobileSheet(null)} />
+                        ) : (
+                            <LayoutSidebar onComponentSelected={() => setActiveMobileSheet(null)} />
+                        )}
+                    </MobileBottomSheet>
+
+                    <MobileBottomSheet
+                        isOpen={activeMobileSheet === 'properties'}
+                        onClose={() => setActiveMobileSheet(null)}
+                        title={activeView === 'sld' ? 'Component Properties' : 'Element Properties'}
+                        icon={<PanelRight size={16} />}
+                    >
+                        {activeView === 'sld' ? (
+                            <div className="h-full">
+                                <PropertiesPanel />
+                            </div>
+                        ) : (
+                            <div className="h-full">
+                                <LayoutInspector />
+                            </div>
+                        )}
+                    </MobileBottomSheet>
+
+                    <MobileBottomSheet
+                        isOpen={activeMobileSheet === 'tools'}
+                        onClose={() => setActiveMobileSheet(null)}
+                        title={activeView === 'sld' ? 'SLD Tools' : 'Layout Drawing Tools'}
+                        icon={<Zap size={16} />}
+                    >
+                        <MobileToolsSheet
+                            onClose={() => setActiveMobileSheet(null)}
+                            onZoomIn={handleZoomIn}
+                            onZoomOut={handleZoomOut}
+                            onResetZoom={handleResetZoom}
+                            onFitContent={handleFitContent}
+                            onAutoArrange={handleAutoArrange}
+                            onAutoRate={handleAutoRate}
+                            onCalibrateScale={() => layoutRef.current?.calibrateScale()}
+                            onToggleLayersMenu={handleToggleLayersMenu}
+                            onFitLayoutView={() => layoutRef.current?.fitView()}
+                            onOpenAgent={() => setShowAgentPanel(true)}
+                            panMode={panMode}
+                            setPanMode={setPanMode}
+                            isAddTextMode={isAddTextMode}
+                            setIsAddTextMode={setIsAddTextMode}
+                        />
+                    </MobileBottomSheet>
+
+                    <MobileBottomSheet
+                        isOpen={activeMobileSheet === 'sheets'}
+                        onClose={() => setActiveMobileSheet(null)}
+                        title={activeView === 'sld' ? 'Manage Schematic Sheets' : 'Manage Floor Plans'}
+                        icon={<Layers size={16} />}
+                    >
+                        <MobileSheetsSheet onClose={() => setActiveMobileSheet(null)} />
+                    </MobileBottomSheet>
+
+                    <MobileBottomSheet
+                        isOpen={activeMobileSheet === 'ai'}
+                        onClose={() => setActiveMobileSheet(null)}
+                        title="AI Engineering Studio"
+                        icon={<Sparkles size={16} />}
+                    >
+                        <MobileAISheet
+                            onOpenAgent={() => setShowAgentPanel(true)}
+                            onOpenChat={() => {
+                                if (!isChatOpen) toggleChat();
+                            }}
+                            onClose={() => setActiveMobileSheet(null)}
+                            isAgentActive={showAgentPanel}
+                            isChatActive={isChatOpen}
+                        />
+                    </MobileBottomSheet>
+                </>
             )}
 
             {/* Chat Panel - Floating */}
@@ -902,6 +1427,96 @@ function DesignerApp() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Layers Visibility Dropdown via Portal (immune to overflow clipping) */}
+            {showLayersMenu && createPortal(
+                <>
+                    <div
+                        className="fixed inset-0 z-[9998]"
+                        onClick={() => setShowLayersMenu(false)}
+                    />
+                    <div
+                        className="fixed z-[9999] w-52 rounded-xl shadow-2xl p-2.5 border backdrop-blur-2xl animate-slide-in-top flex flex-col gap-1"
+                        style={{
+                            top: `${layersMenuPos.top}px`,
+                            left: `${layersMenuPos.left}px`,
+                            backgroundColor: colors.panelBackground,
+                            borderColor: colors.border,
+                            color: colors.text
+                        }}
+                    >
+                        <div className="text-[10px] font-bold uppercase tracking-wider opacity-60 px-2 pb-1.5 border-b mb-1" style={{ borderColor: colors.border }}>
+                            Layer Visibility
+                        </div>
+                        {[
+                            { label: 'Walls', icon: <Pencil size={13} className="text-blue-500" />, visible: showWalls, toggle: () => setLayoutVisibility('showWalls', !showWalls) },
+                            { label: 'Doors', icon: <DoorOpen size={13} className="text-amber-500" />, visible: showDoors, toggle: () => setLayoutVisibility('showDoors', !showDoors) },
+                            { label: 'Windows', icon: <Grid3X3 size={13} className="text-cyan-500" />, visible: showWindows, toggle: () => setLayoutVisibility('showWindows', !showWindows) },
+                            { label: 'Rooms', icon: <Square size={13} className="text-emerald-500" />, visible: showRooms, toggle: () => setLayoutVisibility('showRooms', !showRooms) }
+                        ].map(layer => (
+                            <button
+                                key={layer.label}
+                                type="button"
+                                onClick={layer.toggle}
+                                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                style={{ color: colors.text }}
+                            >
+                                <div className="flex items-center gap-2">
+                                    {layer.icon}
+                                    <span>{layer.label}</span>
+                                </div>
+                                <div className={`grid h-3.5 w-3.5 place-items-center rounded border transition-colors ${layer.visible ? 'border-blue-500 bg-blue-500 text-white' : 'border-current opacity-40'}`}>
+                                    {layer.visible && <Check size={10} />}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </>,
+                document.body
+            )}
+
+            {/* User Account Menu Dropdown via Portal */}
+            {showAccountMenu && user && createPortal(
+                <>
+                    <div
+                        className="fixed inset-0 z-[9998]"
+                        onClick={() => setShowAccountMenu(false)}
+                    />
+                    <div
+                        className="fixed z-[9999] w-60 overflow-hidden rounded-xl border shadow-2xl animate-slide-in-top"
+                        style={{
+                            top: `${accountMenuPos.top}px`,
+                            right: `${accountMenuPos.right}px`,
+                            backgroundColor: colors.panelBackground,
+                            borderColor: colors.border,
+                            color: colors.text
+                        }}
+                    >
+                        <div className="flex items-start gap-3 p-3">
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-600 text-white font-bold text-sm">
+                                {(user.displayName || user.email).trim().charAt(0).toUpperCase()}
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-55">Signed in as</p>
+                                <p className="truncate text-sm font-semibold">{user.displayName}</p>
+                                <p className="truncate text-xs opacity-70">{user.email}</p>
+                            </div>
+                        </div>
+                        <div className="border-t p-1.5" style={{ borderColor: colors.border }}>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                disabled={isSigningOut}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <LogOut size={16} />
+                                {isSigningOut ? 'Signing out…' : 'Sign out'}
+                            </button>
+                        </div>
+                    </div>
+                </>,
+                document.body
             )}
 
             {/* Toast Notification */}
